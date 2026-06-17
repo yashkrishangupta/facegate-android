@@ -110,4 +110,5 @@ dependencies {
     // Lifecycle / ViewModel
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.lifecycle.runtime.ktx)
+    implementation("com.google.android.material:material:1.11.0")
 }

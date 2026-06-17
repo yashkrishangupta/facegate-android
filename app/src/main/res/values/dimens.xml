@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ── Spacing ── -->
+    <dimen name="spacing_xs">4dp</dimen>
+    <dimen name="spacing_sm">8dp</dimen>
+    <dimen name="spacing_md">12dp</dimen>
+    <dimen name="spacing_lg">16dp</dimen>
+    <dimen name="spacing_xl">20dp</dimen>
+    <dimen name="spacing_2xl">24dp</dimen>
+    <dimen name="spacing_3xl">32dp</dimen>
+    <dimen name="spacing_4xl">48dp</dimen>
+
+    <!-- ── Corner Radius ── -->
+    <dimen name="radius_sm">8dp</dimen>
+    <dimen name="radius_md">10dp</dimen>
+    <dimen name="radius_lg">16dp</dimen>
+    <dimen name="radius_xl">24dp</dimen>
+    <dimen name="radius_full">50dp</dimen>
+
+    <!-- ── Face Oval ── -->
+    <dimen name="oval_width">150dp</dimen>
+    <dimen name="oval_height">195dp</dimen>
+    <dimen name="oval_border">3dp</dimen>
+
+    <!-- ── Logo ── -->
+    <dimen name="logo_icon_size">72dp</dimen>
+    <dimen name="logo_icon_radius">20dp</dimen>
+
+    <!-- ── Mode Cards ── -->
+    <dimen name="mode_card_icon_size">64dp</dimen>
+    <dimen name="mode_card_padding">24dp</dimen>
+
+    <!-- ── Stat Cards ── -->
+    <dimen name="stat_card_padding">18dp</dimen>
+    <dimen name="stat_value_text">30sp</dimen>
+
+    <!-- ── Camera Controls ── -->
+    <dimen name="shutter_size">70dp</dimen>
+    <dimen name="shutter_icon_size">28dp</dimen>
+    <dimen name="ctrl_pill_height">44dp</dimen>
+
+    <!-- ── Scan Line ── -->
+    <dimen name="scan_line_width">140dp</dimen>
+    <dimen name="scan_line_height">2dp</dimen>
+
+    <!-- ── Processing Dots ── -->
+    <dimen name="dot_size">7dp</dimen>
+    <dimen name="dot_spacing">6dp</dimen>
+
+    <!-- ── Bottom Navigation ── -->
+    <dimen name="bottom_nav_height">64dp</dimen>
+    <dimen name="bottom_nav_icon_size">22dp</dimen>
+
+    <!-- ── Top Bar ── -->
+    <dimen name="topbar_padding_h">22dp</dimen>
+    <dimen name="topbar_padding_v">14dp</dimen>
+    <dimen name="brand_icon_size">36dp</dimen>
+    <dimen name="brand_icon_radius">10dp</dimen>
+
+    <!-- ── Avatar ── -->
+    <dimen name="avatar_size_sm">40dp</dimen>
+    <dimen name="avatar_size_md">54dp</dimen>
+    <dimen name="avatar_size_lg">88dp</dimen>
+
+    <!-- ── Quick Action Tiles ── -->
+    <dimen name="tile_icon_size">40dp</dimen>
+    <dimen name="tile_icon_inner">20dp</dimen>
+    <dimen name="tile_icon_radius">12dp</dimen>
+
+    <!-- ── List Rows ── -->
+    <dimen name="row_padding_v">14dp</dimen>
+    <dimen name="row_padding_h">18dp</dimen>
+    <dimen name="row_avatar_size">40dp</dimen>
+
+    <!-- ── Calendar Date Box ── -->
+    <dimen name="cal_box_size">44dp</dimen>
+    <dimen name="cal_box_radius">10dp</dimen>
+
+    <!-- ── Progress Bar ── -->
+    <dimen name="progress_height">3dp</dimen>
+    <dimen name="progress_radius">2dp</dimen>
+
+    <!-- ── Text Sizes ── -->
+    <dimen name="text_xs">10sp</dimen>
+    <dimen name="text_sm">11sp</dimen>
+    <dimen name="text_base">13sp</dimen>
+    <dimen name="text_md">14sp</dimen>
+    <dimen name="text_lg">16sp</dimen>
+    <dimen name="text_xl">18sp</dimen>
+    <dimen name="text_2xl">22sp</dimen>
+    <dimen name="text_3xl">26sp</dimen>
+    <dimen name="text_heading">30sp</dimen>
+
+    <!-- ── Elevation ── -->
+    <dimen name="elevation_sm">1dp</dimen>
+    <dimen name="elevation_md">2dp</dimen>
+    <dimen name="elevation_lg">8dp</dimen>
+
+</resources>

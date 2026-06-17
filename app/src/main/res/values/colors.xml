@@ -1,5 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+
+    <!-- ── Blue ── -->
+    <color name="blue_50">#E6F1FB</color>
+    <color name="blue_100">#B5D4F4</color>
+    <color name="blue_200">#85B7EB</color>
+    <color name="blue_400">#378ADD</color>
+    <color name="blue_600">#185FA5</color>
+    <color name="blue_800">#0C447C</color>
+    <color name="blue_900">#042C53</color>
+
+    <!-- ── Green ── -->
+    <color name="green_50">#EAF3DE</color>
+    <color name="green_100">#C0DD97</color>
+    <color name="green_400">#639922</color>
+    <color name="green_600">#3B6D11</color>
+    <color name="green_800">#27500A</color>
+    <color name="green_900">#173404</color>
+
+    <!-- ── Red ── -->
+    <color name="red_50">#FCEBEB</color>
+    <color name="red_100">#F7C1C1</color>
+    <color name="red_400">#E24B4A</color>
+    <color name="red_600">#A32D2D</color>
+    <color name="red_800">#791F1F</color>
+    <color name="red_900">#501313</color>
+
+    <!-- ── Amber ── -->
+    <color name="amber_50">#FAEEDA</color>
+    <color name="amber_100">#FAC775</color>
+    <color name="amber_400">#BA7517</color>
+    <color name="amber_600">#854F0B</color>
+    <color name="amber_800">#633806</color>
+
+    <!-- ── Gray ── -->
+    <color name="gray_50">#F1EFE8</color>
+    <color name="gray_100">#D3D1C7</color>
+    <color name="gray_200">#B4B2A9</color>
+    <color name="gray_400">#888780</color>
+    <color name="gray_600">#5F5E5A</color>
+    <color name="gray_800">#444441</color>
+    <color name="gray_900">#2C2C2A</color>
+
+    <!-- ── Teal ── -->
+    <color name="teal_50">#E1F5EE</color>
+    <color name="teal_100">#9FE1CB</color>
+    <color name="teal_400">#1D9E75</color>
+    <color name="teal_600">#0F6E56</color>
+
+    <!-- ── App Backgrounds ── -->
+    <color name="bg_app">#E8EDF3</color>
+    <color name="bg_surface">#F0F4F8</color>
+    <color name="bg_white">#FFFFFF</color>
+    <color name="bg_dark">#08080F</color>
+    <color name="bg_cam">#0D0D1A</color>
+
+    <!-- ── Text ── -->
+    <color name="text_primary">#1A202C</color>
+    <color name="text_secondary">#5F5E5A</color>
+    <color name="text_hint">#888780</color>
+    <color name="text_white">#FFFFFF</color>
+    <color name="text_white_60">#99FFFFFF</color>
+
+    <!-- ── Material Theme Required ── -->
+    <color name="colorPrimary">#185FA5</color>
+    <color name="colorPrimaryDark">#0C447C</color>
+    <color name="colorAccent">#378ADD</color>
+
 </resources>
