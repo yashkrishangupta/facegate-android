@@ -9,6 +9,20 @@ android {
     compileSdk {
         version = release(37)
     }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
+
+    sourceSets {
+        getByName("main") {
+            java.srcDirs("src/main/java")
+        }
+        getByName("test") {
+            java.srcDirs("src/test/java")
+        }
+    }
 
     defaultConfig {
         applicationId = "com.facegate"
@@ -64,6 +78,8 @@ dependencies {
     implementation(libs.androidx.constraintlayout)
 
     testImplementation(libs.junit)
+    testImplementation("io.mockk:mockk:1.13.10")
+    testImplementation("org.robolectric:robolectric:4.11.1")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
