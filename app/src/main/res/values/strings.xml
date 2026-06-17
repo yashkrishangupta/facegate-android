@@ -1,3 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">FaceGate</string>
+
+    <!-- ── App ── -->
+    <string name="app_name">FaceGate Attendance</string>
+
+    <!-- ── Welcome Screen ── -->
+    <string name="student_mode">Student Mode</string>
+    <string name="admin_mode">Admin Mode</string>
+    <string name="student_mode_desc">Mark your attendance using facial recognition</string>
+    <string name="admin_mode_desc">Manage students, reports and settings</string>
+    <string name="app_tagline">AI-powered offline attendance for schools and camps</string>
+    <string name="offline_capable">Offline-capable · Secure · Privacy-first</string>
+
+    <!-- ── Camera Screen ── -->
+    <string name="place_face">Place your face inside the oval</string>
+    <string name="hold_still">Hold still — scanning…</string>
+    <string name="identifying">Identifying student…</string>
+    <string name="keep_centered">Keep your face centered and look straight</string>
+    <string name="analyzing">Analyzing facial features</string>
+    <string name="matching">Matching against database</string>
+    <string name="face_detected">Face detected</string>
+    <string name="searching">Searching…</string>
+    <string name="processing">Processing…</string>
+    <string name="scanning">Scanning</string>
+    <string name="ready">Ready</string>
+
+    <!-- ── Admin Camera ── -->
+    <string name="admin_verification">Admin Verification</string>
+    <string name="look_camera">Look at the camera to verify identity</string>
+    <string name="well_lit">Ensure your face is well-lit and centered</string>
+    <string name="admin_auth">Admin Auth</string>
+
+    <!-- ── Success Screen ── -->
+    <string name="attendance_marked">Attendance Marked!</string>
+    <string name="attendance_success_body">Attendance recorded successfully.\nHave a great day!</string>
+    <string name="marked_at">Marked at</string>
+
+    <!-- ── Fail Screen ── -->
+    <string name="face_not_recognized">Face Not Recognized</string>
+    <string name="face_fail_body">Could not identify the student.\nAdjust your position and ensure good lighting, then try again.</string>
+
+    <!-- ── Unauthorized Screen ── -->
+    <string name="unauthorized">Unauthorized Access</string>
+    <string name="unauthorized_body">Face not recognized as a registered admin.\nThis attempt has been logged for security review.</string>
+
+    <!-- ── Dashboard ── -->
+    <string name="dashboard_title">Admin Dashboard</string>
+    <string name="good_morning">Good morning, Admin 👋</string>
+    <string name="total_students">Total Students</string>
+    <string name="present_today">Present Today</string>
+    <string name="absent_today">Absent Today</string>
+    <string name="holidays_left">Holidays Left</string>
+    <string name="open_conflicts">Open Conflicts</string>
+    <string name="enrolled_this_year">Enrolled this year</string>
+    <string name="attendance_rate">85.1% attendance rate</string>
+    <string name="absent_rate">14.9% absent today</string>
+    <string name="remaining_semester">Remaining this semester</string>
+    <string name="quick_actions">Quick Actions</string>
+    <string name="weekly_overview">Weekly Attendance Overview</string>
+    <string name="todays_overview">Today\'s Overview</string>
+
+    <!-- ── Quick Action Tiles ── -->
+    <string name="manage_students">Manage Students</string>
+    <string name="add_edit_remove">Add, edit, remove</string>
+    <string name="manual_attendance">Manual Attendance</string>
+    <string name="mark_individually">Mark individually</string>
+    <string name="holidays">Holidays</string>
+    <string name="manage_calendar">Manage calendar</string>
+    <string name="reports">Reports</string>
+    <string name="analytics_export">Analytics and export</string>
+
+    <!-- ── Conflict Banner ── -->
+    <string name="conflict_title">3 Open Conflicts</string>
+    <string name="conflict_body">Students marked both present and absent today</string>
+    <string name="resolve">Resolve</string>
+
+    <!-- ── Manual Attendance ── -->
+    <string name="mark_attendance">Mark Attendance</string>
+    <string name="select_student">Select Student</string>
+    <string name="status">Status</string>
+    <string name="date">Date</string>
+    <string name="remarks_optional">Remarks (optional)</string>
+    <string name="todays_log">Today\'s Attendance Log</string>
+    <string name="search_student">Search student by name or roll number…</string>
+
+    <!-- ── Student Management ── -->
+    <string name="student_management">Student Management</string>
+    <string name="add_student">Add Student</string>
+    <string name="search_students">Search by name, class, roll number…</string>
+    <string name="face_enrolled">Face Enrolled ✓</string>
+    <string name="face_not_enrolled">Face Not Enrolled</string>
+
+    <!-- ── Holidays ── -->
+    <string name="holiday_management">Holiday Management</string>
+    <string name="add_holiday">Add New Holiday</string>
+    <string name="holiday_name">Holiday Name</string>
+    <string name="holiday_date">Date</string>
+    <string name="holiday_type">Type</string>
+    <string name="holiday_notes">Notes (optional)</string>
+    <string name="upcoming_holidays">Upcoming Holidays</string>
+
+    <!-- ── Reports ── -->
+    <string name="reports_analytics">Reports and Analytics</string>
+    <string name="monthly_attendance">Monthly Attendance</string>
+    <string name="top_class">Top Class (10-A)</string>
+    <string name="attendance_distribution">Attendance Distribution</string>
+    <string name="class_wise">Class-wise Attendance</string>
+    <string name="export_excel">Export Attendance to Excel (.xlsx)</string>
+    <string name="export_pdf">Export Report to PDF</string>
+
+    <!-- ── Enrollment ── -->
+    <string name="enroll_student">Enroll Student</string>
+    <string name="photo_count">Photo 1 of 5</string>
+    <string name="look_straight">Look straight at the camera</string>
+    <string name="need_5_photos">We need 5 photos from different angles</string>
+    <string name="duplicate_warning">⚠ Face already enrolled!</string>
+
+    <!-- ── Buttons ── -->
+    <string name="done">Done</string>
+    <string name="try_again">Try Again</string>
+    <string name="scan_another">Scan Another</string>
+    <string name="back_home">Back to Home</string>
+    <string name="back">Back</string>
+    <string name="retry">Retry</string>
+    <string name="cancel">Cancel</string>
+    <string name="verify">Verify</string>
+    <string name="save">Save Attendance</string>
+    <string name="clear">Clear</string>
+    <string name="add">Add Holiday</string>
+    <string name="edit">Edit</string>
+    <string name="delete">Delete</string>
+
+    <!-- ── Status Chips ── -->
+    <string name="present">Present</string>
+    <string name="absent">Absent</string>
+    <string name="late">Late</string>
+    <string name="active">Active</string>
+    <string name="pending">Pending</string>
+
+    <!-- ── Bottom Navigation ── -->
+    <string name="nav_home">Home</string>
+    <string name="nav_students">Students</string>
+    <string name="nav_attendance">Attendance</string>
+    <string name="nav_reports">Reports</string>
+    <string name="nav_exit">Exit</string>
+
+    <!-- ── Chart Legend ── -->
+    <string name="legend_present">Present</string>
+    <string name="legend_absent">Absent</string>
+
+    <!-- ── Days ── -->
+    <string name="mon">MON</string>
+    <string name="tue">TUE</string>
+    <string name="wed">WED</string>
+    <string name="thu">THU</string>
+    <string name="fri">FRI</string>
+    <string name="sat">SAT</string>
+    <string name="sun">SUN</string>
+
 </resources>

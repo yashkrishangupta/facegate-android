@@ -1,7 +1,24 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.FaceGate" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Night Mode Theme -->
+    <style name="Theme.FaceGate"
+        parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#185FA5</item>
+        <item name="colorPrimaryVariant">#0C447C</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#1D9E75</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="android:statusBarColor">#042C53</item>
+        <item name="android:navigationBarColor">#08080F</item>
     </style>
+
+    <!-- Dark Camera Theme -->
+    <style name="Theme.FaceGate.Dark"
+        parent="Theme.FaceGate">
+        <item name="android:statusBarColor">#08080F</item>
+        <item name="android:navigationBarColor">#08080F</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
 </resources>
