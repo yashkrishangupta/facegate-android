@@ -10,11 +10,6 @@ android {
         version = release(37)
     }
 
-    buildFeatures {
-        viewBinding = true
-    }
-
-
     defaultConfig {
         applicationId = "com.facegate"
         minSdk = 26
@@ -100,8 +95,4 @@ dependencies {
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.lifecycle.runtime.ktx)
     implementation("com.google.android.material:material:1.11.0")
-// Navigation Component — ADD THESE
-    implementation("androidx.navigation:navigation-fragment-ktx:2.8.0")
-    implementation("androidx.navigation:navigation-ui-ktx:2.8.0")
-
 }
