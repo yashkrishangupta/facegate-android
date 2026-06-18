@@ -9,12 +9,23 @@ import android.view.ViewGroup
 import android.view.animation.AnimationUtils
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import com.facegate.R
 import com.facegate.databinding.FragmentAttendanceBinding
+import kotlinx.coroutines.launch
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.core.content.ContextCompat
 
 /**
  * ATTENDANCE FRAGMENT
  * Camera screen with face oval and scan simulation
+ * Properly observes ViewModel state
  */
 class AttendanceFragment : Fragment() {
 
@@ -25,6 +36,15 @@ class AttendanceFragment : Fragment() {
 
     private val handler = Handler(Looper.getMainLooper())
     private var scanRunnable: Runnable? = null
+
+    private val requestPermissionLauncher =
+    registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            startCamera()
+        }
+    }
 
     // ── LIFECYCLE ────────────────────────────────────
 
@@ -43,8 +63,21 @@ class AttendanceFragment : Fragment() {
         view: View,
         savedInstanceState: Bundle?
     ) {
+        if (
+            ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            startCamera()
+        } else {
+            requestPermissionLauncher.launch(
+                Manifest.permission.CAMERA
+            )
+        }
         super.onViewCreated(view, savedInstanceState)
         setupClickListeners()
+        observeViewModel()
         resetToIdle()
     }
 
@@ -63,6 +96,32 @@ class AttendanceFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         resetToIdle()
+    }
+
+    // ── VIEWMODEL OBSERVER ───────────────────────────
+
+    private fun observeViewModel() {
+        lifecycleScope.launch {
+            viewModel.scanState.collect { state ->
+                when (state) {
+                    is ScanState.Idle -> {
+                        resetToIdle()
+                    }
+                    is ScanState.Scanning -> {
+                        showScanningState()
+                    }
+                    is ScanState.Processing -> {
+                        showProcessingState()
+                    }
+                    is ScanState.Success -> {
+                        showSuccessState(state)
+                    }
+                    is ScanState.Failed -> {
+                        showFailState()
+                    }
+                }
+            }
+        }
     }
 
     // ── SCAN STATE MACHINE ───────────────────────────
@@ -94,7 +153,7 @@ class AttendanceFragment : Fragment() {
         binding.scanLine.startAnimation(anim)
     }
 
-    private fun triggerScan() {
+    private fun showProcessingState() {
         clearScan()
         binding.faceOval.setImageResource(R.drawable.oval_face_scanning)
         binding.tvScanBadge.text   = "Processing…"
@@ -104,25 +163,14 @@ class AttendanceFragment : Fragment() {
         binding.processingDots.visibility = View.VISIBLE
         binding.scanLine.visibility = View.GONE
         animateProcessingDots()
-
-        val succeed = Math.random() > 0.35
-
-        scanRunnable = Runnable {
-            if (succeed) {
-                showSuccessState()
-            } else {
-                showFailState()
-            }
-        }
-        handler.postDelayed(scanRunnable!!, 2200)
     }
 
-    private fun showSuccessState() {
+    private fun showSuccessState(state: ScanState.Success) {
         binding.faceOval.setImageResource(R.drawable.oval_face_success)
         binding.tvScanBadge.text   = "Recognized ✓"
         binding.tvStatusLabel.text = "SUCCESS"
         binding.tvStatusMain.text  = "Attendance Marked!"
-        binding.tvStatusSub.text   = "Arjun Kumar — Class 9-B"
+        binding.tvStatusSub.text   = "${state.studentName} — ${state.studentClass}"
         binding.processingDots.visibility = View.GONE
     }
 
@@ -161,15 +209,54 @@ class AttendanceFragment : Fragment() {
     // ── CLICK LISTENERS ──────────────────────────────
 
     private fun setupClickListeners() {
-        binding.btnShutter.setOnClickListener { triggerScan() }
-        binding.btnRetry.setOnClickListener   { resetToIdle() }
+        binding.btnShutter.setOnClickListener {
+            viewModel.processScan()
+        }
+        binding.btnRetry.setOnClickListener   {
+            viewModel.resetScan()
+        }
         binding.btnBack.setOnClickListener    {
             clearScan()
-            requireActivity().supportFragmentManager.popBackStack()
+            findNavController().popBackStack()
         }
         binding.btnCancel.setOnClickListener  {
             clearScan()
-            requireActivity().onBackPressed()
+            findNavController().popBackStack()
         }
     }
+
+    private fun startCamera() {
+
+        val cameraProviderFuture =
+            ProcessCameraProvider.getInstance(requireContext())
+
+        cameraProviderFuture.addListener({
+
+            val cameraProvider = cameraProviderFuture.get()
+
+            val preview = Preview.Builder().build()
+
+            preview.setSurfaceProvider(
+                binding.cameraPreview.surfaceProvider
+            )
+
+            val cameraSelector =
+                CameraSelector.DEFAULT_FRONT_CAMERA
+
+            try {
+
+                cameraProvider.unbindAll()
+
+                cameraProvider.bindToLifecycle(
+                    viewLifecycleOwner,
+                    cameraSelector,
+                    preview
+                )
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+        }, ContextCompat.getMainExecutor(requireContext()))
+    }     
 }
