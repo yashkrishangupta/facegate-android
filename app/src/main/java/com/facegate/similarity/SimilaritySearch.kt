@@ -27,6 +27,8 @@ class SimilaritySearch {
      * @param enrolledTemplates The list of templates to search against.
      * @return SimilarityMatch object containing the top two candidates and search latency.
      */
+
+
     fun search(
         queryEmbedding: FaceEmbedding,
         enrolledTemplates: List<EnrolledTemplate>

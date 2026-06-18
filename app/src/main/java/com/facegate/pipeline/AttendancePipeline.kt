@@ -8,6 +8,14 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.*
 import kotlinx.coroutines.tasks.await
 import java.util.PriorityQueue
+import com.facegate.quality.QualityChecker
+import com.facegate.similarity.SimilaritySearch
+import com.facegate.recognition.FaceEmbedder
+import com.facegate.decision.AttendanceDecisionEngine
+import com.facegate.benchmark.PipelineBenchmark
+import com.facegate.alignment.FaceAligner
+import com.google.mlkit.vision.face.Face
+
 
 // ATTENDANCE PIPELINE
 
@@ -18,14 +26,12 @@ class AttendancePipeline(
 ) {
 
     // Component instances
-    private val faceDetector = buildFaceDetector()   // real, ML Kit — no blockers
-
-    // TODO: instantiate once each track's class exists
-    // private val qualityChecker   = QualityChecker()                    // quality/
-    // private val faceAligner      = FaceAligner()                       // alignment/ 
-    // private val faceEmbedder     = FaceEmbedder(context)               // recognition/ 
-    // private val similaritySearch = SimilaritySearch()                  // similarity/ 
-    // private val decisionEngine   = AttendanceDecisionEngine()          // decision/ 
+    private val faceDetector = buildFaceDetector()                     // ML Kit 
+    private val qualityChecker   = QualityChecker()                    // quality/
+    private val faceAligner      = FaceAligner()                       // alignment/ 
+    private val faceEmbedder     = FaceEmbedder(context)               // recognition/ 
+    private val similaritySearch = SimilaritySearch()                  // similarity/ 
+    private val decisionEngine   = AttendanceDecisionEngine()          // decision/ 
 
     // Session state 
     private var sessionId: String? = null
@@ -37,7 +43,7 @@ class AttendancePipeline(
     // this just holds detected faces until that track lands.
     private data class BufferedFrame(
         val bitmap: Bitmap,
-        val face: DetectedFace,
+        val face: Face,
         val qualityScore: Float,
     )
 
@@ -65,8 +71,8 @@ class AttendancePipeline(
      * STATUS: Empty — blocked on recognition/FaceEmbedder.kt
      */
     suspend fun init() {
-        // TODO: faceEmbedder.init()
-        // TODO: faceEmbedder.warmup()
+        faceEmbedder.init()
+        faceEmbedder.warmup()
     }
 
     /**
@@ -118,7 +124,7 @@ class AttendancePipeline(
     fun destroy() {
         endSession()
         faceDetector.close()
-        // TODO: faceEmbedder.close()
+        faceEmbedder.close()
     }
 
     // MAIN ENTRY POINT — called from CameraX (ui/)
@@ -158,17 +164,18 @@ class AttendancePipeline(
         val faces = faceDetector.process(image).await()
 
         // Stage 2: Face Count Check
-        val detectedFace: DetectedFace = when (faces.size) {
+        val detectedFace: Face = when (faces.size) {
             0    -> return PipelineFrameStatus.NoFace
-            1    -> faces[0].toDetectedFace(bitmap.width, bitmap.height)
+            1    -> faces[0]
             else -> return PipelineFrameStatus.MultipleFaces
         }
 
-        // TODO Stage 3: qualityChecker.check(detectedFace, bitmap) once quality/ is ready
-        //   if (!quality.passed) return PipelineFrameStatus.QualityFailed(quality.failReasons)
+        // Stage 3: Quality Check
+        val quality = qualityChecker.check(bitmap , detectedFace )
+        if (!quality.passed) return PipelineFrameStatus.QualityFailed(quality.failReasons)
 
-        // Stage 4: Frame Buffer (real, but quality score is always 0 for now)
-        bufferFrame(bitmap, detectedFace, qualityScore = 0f)
+        // Stage 4: Frame Buffer 
+        bufferFrame(bitmap, detectedFace, quality.qualityScore)
 
         if (!isBufferReady()) {
             return PipelineFrameStatus.Buffering(
@@ -222,10 +229,10 @@ class AttendancePipeline(
         photo: Bitmap,
     ): EnrollmentResult {
         // TODO: detect face in photo (can reuse buildFaceDetector(), already real)
-        // TODO: quality check once quality/ is ready (Person 1)
-        // TODO: align + embed once alignment/ and recognition/ are ready (Person 1, 2)
-        // TODO: similaritySearch.checkDuplicateRisk(...) once similarity/ is ready (Person 3)
-        // TODO: repository.saveTemplate(...) once storage/ is ready (Person 4)
+        // TODO: quality check once quality/ is ready
+        // TODO: align + embed once alignment/ and recognition/ are ready
+        // TODO: similaritySearch.checkDuplicateRisk(...) once similarity/ is ready
+        // TODO: repository.saveTemplate(...) once storage/ is ready
         return EnrollmentResult.NoFaceDetected
     }
 
@@ -258,45 +265,6 @@ class AttendancePipeline(
     }
 
     /**
-     * Face.toDetectedFace(frameWidth, frameHeight)
-     * ----------------------------------------------
-     * WHAT IT DOES: Converts ML Kit's native Face object into our own
-     *   DetectedFace data class (defined in PipelineModels.kt), so the
-     *   rest of the pipeline never has to know ML Kit exists.
-     * CALLED BY: processFrame(), right after detection.
-     * RETURNS: DetectedFace.
-     * STATUS: Fully working — no other track required.
-     */
-
-    private fun Face.toDetectedFace(frameWidth: Int, frameHeight: Int): DetectedFace {
-        val landmarkTypes = listOf(
-            FaceLandmark.LEFT_EYE,
-            FaceLandmark.RIGHT_EYE,
-            FaceLandmark.NOSE_BASE,
-            FaceLandmark.MOUTH_LEFT,
-            FaceLandmark.MOUTH_RIGHT,
-        )
-        val landmarks = landmarkTypes.mapNotNull { type ->
-            getLandmark(type)?.position?.let { PointF(it.x, it.y) }
-        }
-
-        val leftEyeConf  = leftEyeOpenProbability ?: 0.5f
-        val rightEyeConf = rightEyeOpenProbability ?: 0.5f
-        val landmarkConf = (leftEyeConf + rightEyeConf) / 2f
-
-        return DetectedFace(
-            boundingBox        = boundingBox,
-            yaw                 = headEulerAngleY,
-            pitch               = headEulerAngleX,
-            roll                = headEulerAngleZ,
-            landmarks           = landmarks,
-            landmarkConfidence  = landmarkConf,
-            frameWidth          = frameWidth,
-            frameHeight         = frameHeight,
-        )
-    }
-
-    /**
      * startFrameBuffering()
      * -----------------------
      * WHAT IT DOES: Clears the frame buffer and marks it active, ready
@@ -323,7 +291,7 @@ class AttendancePipeline(
      * STATUS: Fully working.
      */
 
-    private fun bufferFrame(bitmap: Bitmap, face: DetectedFace, qualityScore: Float) {
+    private fun bufferFrame(bitmap: Bitmap, face: Face, qualityScore: Float) {
         if (!bufferingActive) return
         if (frameBuffer.size >= PipelineConfig.FRAME_BUFFER_SIZE) return
         frameBuffer.add(BufferedFrame(bitmap, face, qualityScore))
