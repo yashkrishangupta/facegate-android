@@ -83,6 +83,7 @@ class AttendancePipeline(
     suspend fun startSession(sessionId: String) {
         this.sessionId = sessionId
         startFrameBuffering()
+        PipelineBenchmark.resetHistory()
         // TODO: val templates = repository.loadAllTemplates()
         // TODO: similaritySearch.loadTemplates(templates)
     }
