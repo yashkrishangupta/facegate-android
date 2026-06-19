@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/adminDashboard">
+
+    <!-- ═══════════════════════════════════════
+         ADMIN DASHBOARD — Home Screen
+    ═══════════════════════════════════════ -->
+    <fragment
+        android:id="@+id/adminDashboard"
+        android:name="com.facegate.ui.admin.AdminDashboard"
+        android:label="Dashboard"
+        tools:layout="@layout/fragment_admin_dashboard">
+
+        <action
+            android:id="@+id/action_dashboard_to_students"
+            app:destination="@id/studentsFragment" />
+
+        <action
+            android:id="@+id/action_dashboard_to_manual"
+            app:destination="@id/manualAttendanceFragment" />
+
+        <action
+            android:id="@+id/action_dashboard_to_holidays"
+            app:destination="@id/holidaysFragment" />
+
+        <action
+            android:id="@+id/action_dashboard_to_reports"
+            app:destination="@id/attendanceReportFragment" />
+
+        <action
+            android:id="@+id/action_dashboard_to_conflicts"
+            app:destination="@id/conflictQueueFragment" />
+
+        <action
+            android:id="@+id/action_dashboard_to_welcome"
+            app:destination="@id/attendanceFragment"
+            app:popUpTo="@id/nav_graph"
+            app:popUpToInclusive="true" />
+
+    </fragment>
+
+    <!-- ═══════════════════════════════════════
+         ATTENDANCE FRAGMENT — Camera Screen
+    ═══════════════════════════════════════ -->
+    <fragment
+        android:id="@+id/attendanceFragment"
+        android:name="com.facegate.ui.attendance.AttendanceFragment"
+        android:label="Attendance"
+        tools:layout="@layout/fragment_attendance" />
+
+    <!-- ═══════════════════════════════════════
+         ENROLLMENT FRAGMENT
+    ═══════════════════════════════════════ -->
+    <fragment
+        android:id="@+id/enrollmentFragment"
+        android:name="com.facegate.ui.enrollment.EnrollmentFragment"
+        android:label="Enroll Student"
+        tools:layout="@layout/fragment_enrollment">
+
+        <action
+            android:id="@+id/action_enrollment_to_dashboard"
+            app:destination="@id/adminDashboard"
+            app:popUpTo="@id/adminDashboard"
+            app:popUpToInclusive="true" />
+
+    </fragment>
+
+    <!-- ═══════════════════════════════════════
+         STUDENTS FRAGMENT — Manage Students
+    ═══════════════════════════════════════ -->
+    <fragment
+        android:id="@+id/studentsFragment"
+        android:name="com.facegate.ui.admin.StudentsFragment"
+        android:label="Students"
+        tools:layout="@layout/fragment_students">
+
+        <action
+            android:id="@+id/action_students_to_enrollment"
+            app:destination="@id/enrollmentFragment" />
+
+    </fragment>
+
+    <!-- ═══════════════════════════════════════
+         MANUAL ATTENDANCE FRAGMENT
+    ═══════════════════════════════════════ -->
+    <fragment
+        android:id="@+id/manualAttendanceFragment"
+        android:name="com.facegate.ui.admin.ManualAttendanceFragment"
+        android:label="Manual Attendance"
+        tools:layout="@layout/fragment_manual_attendance" />
+
+    <!-- ═══════════════════════════════════════
+         HOLIDAYS FRAGMENT
+    ═══════════════════════════════════════ -->
+    <fragment
+        android:id="@+id/holidaysFragment"
+        android:name="com.facegate.ui.admin.HolidaysFragment"
+        android:label="Holidays"
+        tools:layout="@layout/fragment_holidays" />
+
+    <!-- ═══════════════════════════════════════
+         ATTENDANCE REPORT FRAGMENT
+    ═══════════════════════════════════════ -->
+    <fragment
+        android:id="@+id/attendanceReportFragment"
+        android:name="com.facegate.ui.reports.AttendanceReportFragment"
+        android:label="Reports"
+        tools:layout="@layout/fragment_attendance_report" />
+
+    <!-- ═══════════════════════════════════════
+         CONFLICT QUEUE FRAGMENT
+    ═══════════════════════════════════════ -->
+    <fragment
+        android:id="@+id/conflictQueueFragment"
+        android:name="com.facegate.ui.admin.ConflictQueueFragment"
+        android:label="Conflict Queue"
+        tools:layout="@layout/fragment_conflict_queue" />
+
+</navigation>

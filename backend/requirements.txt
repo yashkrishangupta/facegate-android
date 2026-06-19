@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+numpy
+opencv-python
+onnxruntime
+faiss-cpu

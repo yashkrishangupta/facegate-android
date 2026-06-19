@@ -1,66 +1,121 @@
 [versions]
-agp = "9.1.1"
-coreKtx = "1.19.0"
-junit = "4.13.2"
-junitVersion = "1.3.0"
-espressoCore = "3.7.0"
-appcompat = "1.7.1"
-material = "1.14.0"
-activity = "1.13.0"
-constraintlayout = "2.2.1"
+# ── Core ──────────────────────────────────────────────────
+agp                  = "8.5.2"
+kotlin               = "1.9.24"
+ksp                  = "1.9.24-1.0.20"
+coreKtx              = "1.12.0"
+junit                = "4.13.2"
+junitVersion         = "1.1.5"
+espressoCore         = "3.5.1"
+appcompat            = "1.6.1"
+material             = "1.11.0"
+activity             = "1.8.0"
+constraintlayout     = "2.1.4"
 
-# ── ML Pipeline dependencies ──────────────────────────────
-mlkitFaceDetection = "16.1.5"
-onnxRuntime = "1.17.0"
-opencv = "4.5.3.0"
-room = "2.6.1"
-sqlcipher = "4.5.4"
-sqliteKtx = "2.4.0"
-cameraX = "1.3.1"
-workManager = "2.9.0"
-coroutines = "1.7.3"
-lifecycle = "2.7.0"
-ksp = "2.1.0-1.0.29"
+# ── Navigation ────────────────────────────────────────────
+navigationFragmentKtx = "2.7.6"
+navigationUiKtx       = "2.7.6"
+navigation            = "2.7.7"
+
+# ── Lifecycle / ViewModel ─────────────────────────────────
+lifecycleViewmodelKtx = "2.7.0"
+lifecycleRuntimeKtx   = "2.7.0"
+
+# ── RecyclerView / CardView ───────────────────────────────
+recyclerview         = "1.3.2"
+cardview             = "1.0.0"
+
+# ── Hilt ─────────────────────────────────────────────────
+hilt                 = "2.51.1"
+
+# ── ML Pipeline ───────────────────────────────────────────
+mlkitFaceDetection   = "16.1.5"
+onnxRuntime          = "1.17.0"
+opencv               = "4.5.3.0"
+
+# ── Room + SQLCipher ──────────────────────────────────────
+roomRuntime          = "2.6.1"
+roomKtx              = "2.6.1"
+room                 = "2.6.1"
+sqlcipher            = "4.5.4"
+sqliteKtx            = "2.4.0"
+
+# ── CameraX ───────────────────────────────────────────────
+cameraCore           = "1.3.1"
+cameraCamera2        = "1.3.1"
+cameraLifecycle      = "1.3.1"
+cameraView           = "1.3.1"
+
+# ── WorkManager ───────────────────────────────────────────
+workManager          = "2.9.0"
+
+# ── Coroutines ────────────────────────────────────────────
+coroutinesAndroid    = "1.7.3"
+coroutines           = "1.7.3"
+
 
 [libraries]
-androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
-junit = { group = "junit", name = "junit", version.ref = "junit" }
-androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
-androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
-androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
-material = { group = "com.google.android.material", name = "material", version.ref = "material" }
-androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
-androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+# ── Core (both alias styles so both build.gradle.kts variants work) ──
+core-ktx                     = { group = "androidx.core",               name = "core-ktx",                         version.ref = "coreKtx"               }
+androidx-core-ktx            = { group = "androidx.core",               name = "core-ktx",                         version.ref = "coreKtx"               }
+appcompat                    = { group = "androidx.appcompat",          name = "appcompat",                        version.ref = "appcompat"             }
+androidx-appcompat           = { group = "androidx.appcompat",          name = "appcompat",                        version.ref = "appcompat"             }
+material                     = { group = "com.google.android.material", name = "material",                         version.ref = "material"              }
+androidx-activity            = { group = "androidx.activity",           name = "activity",                         version.ref = "activity"              }
+constraintlayout             = { group = "androidx.constraintlayout",   name = "constraintlayout",                 version.ref = "constraintlayout"      }
+androidx-constraintlayout    = { group = "androidx.constraintlayout",   name = "constraintlayout",                 version.ref = "constraintlayout"      }
+recyclerview                 = { group = "androidx.recyclerview",       name = "recyclerview",                     version.ref = "recyclerview"          }
+cardview                     = { group = "androidx.cardview",           name = "cardview",                         version.ref = "cardview"              }
 
-# ── ML Pipeline ────────────────────────────────────────────
-mlkit-face-detection = { group = "com.google.mlkit", name = "face-detection", version.ref = "mlkitFaceDetection" }
-onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxRuntime" }
-opencv = { group = "com.quickbirdstudios", name = "opencv", version.ref = "opencv" }
+# ── Test ──────────────────────────────────────────────────
+junit                        = { group = "junit",                       name = "junit",                            version.ref = "junit"                 }
+ext-junit                    = { group = "androidx.test.ext",           name = "junit",                            version.ref = "junitVersion"          }
+androidx-junit               = { group = "androidx.test.ext",           name = "junit",                            version.ref = "junitVersion"          }
+espresso-core                = { group = "androidx.test.espresso",      name = "espresso-core",                    version.ref = "espressoCore"          }
+androidx-espresso-core       = { group = "androidx.test.espresso",      name = "espresso-core",                    version.ref = "espressoCore"          }
 
-# Room + SQLCipher
-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
-sqlcipher-android = { group = "net.zetetic", name = "android-database-sqlcipher", version.ref = "sqlcipher" }
-sqlite-ktx = { group = "androidx.sqlite", name = "sqlite-ktx", version.ref = "sqliteKtx" }
+# ── Navigation ────────────────────────────────────────────
+navigation-fragment-ktx      = { group = "androidx.navigation",         name = "navigation-fragment-ktx",          version.ref = "navigationFragmentKtx" }
+navigation-ui-ktx            = { group = "androidx.navigation",         name = "navigation-ui-ktx",                version.ref = "navigationUiKtx"       }
+androidx-navigation-fragment = { group = "androidx.navigation",         name = "navigation-fragment-ktx",          version.ref = "navigation"            }
+androidx-navigation-ui       = { group = "androidx.navigation",         name = "navigation-ui-ktx",                version.ref = "navigation"            }
 
-# CameraX
-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "cameraX" }
-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "cameraX" }
-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraX" }
+# ── Lifecycle / ViewModel ─────────────────────────────────
+lifecycle-viewmodel-ktx      = { group = "androidx.lifecycle",          name = "lifecycle-viewmodel-ktx",          version.ref = "lifecycleViewmodelKtx" }
+lifecycle-runtime-ktx        = { group = "androidx.lifecycle",          name = "lifecycle-runtime-ktx",            version.ref = "lifecycleRuntimeKtx"   }
 
-# WorkManager
-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workManager" }
+# ── Hilt ─────────────────────────────────────────────────
+hilt-android                 = { group = "com.google.dagger",           name = "hilt-android",                     version.ref = "hilt"                  }
+hilt-compiler                = { group = "com.google.dagger",           name = "hilt-android-compiler",            version.ref = "hilt"                  }
 
-# Coroutines
-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutines" }
+# ── ML Pipeline ───────────────────────────────────────────
+mlkit-face-detection         = { group = "com.google.mlkit",            name = "face-detection",                   version.ref = "mlkitFaceDetection"    }
+onnxruntime-android          = { group = "com.microsoft.onnxruntime",   name = "onnxruntime-android",              version.ref = "onnxRuntime"           }
+opencv                       = { group = "com.quickbirdstudios",        name = "opencv",                           version.ref = "opencv"                }
 
-# Lifecycle / ViewModel
-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
+# ── Room + SQLCipher ──────────────────────────────────────
+room-runtime                 = { group = "androidx.room",               name = "room-runtime",                     version.ref = "roomRuntime"           }
+room-ktx                     = { group = "androidx.room",               name = "room-ktx",                         version.ref = "roomKtx"               }
+room-compiler                = { group = "androidx.room",               name = "room-compiler",                    version.ref = "room"                  }
+sqlcipher-android            = { group = "net.zetetic",                 name = "android-database-sqlcipher",       version.ref = "sqlcipher"             }
+sqlite-ktx                   = { group = "androidx.sqlite",             name = "sqlite-ktx",                       version.ref = "sqliteKtx"             }
+
+# ── CameraX ───────────────────────────────────────────────
+camera-core                  = { group = "androidx.camera",             name = "camera-core",                      version.ref = "cameraCore"            }
+camera-camera2               = { group = "androidx.camera",             name = "camera-camera2",                   version.ref = "cameraCamera2"         }
+camera-lifecycle             = { group = "androidx.camera",             name = "camera-lifecycle",                 version.ref = "cameraLifecycle"       }
+camera-view                  = { group = "androidx.camera",             name = "camera-view",                      version.ref = "cameraView"            }
+
+# ── WorkManager ───────────────────────────────────────────
+work-runtime-ktx             = { group = "androidx.work",               name = "work-runtime-ktx",                 version.ref = "workManager"           }
+
+# ── Coroutines ────────────────────────────────────────────
+coroutines-android           = { group = "org.jetbrains.kotlinx",       name = "kotlinx-coroutines-android",       version.ref = "coroutinesAndroid"     }
+coroutines-play-services     = { group = "org.jetbrains.kotlinx",       name = "kotlinx-coroutines-play-services", version.ref = "coroutines"            }
+
 
 [plugins]
-android-application = { id = "com.android.application", version.ref = "agp" }
-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-
+android-application          = { id = "com.android.application",        version.ref = "agp"    }
+kotlin-android               = { id = "org.jetbrains.kotlin.android",   version.ref = "kotlin" }
+ksp                          = { id = "com.google.devtools.ksp",        version.ref = "ksp"    }
+hilt                         = { id = "com.google.dagger.hilt.android", version.ref = "hilt"   }
