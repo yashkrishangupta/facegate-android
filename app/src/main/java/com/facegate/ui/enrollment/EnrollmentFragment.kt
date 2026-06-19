@@ -293,7 +293,7 @@ class EnrollmentFragment : Fragment() {
                         binding.btnCapture.isClickable = false
                     }
 
-                    is EnrollmentState.Capturing, EnrollmentState.Idle -> {
+                    is EnrollmentState.Capturing, is EnrollmentState.Idle -> {
                         binding.btnCapture.isClickable = true
                         binding.tvDuplicateWarning.visibility = View.GONE
                     }

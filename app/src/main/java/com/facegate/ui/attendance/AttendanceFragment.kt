@@ -23,7 +23,6 @@ import androidx.navigation.fragment.findNavController
 import com.facegate.R
 import com.facegate.databinding.FragmentAttendanceBinding
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
@@ -155,31 +154,29 @@ class AttendanceFragment : Fragment() {
 
     private fun observeViewModel() {
         lifecycleScope.launch {
-            // distinctUntilChanged() is critical here:
-            // The pipeline returns NoFace -> ScanState.Idle ~10 times per second.
-            // Without this, resetToIdle() fires 10x/sec, constantly restarting
-            // the scan line animation and flickering the UI.
-            viewModel.scanState
-                .collect { state ->
-                    // Cancel any pending auto-reset from a previous Success/Failed
-                    handler.removeCallbacksAndMessages(null)
-
-                    when (state) {
-                        is ScanState.Idle       -> resetToIdle()
-                        is ScanState.Scanning   -> showScanningState()
-                        is ScanState.Processing -> showProcessingState()
-                        is ScanState.Success    -> {
-                            showSuccessState(state)
-                            // Auto-reset after 3 seconds so the next student can scan
-                            handler.postDelayed({ viewModel.resetScan() }, 3000)
-                        }
-                        is ScanState.Failed     -> {
-                            showFailState()
-                            // Auto-reset after 2 seconds
-                            handler.postDelayed({ viewModel.resetScan() }, 2000)
-                        }
+                viewModel.scanState.collect { state ->
+                when (state) {
+                    is ScanState.Idle       -> resetToIdle()
+                    is ScanState.Scanning   -> {
+                        handler.removeCallbacksAndMessages(null)
+                        showScanningState()
+                    }
+                    is ScanState.Processing -> {
+                        handler.removeCallbacksAndMessages(null)
+                        showProcessingState()
+                    }
+                    is ScanState.Success    -> {
+                        handler.removeCallbacksAndMessages(null)
+                        showSuccessState(state)
+                        handler.postDelayed({ viewModel.resetScan() }, 3000)
+                    }
+                    is ScanState.Failed     -> {
+                        handler.removeCallbacksAndMessages(null)
+                        showFailState()
+                        handler.postDelayed({ viewModel.resetScan() }, 2000)
                     }
                 }
+            }
         }
     }
 
@@ -197,16 +194,20 @@ class AttendanceFragment : Fragment() {
         binding.scanLine.visibility = View.GONE
     }
 
-    private fun showScanningState(bufferingProgress: String? = null) {
+    private fun showScanningState() {
         binding.faceOval.setImageResource(R.drawable.oval_face_scanning)
-        binding.tvScanBadge.text   = bufferingProgress ?: "Face detected"
+        binding.tvScanBadge.text   = "Face detected"
         binding.tvStatusLabel.text = "SCANNING"
         binding.tvStatusMain.text  = "Hold still — scanning…"
         binding.tvStatusSub.text   = "Analyzing facial features"
-        binding.scanLine.visibility = View.VISIBLE
-        val anim = AnimationUtils.loadAnimation(requireContext(), R.anim.scan_line)
-        binding.scanLine.startAnimation(anim)
         binding.processingDots.visibility = View.GONE
+
+        // Only start animation if not already running — prevents jitter
+        if (binding.scanLine.animation == null) {
+            binding.scanLine.visibility = View.VISIBLE
+            val anim = AnimationUtils.loadAnimation(requireContext(), R.anim.scan_line)
+            binding.scanLine.startAnimation(anim)
+        }
     }
 
     private fun showProcessingState() {
