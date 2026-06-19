@@ -9,6 +9,7 @@ import androidx.core.view.WindowInsetsCompat
 import com.facegate.ui.admin.AdminDashboard
 import com.facegate.ui.attendance.AttendanceFragment
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
