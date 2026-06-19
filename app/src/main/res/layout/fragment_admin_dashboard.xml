@@ -704,30 +704,6 @@
         </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/navAttendance"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true">
-            <ImageView
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:src="@android:drawable/ic_menu_edit"
-                app:tint="#888780"
-                android:contentDescription="Attendance"/>
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Attendance"
-                android:textSize="10sp"
-                android:textStyle="bold"
-                android:textColor="#888780"/>
-        </LinearLayout>
-
-        <LinearLayout
             android:id="@+id/navReports"
             android:layout_width="0dp"
             android:layout_height="match_parent"

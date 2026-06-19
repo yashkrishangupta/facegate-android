@@ -30,13 +30,13 @@ object AppModule {
             FaceGateDatabase::class.java,
             "facegate_database"
         )
-            .fallbackToDestructiveMigration() // safe for development — remove before production
+            .addMigrations(FaceGateDatabase.MIGRATION_1_2)
             .build()
     }
 
     /**
-     * Provides TemplateRepository, taking 3 DAOs from the database.
-     * TemplateRepository(studentDao, attendanceDao, syncLogDao) matches the team's constructor.
+     * Provides TemplateRepository, taking 4 DAOs from the database.
+     * ConflictDao added in v2 alongside ConflictEntity / conflict_queue table.
      */
     @Provides
     @Singleton
@@ -44,9 +44,10 @@ object AppModule {
         database: FaceGateDatabase,
     ): TemplateRepository {
         return TemplateRepository(
-            studentDao     = database.studentDao(),
-            attendanceDao  = database.attendanceDao(),
-            syncLogDao     = database.syncLogDao(),
+            studentDao    = database.studentDao(),
+            attendanceDao = database.attendanceDao(),
+            syncLogDao    = database.syncLogDao(),
+            conflictDao   = database.conflictDao(),  // ← added in version 2
         )
     }
 

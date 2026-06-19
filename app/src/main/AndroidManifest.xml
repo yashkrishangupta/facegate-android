@@ -24,21 +24,20 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.FaceGate">
+
+        <!--
+            Single entry point. NavigationActivity and StudentNavigationActivity
+            have been merged into MainActivity — both nav graphs are loaded here
+            at runtime depending on the role the user selects.
+        -->
         <activity
             android:name="com.facegate.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".NavigationActivity"
-            android:exported="false" />
-        <activity
-            android:name=".StudentNavigationActivity"
-            android:exported="false" />
 
     </application>
 

@@ -137,17 +137,15 @@ class AdminDashboard : Fragment() {
             )
         }
 
+        // Bottom Nav → Home (already here — no-op)
+        binding.navHome.setOnClickListener {
+            // Already on dashboard
+        }
+
         // Bottom Nav → Students
         binding.navStudents.setOnClickListener {
             findNavController().navigate(
                 R.id.action_dashboard_to_students
-            )
-        }
-
-        // Bottom Nav → Attendance
-        binding.navAttendance.setOnClickListener {
-            findNavController().navigate(
-                R.id.action_dashboard_to_welcome
             )
         }
 
@@ -158,9 +156,9 @@ class AdminDashboard : Fragment() {
             )
         }
 
-        // Exit
+        // Exit — return to role selector
         binding.navExit.setOnClickListener {
-            requireActivity().finish()
+            requireActivity().onBackPressedDispatcher.onBackPressed()
         }
 
 
