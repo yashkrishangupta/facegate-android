@@ -8,6 +8,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import com.facegate.R
 import com.facegate.databinding.FragmentConflictQueueBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -101,8 +102,7 @@ class ConflictQueueFragment : Fragment() {
                 viewLifecycleOwner,
                 object : OnBackPressedCallback(true) {
                     override fun handleOnBackPressed() {
-                        requireActivity().supportFragmentManager
-                            .popBackStack()
+                        findNavController().navigateUp()
                     }
                 }
             )
@@ -244,7 +244,7 @@ class ConflictQueueFragment : Fragment() {
 
     private fun setupClickListeners() {
         binding.btnBack.setOnClickListener {
-            requireActivity().supportFragmentManager.popBackStack()
+            findNavController().navigateUp()
         }
     }
 }

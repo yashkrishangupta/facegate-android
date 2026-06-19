@@ -11,6 +11,7 @@ import com.facegate.similarity.EnrolledTemplate
 import com.facegate.similarity.SimilaritySearch
 import com.facegate.storage.TemplateRepository
 import com.facegate.storage.entity.AttendanceEntity
+import com.facegate.storage.entity.ConflictEntity
 import com.facegate.storage.entity.StudentEntity
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.Face
@@ -321,8 +322,23 @@ class AttendancePipeline(
                 )
             }
             is AttendanceDecision.Ambiguous -> {
-                // Conflict — no DB write yet (conflict queue not in TemplateRepository yet)
-                // TODO: repository.addConflict(...) when ConflictEntity is added
+                // Write ambiguous match to the conflict queue for admin review.
+                // Both candidates are stored so the admin sees exactly who the
+                // system was torn between and can mark the correct one present.
+                repository.addConflict(
+                    ConflictEntity(
+                        topStudentId      = decision.topCandidate?.studentId    ?: "unknown",
+                        topStudentName    = decision.topCandidate?.studentName  ?: "Unknown",
+                        topScore          = decision.topCandidate?.cosineSimilarity ?: 0f,
+                        secondStudentId   = decision.secondCandidate?.studentId   ?: "unknown",
+                        secondStudentName = decision.secondCandidate?.studentName ?: "Unknown",
+                        secondScore       = decision.secondCandidate?.cosineSimilarity ?: 0f,
+                        reason            = decision.reason,
+                        sessionId         = sessionId ?: "no_session",
+                        timestamp         = System.currentTimeMillis(),
+                        resolved          = false,
+                    )
+                )
             }
             is AttendanceDecision.Reject,
             is AttendanceDecision.AlreadyMarked -> {

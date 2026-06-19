@@ -275,11 +275,11 @@ class AttendanceFragment : Fragment() {
         }
         binding.btnBack.setOnClickListener {
             handler.removeCallbacksAndMessages(null)
-            findNavController().popBackStack()
+            requireActivity().onBackPressedDispatcher.onBackPressed()
         }
         binding.btnCancel.setOnClickListener {
             handler.removeCallbacksAndMessages(null)
-            findNavController().popBackStack()
+            requireActivity().onBackPressedDispatcher.onBackPressed()
         }
     }
 }

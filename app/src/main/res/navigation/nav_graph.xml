@@ -34,12 +34,6 @@
             android:id="@+id/action_dashboard_to_conflicts"
             app:destination="@id/conflictQueueFragment" />
 
-        <action
-            android:id="@+id/action_dashboard_to_welcome"
-            app:destination="@id/attendanceFragment"
-            app:popUpTo="@id/nav_graph"
-            app:popUpToInclusive="true" />
-
     </fragment>
 
     <!-- ═══════════════════════════════════════

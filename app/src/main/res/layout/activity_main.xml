@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/main"
@@ -7,53 +7,79 @@
     android:layout_height="match_parent"
     android:background="#F5F7FA">
 
-    <TextView
-        android:id="@+id/txtTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="FaceGate Attendance"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        android:textColor="#1A237E"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="60dp"/>
+    <!--
+        ROLE SELECTOR — visible on launch.
+        Wrapped in its own FrameLayout so we can fade it as a single unit.
+    -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/roleSelector"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="visible">
 
-    <TextView
-        android:id="@+id/txtSubtitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Offline Face Recognition Attendance System"
-        android:textSize="14sp"
-        android:textColor="#666666"
-        app:layout_constraintTop_toBottomOf="@id/txtTitle"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="8dp"/>
+        <TextView
+            android:id="@+id/txtTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="FaceGate Attendance"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="#1A237E"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginTop="60dp"/>
 
-    <Button
-        android:id="@+id/btnStudent"
-        android:layout_width="280dp"
-        android:layout_height="70dp"
-        android:text="Student Mode"
-        android:textSize="18sp"
-        android:backgroundTint="#1976D2"
-        app:layout_constraintTop_toBottomOf="@id/txtSubtitle"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="80dp"/>
+        <TextView
+            android:id="@+id/txtSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Offline Face Recognition Attendance System"
+            android:textSize="14sp"
+            android:textColor="#666666"
+            app:layout_constraintTop_toBottomOf="@id/txtTitle"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginTop="8dp"/>
 
-    <Button
-        android:id="@+id/btnAdmin"
-        android:layout_width="280dp"
-        android:layout_height="70dp"
-        android:text="Admin Mode"
-        android:textSize="18sp"
-        android:backgroundTint="#3949AB"
-        app:layout_constraintTop_toBottomOf="@id/btnStudent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="24dp"/>
+        <Button
+            android:id="@+id/btnStudent"
+            android:layout_width="280dp"
+            android:layout_height="70dp"
+            android:text="Student Mode"
+            android:textSize="18sp"
+            android:backgroundTint="#1976D2"
+            app:layout_constraintTop_toBottomOf="@id/txtSubtitle"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginTop="80dp"/>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <Button
+            android:id="@+id/btnAdmin"
+            android:layout_width="280dp"
+            android:layout_height="70dp"
+            android:text="Admin Mode"
+            android:textSize="18sp"
+            android:backgroundTint="#3949AB"
+            app:layout_constraintTop_toBottomOf="@id/btnStudent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginTop="24dp"/>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!--
+        SHARED NAV HOST — hidden until a role is chosen.
+        Loads either nav_graph (Admin) or student_nav_graph (Student)
+        at runtime via navInflater. No default graph set here so Room
+        doesn't auto-navigate before the user picks a role.
+    -->
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/nav_host_fragment"
+        android:name="androidx.navigation.fragment.NavHostFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        app:defaultNavHost="true"/>
+
+</FrameLayout>
