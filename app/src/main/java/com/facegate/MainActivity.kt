@@ -37,13 +37,12 @@ class MainActivity : AppCompatActivity() {
             startActivity(
                 Intent(
                     this,
-                    NavigationActivity::class.java
+                    StudentNavigationActivity::class.java
                 )
             )
         }
 
         btnAdmin.setOnClickListener {
-
             startActivity(
                 Intent(
                     this,
