@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#12121C"
+    android:padding="20dp">
+
+    <!-- Title -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="STUDENT DETAILS"
+        android:textColor="#B5D4F4"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.15"
+        android:layout_marginBottom="16dp"/>
+
+    <!-- Full Name -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Full Name"
+        android:textColor="#6BFFFFFF"
+        android:textSize="12sp"
+        android:layout_marginBottom="4dp"/>
+
+    <EditText
+        android:id="@+id/etStudentName"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="e.g. Arjun Kumar"
+        android:textColorHint="#44FFFFFF"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:background="#1E1E2E"
+        android:inputType="textPersonName|textCapWords"
+        android:maxLines="1"
+        android:layout_marginBottom="12dp"/>
+
+    <!-- Student ID -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Roll Number / ID"
+        android:textColor="#6BFFFFFF"
+        android:textSize="12sp"
+        android:layout_marginBottom="4dp"/>
+
+    <EditText
+        android:id="@+id/etStudentId"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="e.g. S001"
+        android:textColorHint="#44FFFFFF"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:background="#1E1E2E"
+        android:inputType="textNoSuggestions"
+        android:maxLines="1"
+        android:layout_marginBottom="12dp"/>
+
+    <!-- Class / Section -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Class / Section"
+        android:textColor="#6BFFFFFF"
+        android:textSize="12sp"
+        android:layout_marginBottom="4dp"/>
+
+    <EditText
+        android:id="@+id/etStudentClass"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="e.g. 9-B"
+        android:textColorHint="#44FFFFFF"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:background="#1E1E2E"
+        android:inputType="textNoSuggestions"
+        android:maxLines="1"
+        android:layout_marginBottom="4dp"/>
+
+</LinearLayout>

@@ -1,23 +1,45 @@
 package com.facegate.ui.enrollment
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.facegate.R
 import com.facegate.databinding.FragmentEnrollmentBinding
-import kotlinx.coroutines.launch
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 /**
  * ENROLLMENT FRAGMENT
- * Admin screen to capture and enroll a new student face
- * Captures 5 photos from different angles
- * Matches: enrollment flow in project blueprint
+ *
+ * Fixed from original stub:
+ *  - Uncommented and wired to the updated ViewModel API
+ *  - capturePhoto() now passes a real Bitmap (not an Int index)
+ *  - enrollStudent() now collects studentName / studentId / studentClass
+ *    from a dialog before calling viewModel.enrollStudent(name, id, class)
+ *  - CameraX preview + ImageCapture set up properly
+ *  - Camera permission requested at runtime
+ *  - EnrollmentState.Failed carries a reason string — shown in tvInstSub
  */
 @AndroidEntryPoint
 class EnrollmentFragment : Fragment() {
@@ -27,12 +49,16 @@ class EnrollmentFragment : Fragment() {
 
     private val viewModel: EnrollmentViewModel by viewModels()
 
-    // Track how many photos captured
-    // 5 photos needed for good enrollment
-    private var photoCount = 0
+    // ── Camera ───────────────────────────────────────────────────────────────
+
+    private var imageCapture: ImageCapture? = null
+    private lateinit var cameraExecutor: ExecutorService
+
+    // ── Photo tracking ───────────────────────────────────────────────────────
+
+    // Driven by ViewModel now; we just mirror capturedCount() for UI
     private val totalPhotos = 5
 
-    // Photo dots for UI tracking
     private val photoDots by lazy {
         listOf(
             binding.photo1dot,
@@ -43,7 +69,21 @@ class EnrollmentFragment : Fragment() {
         )
     }
 
-    // ── LIFECYCLE ────────────────────────────────────
+    // ── Permission launcher ──────────────────────────────────────────────────
+
+    private val requestCameraPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) startCamera()
+            else {
+                Toast.makeText(
+                    requireContext(),
+                    "Camera permission is required to enroll a student.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+
+    // ── Lifecycle ────────────────────────────────────────────────────────────
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -57,6 +97,16 @@ class EnrollmentFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        cameraExecutor = Executors.newSingleThreadExecutor()
+
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            startCamera()
+        } else {
+            requestCameraPermission.launch(Manifest.permission.CAMERA)
+        }
+
         setupClickListeners()
         observeViewModel()
         updatePhotoUI()
@@ -64,44 +114,134 @@ class EnrollmentFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        cameraExecutor.shutdown()
         _binding = null
     }
 
-    // ── PHOTO CAPTURE ────────────────────────────────
+    // ── Camera setup ─────────────────────────────────────────────────────────
 
-    /**
-     * Called when shutter button is pressed
-     * Captures one photo and advances the counter
-     */
-    private fun capturePhoto() {
-        if (photoCount >= totalPhotos) return
+    private fun startCamera() {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
+        cameraProviderFuture.addListener({
+            val cameraProvider = cameraProviderFuture.get()
 
-        // Tell ViewModel to capture
-        viewModel.capturePhoto(photoCount)
+            val preview = Preview.Builder().build().also {
+                it.setSurfaceProvider(binding.cameraPreview.surfaceProvider)
+            }
 
-        // Advance count
-        photoCount++
-        updatePhotoUI()
+            imageCapture = ImageCapture.Builder()
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                .build()
 
-        // Check if all 5 done
-        if (photoCount == totalPhotos) {
-            onAllPhotosCaptured()
-        }
+            try {
+                cameraProvider.unbindAll()
+                cameraProvider.bindToLifecycle(
+                    viewLifecycleOwner,
+                    CameraSelector.DEFAULT_FRONT_CAMERA,
+                    preview,
+                    imageCapture
+                )
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Camera failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }, ContextCompat.getMainExecutor(requireContext()))
     }
 
+    // ── Photo capture ─────────────────────────────────────────────────────────
+
     /**
-     * Updates the dot indicators and instruction text
-     * after each photo capture
+     * Takes a photo via ImageCapture and hands the Bitmap to the ViewModel.
+     * When all 5 are taken, prompts for student info before enrolling.
      */
+    private fun capturePhoto() {
+        val capture = imageCapture ?: return
+
+        capture.takePicture(
+            cameraExecutor,
+            object : ImageCapture.OnImageCapturedCallback() {
+                override fun onCaptureSuccess(image: ImageProxy) {
+                    val bitmap = image.toBitmap()
+                    image.close()
+
+                    // Post UI work back to main thread
+                    binding.root.post {
+                        val done = viewModel.capturePhoto(bitmap)
+                        updatePhotoUI()
+                        if (done) promptStudentInfo()
+                    }
+                }
+
+                override fun onError(exc: ImageCaptureException) {
+                    binding.root.post {
+                        Toast.makeText(
+                            requireContext(),
+                            "Photo capture failed: ${exc.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        )
+    }
+
+    // ── Student info dialog ───────────────────────────────────────────────────
+
+    /**
+     * Inflates dialog_student_info.xml and collects name / ID / class
+     * before handing off to the ViewModel for enrollment.
+     * Called once all 5 photos are captured.
+     */
+    private fun promptStudentInfo() {
+        val dialogView = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_student_info, null)
+
+        val etName  = dialogView.findViewById<EditText>(R.id.etStudentName)
+        val etId    = dialogView.findViewById<EditText>(R.id.etStudentId)
+        val etClass = dialogView.findViewById<EditText>(R.id.etStudentClass)
+
+        val dialog = AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .setPositiveButton("Enroll", null) // set null here, override below for validation
+            .setNegativeButton("Cancel") { _, _ ->
+                viewModel.reset()
+                updatePhotoUI()
+            }
+            .setCancelable(false)
+            .create()
+
+        // Override positive button to validate before dismissing
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val name  = etName.text.toString().trim()
+                val id    = etId.text.toString().trim()
+                val cls   = etClass.text.toString().trim()
+
+                when {
+                    name.isEmpty()  -> etName.error  = "Required"
+                    id.isEmpty()    -> etId.error    = "Required"
+                    cls.isEmpty()   -> etClass.error = "Required"
+                    else -> {
+                        dialog.dismiss()
+                        viewModel.enrollStudent(name, id, cls)
+                    }
+                }
+            }
+        }
+
+        dialog.show()
+    }
+
+    // ── UI update ─────────────────────────────────────────────────────────────
+
     private fun updatePhotoUI() {
-        // Update instruction text
+        val photoCount = viewModel.capturedCount()
+
         binding.tvPhotoCount.text = if (photoCount < totalPhotos) {
             "PHOTO ${photoCount + 1} OF $totalPhotos"
         } else {
             "ALL PHOTOS CAPTURED"
         }
 
-        // Update instruction per photo
         binding.tvInstMain.text = when (photoCount) {
             0 -> "Look straight at the camera"
             1 -> "Turn slightly to the left"
@@ -111,12 +251,11 @@ class EnrollmentFragment : Fragment() {
             else -> "Processing enrollment…"
         }
 
-        binding.tvInstSub.text = when (photoCount) {
-            totalPhotos -> "Saving your face data securely…"
+        binding.tvInstSub.text = when {
+            photoCount >= totalPhotos -> "Saving your face data securely…"
             else -> "We need $totalPhotos photos from different angles"
         }
 
-        // Illuminate dots up to current count
         photoDots.forEachIndexed { index, dot ->
             dot.animate()
                 .alpha(if (index < photoCount) 1.0f else 0.3f)
@@ -125,51 +264,51 @@ class EnrollmentFragment : Fragment() {
         }
     }
 
-    /**
-     * Called when all 5 photos are captured
-     */
-    private fun onAllPhotosCaptured() {
-        viewModel.enrollStudent()
-    }
-
-    // ── VIEWMODEL OBSERVER ───────────────────────────
+    // ── ViewModel observer ────────────────────────────────────────────────────
 
     private fun observeViewModel() {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             viewModel.enrollmentState.collect { state ->
                 when (state) {
                     is EnrollmentState.Success -> {
-                        // Go back to dashboard
-                        requireActivity().supportFragmentManager.popBackStack()
+                        Toast.makeText(requireContext(), "Student enrolled successfully!", Toast.LENGTH_SHORT).show()
+                        findNavController().navigateUp()
                     }
+
                     is EnrollmentState.DuplicateFace -> {
-                        // Show duplicate warning
                         binding.tvDuplicateWarning.visibility = View.VISIBLE
-                        // Reset to try again
-                        photoCount = 0
+                        viewModel.reset()
                         updatePhotoUI()
                     }
+
                     is EnrollmentState.Failed -> {
-                        binding.tvInstSub.text = "Enrollment failed. Please try again."
-                        photoCount = 0
+                        binding.tvDuplicateWarning.visibility = View.GONE
+                        binding.tvInstSub.text = state.reason
+                        viewModel.reset()
                         updatePhotoUI()
                     }
-                    else -> {}
+
+                    is EnrollmentState.Processing -> {
+                        binding.tvInstMain.text = "Processing enrollment…"
+                        binding.btnCapture.isClickable = false
+                    }
+
+                    is EnrollmentState.Capturing, EnrollmentState.Idle -> {
+                        binding.btnCapture.isClickable = true
+                        binding.tvDuplicateWarning.visibility = View.GONE
+                    }
                 }
             }
         }
     }
 
-    // ── CLICK LISTENERS ──────────────────────────────
+    // ── Click listeners ───────────────────────────────────────────────────────
 
     private fun setupClickListeners() {
-
-        // Capture button → take photo
         binding.btnCapture.setOnClickListener {
             capturePhoto()
         }
 
-        // Back button → go back
         binding.btnBack.setOnClickListener {
             findNavController().navigateUp()
         }

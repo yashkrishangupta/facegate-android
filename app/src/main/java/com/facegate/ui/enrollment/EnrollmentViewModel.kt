@@ -1,17 +1,19 @@
 package com.facegate.ui.enrollment
 
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.delay
+import com.facegate.pipeline.AttendancePipeline
+import com.facegate.pipeline.EnrollmentResult
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import com.facegate.pipeline.AttendancePipeline
 
 /**
- * Enrollment state sealed class
+ * All possible states of the enrollment screen.
+ * Added reason string to Failed for better UI feedback.
  */
 sealed class EnrollmentState {
     object Idle          : EnrollmentState()
@@ -19,68 +21,123 @@ sealed class EnrollmentState {
     object Processing    : EnrollmentState()
     object Success       : EnrollmentState()
     object DuplicateFace : EnrollmentState()
-    object Failed        : EnrollmentState()
+    data class Failed(val reason: String = "Please try again") : EnrollmentState()
 }
 
 /**
- * ENROLLMENT VIEWMODEL
- * Calls pipeline.enrollStudent()
- * Shows duplicate warnings if face already exists
+ * ENROLLMENT VIEWMODEL — fully wired to real pipeline
+ *
+ * Changed from original:
+ *   - capturePhoto(bitmap: Bitmap) stores real camera bitmaps (not Int index)
+ *   - enrollStudent(name, id, class) calls real pipeline.enrollStudent()
+ *   - Tries all captured photos until one succeeds (multiple angles = more chances)
+ *   - EnrollmentResult mapped to EnrollmentState with specific failure reasons
+ *   - Math.random() mock removed entirely
  */
 @HiltViewModel
 class EnrollmentViewModel @Inject constructor(
-    private val pipeline: AttendancePipeline
+    private val pipeline: AttendancePipeline,
 ) : ViewModel() {
 
-    private val _enrollmentState =
-        MutableStateFlow<EnrollmentState>(EnrollmentState.Idle)
+    private val _enrollmentState = MutableStateFlow<EnrollmentState>(EnrollmentState.Idle)
     val enrollmentState: StateFlow<EnrollmentState> = _enrollmentState
 
-    // Store captured photo frames
-    private val capturedPhotos = mutableListOf<Int>()
+    // Real captured bitmaps — one per shutter press (up to 5)
+    private val capturedBitmaps = mutableListOf<Bitmap>()
+
+    // ── Photo capture ────────────────────────────────────────────────────────
 
     /**
-     * Capture one photo frame
-     * Called for each of the 5 photos
+     * Store a real bitmap captured from the camera.
+     * Called by the Fragment on each shutter button press.
+     * Returns true when 5 photos have been captured (ready to enroll).
      */
-    fun capturePhoto(photoIndex: Int) {
-        viewModelScope.launch {
-            _enrollmentState.value = EnrollmentState.Capturing
-            // In real app: capture frame from camera here
-            capturedPhotos.add(photoIndex)
-        }
+    fun capturePhoto(bitmap: Bitmap): Boolean {
+        capturedBitmaps.add(bitmap)
+        _enrollmentState.value = EnrollmentState.Capturing
+        return capturedBitmaps.size >= 5
     }
 
+    fun capturedCount(): Int = capturedBitmaps.size
+
+    // ── Enrollment ───────────────────────────────────────────────────────────
+
     /**
-     * Process all 5 photos and enroll the student
-     * Checks for duplicate face in database
+     * Enroll the student using captured photos.
+     * Tries each bitmap in order until one succeeds through the full pipeline.
+     * This gives multiple chances for a clean face detection + quality pass.
+     *
+     * @param studentName  Display name (e.g. "Arjun Kumar")
+     * @param studentId    Unique roll number (e.g. "S001")
+     * @param studentClass Class section (e.g. "9-B")
      */
-    fun enrollStudent() {
+    fun enrollStudent(
+        studentName : String,
+        studentId   : String,
+        studentClass: String,
+    ) {
+        if (capturedBitmaps.isEmpty()) {
+            _enrollmentState.value = EnrollmentState.Failed("No photos captured. Please take photos first.")
+            return
+        }
+
         viewModelScope.launch {
             _enrollmentState.value = EnrollmentState.Processing
 
-            // Simulate processing 5 photos
-            delay(2000)
+            var lastResult: EnrollmentResult = EnrollmentResult.NoFaceDetected
 
-            // Simulate duplicate check
-            // In real app: compare with database embeddings
-            val isDuplicate = Math.random() < 0.1  // 10% chance duplicate
+            for (bitmap in capturedBitmaps) {
+                val result = pipeline.enrollStudent(
+                    studentId    = studentId,
+                    studentName  = studentName,
+                    studentClass = studentClass,
+                    photo        = bitmap,
+                )
+                lastResult = result
 
-            if (isDuplicate) {
-                _enrollmentState.value = EnrollmentState.DuplicateFace
-            } else {
-                // Simulate enrollment success
-                delay(1000)
-                _enrollmentState.value = EnrollmentState.Success
+                when (result) {
+                    is EnrollmentResult.Success -> {
+                        clearBitmaps()
+                        _enrollmentState.value = EnrollmentState.Success
+                        return@launch
+                    }
+                    is EnrollmentResult.DuplicateRisk -> {
+                        clearBitmaps()
+                        _enrollmentState.value = EnrollmentState.DuplicateFace
+                        return@launch
+                    }
+                    else -> continue // try next photo
+                }
+            }
+
+            // All photos failed
+            clearBitmaps()
+            _enrollmentState.value = when (lastResult) {
+                is EnrollmentResult.NoFaceDetected ->
+                    EnrollmentState.Failed("No face detected. Ensure good lighting and face the camera directly.")
+                is EnrollmentResult.MultipleFacesDetected ->
+                    EnrollmentState.Failed("Multiple faces detected. Only one person should be in frame.")
+                is EnrollmentResult.QualityFailed ->
+                    EnrollmentState.Failed("Image quality too low. Move to better lighting and hold still.")
+                else -> EnrollmentState.Failed()
             }
         }
     }
 
-    /**
-     * Reset enrollment state
-     */
+    // ── Reset ────────────────────────────────────────────────────────────────
+
     fun reset() {
-        capturedPhotos.clear()
+        clearBitmaps()
         _enrollmentState.value = EnrollmentState.Idle
+    }
+
+    private fun clearBitmaps() {
+        capturedBitmaps.forEach { it.recycle() }
+        capturedBitmaps.clear()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        clearBitmaps()
     }
 }
