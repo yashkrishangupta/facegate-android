@@ -2,6 +2,7 @@ package com.facegate.pipeline
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.os.SystemClock
 import com.facegate.alignment.FaceAligner
 import com.facegate.decision.AttendanceDecisionEngine
@@ -145,14 +146,26 @@ class AttendancePipeline(
      * Process one camera frame through all 8 stages.
      * Called from CameraX ImageAnalysis at ~10fps.
      * Returns PipelineFrameStatus — the UI observes this via StateFlow.
+     *
+     * @param rotationDegrees Rotation needed to make [bitmap] upright, taken
+     *   from CameraX's ImageProxy.imageInfo.rotationDegrees. CameraX delivers
+     *   raw sensor-orientation frames — on a phone in portrait this is almost
+     *   always 90 or 270, NOT 0. Previously this was hardcoded to 0 everywhere,
+     *   so ML Kit detected faces (and FaceAligner cropped landmarks) on a
+     *   sideways frame, producing garbage embeddings and wrong/missed matches.
      */
-    suspend fun processFrame(bitmap: Bitmap): PipelineFrameStatus {
+    suspend fun processFrame(bitmap: Bitmap, rotationDegrees: Int = 0): PipelineFrameStatus {
         sessionId ?: return PipelineFrameStatus.NoSession
         val t0 = SystemClock.elapsedRealtime()
 
+        // Rotate once to upright so every downstream stage (ML Kit, quality
+        // checks, alignment crop) operates on — and reports coordinates in —
+        // the SAME coordinate space.
+        val uprightBitmap = rotateIfNeeded(bitmap, rotationDegrees)
+
         // ── Stage 1: ML Kit Face Detection ───────────────────────────────────
         val tDetect = SystemClock.elapsedRealtime()
-        val image   = InputImage.fromBitmap(bitmap, 0)
+        val image   = InputImage.fromBitmap(uprightBitmap, 0)
         val faces   = faceDetector.process(image).await()
         val detectionMs = SystemClock.elapsedRealtime() - tDetect
 
@@ -165,7 +178,7 @@ class AttendancePipeline(
 
         // ── Stage 3: Quality Check ────────────────────────────────────────────
         val tQuality = SystemClock.elapsedRealtime()
-        val quality  = qualityChecker.check(bitmap, rawFace)
+        val quality  = qualityChecker.check(uprightBitmap, rawFace)
         val qualityMs = SystemClock.elapsedRealtime() - tQuality
 
         if (!quality.passed) {
@@ -173,7 +186,7 @@ class AttendancePipeline(
         }
 
         // ── Stage 4: Frame Buffer ─────────────────────────────────────────────
-        bufferFrame(bitmap, rawFace, quality.qualityScore)
+        bufferFrame(uprightBitmap, rawFace, quality.qualityScore)
 
         if (!isBufferReady()) {
             return PipelineFrameStatus.Buffering(
@@ -241,10 +254,19 @@ class AttendancePipeline(
         studentName : String,
         studentClass: String,
         photo       : Bitmap,
+        rotationDegrees: Int = 0,
     ): EnrollmentResult {
 
+        val uprightPhoto = rotateIfNeeded(photo, rotationDegrees)
+
+        // Bug 2 fix: ImageCapture delivers full sensor resolution (e.g. 3024×4032).
+        // QualityChecker computes faceArea/imageArea — at 12MP even a large face
+        // gives a ratio well below MIN_FACE_SIZE_RATIO=0.20, so enrollment always
+        // returns QualityFailed. Scale down to ≤640px wide before any processing.
+        val scaledPhoto = scaleBitmapToMaxWidth(uprightPhoto, 640)
+
         // Detect face
-        val image = InputImage.fromBitmap(photo, 0)
+        val image = InputImage.fromBitmap(scaledPhoto, 0)
         val faces = faceDetector.process(image).await()
 
         when (faces.size) {
@@ -255,14 +277,14 @@ class AttendancePipeline(
         val rawFace = faces[0]
 
         // Quality check
-        val quality = qualityChecker.check(photo, rawFace)
+        val quality = qualityChecker.check(scaledPhoto, rawFace)
         if (!quality.passed) {
             return EnrollmentResult.QualityFailed(quality.failReasons)
         }
 
         // Align + embed
-        val aligned     = faceAligner.align(photo, rawFace)
-        val alignedFace = AlignedFace(aligned.alignedBitmap, photo)
+        val aligned     = faceAligner.align(scaledPhoto, rawFace)
+        val alignedFace = AlignedFace(aligned.alignedBitmap, scaledPhoto)
         val embedding   = faceEmbedder.embed(alignedFace)
 
         // Duplicate check against in-memory templates
@@ -346,6 +368,31 @@ class AttendancePipeline(
                 // No DB write needed
             }
         }
+    }
+
+    private fun scaleBitmapToMaxWidth(bitmap: Bitmap, maxPx: Int): Bitmap {
+        val maxDim = maxOf(bitmap.width, bitmap.height)
+        if (maxDim <= maxPx) return bitmap
+        val scale = maxPx.toFloat() / maxDim
+        val w = (bitmap.width  * scale).toInt().coerceAtLeast(1)
+        val h = (bitmap.height * scale).toInt().coerceAtLeast(1)
+        return Bitmap.createScaledBitmap(bitmap, w, h, true)
+    }
+
+    /**
+     * Rotates [bitmap] to upright orientation using [rotationDegrees] (from
+     * CameraX's ImageProxy.imageInfo.rotationDegrees). No-op if already 0.
+     *
+     * This MUST happen before face detection/quality/alignment so that ML
+     * Kit's reported bounding box and landmarks line up with the same bitmap
+     * we crop from later — previously rotation was ignored entirely (hardcoded
+     * to 0), so on a typical portrait-held phone every frame was analyzed and
+     * cropped sideways, producing bad embeddings and wrong recognition.
+     */
+    private fun rotateIfNeeded(bitmap: Bitmap, rotationDegrees: Int): Bitmap {
+        if (rotationDegrees == 0) return bitmap
+        val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
+        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
     private fun buildFaceDetector(): FaceDetector {

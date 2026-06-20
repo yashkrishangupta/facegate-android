@@ -42,8 +42,11 @@ class EnrollmentViewModel @Inject constructor(
     private val _enrollmentState = MutableStateFlow<EnrollmentState>(EnrollmentState.Idle)
     val enrollmentState: StateFlow<EnrollmentState> = _enrollmentState
 
-    // Real captured bitmaps — one per shutter press (up to 5)
-    private val capturedBitmaps = mutableListOf<Bitmap>()
+    // Real captured bitmaps — one per shutter press (up to 5), paired with the
+    // rotation degrees needed to make each one upright (from CameraX's
+    // ImageProxy.imageInfo.rotationDegrees).
+    private data class CapturedPhoto(val bitmap: Bitmap, val rotationDegrees: Int)
+    private val capturedBitmaps = mutableListOf<CapturedPhoto>()
 
     // ── Photo capture ────────────────────────────────────────────────────────
 
@@ -52,8 +55,8 @@ class EnrollmentViewModel @Inject constructor(
      * Called by the Fragment on each shutter button press.
      * Returns true when 5 photos have been captured (ready to enroll).
      */
-    fun capturePhoto(bitmap: Bitmap): Boolean {
-        capturedBitmaps.add(bitmap)
+    fun capturePhoto(bitmap: Bitmap, rotationDegrees: Int = 0): Boolean {
+        capturedBitmaps.add(CapturedPhoto(bitmap, rotationDegrees))
         _enrollmentState.value = EnrollmentState.Capturing
         return capturedBitmaps.size >= 5
     }
@@ -85,14 +88,24 @@ class EnrollmentViewModel @Inject constructor(
             _enrollmentState.value = EnrollmentState.Processing
 
             var lastResult: EnrollmentResult = EnrollmentResult.NoFaceDetected
+            var unexpectedError: String? = null
 
-            for (bitmap in capturedBitmaps) {
-                val result = pipeline.enrollStudent(
-                    studentId    = studentId,
-                    studentName  = studentName,
-                    studentClass = studentClass,
-                    photo        = bitmap,
-                )
+            for (captured in capturedBitmaps) {
+                val result = try {
+                    pipeline.enrollStudent(
+                        studentId       = studentId,
+                        studentName     = studentName,
+                        studentClass    = studentClass,
+                        photo           = captured.bitmap,
+                        rotationDegrees = captured.rotationDegrees,
+                    )
+                } catch (e: Exception) {
+                    // e.g. duplicate studentId (Room primary-key conflict) or an
+                    // ONNX/embedding failure — don't let one bad photo crash
+                    // the whole enrollment flow.
+                    unexpectedError = e.message
+                    continue
+                }
                 lastResult = result
 
                 when (result) {
@@ -112,12 +125,14 @@ class EnrollmentViewModel @Inject constructor(
 
             // All photos failed
             clearBitmaps()
-            _enrollmentState.value = when (lastResult) {
-                is EnrollmentResult.NoFaceDetected ->
+            _enrollmentState.value = when {
+                unexpectedError != null && lastResult == EnrollmentResult.NoFaceDetected ->
+                    EnrollmentState.Failed(unexpectedError)
+                lastResult is EnrollmentResult.NoFaceDetected ->
                     EnrollmentState.Failed("No face detected. Ensure good lighting and face the camera directly.")
-                is EnrollmentResult.MultipleFacesDetected ->
+                lastResult is EnrollmentResult.MultipleFacesDetected ->
                     EnrollmentState.Failed("Multiple faces detected. Only one person should be in frame.")
-                is EnrollmentResult.QualityFailed ->
+                lastResult is EnrollmentResult.QualityFailed ->
                     EnrollmentState.Failed("Image quality too low. Move to better lighting and hold still.")
                 else -> EnrollmentState.Failed()
             }
@@ -132,7 +147,7 @@ class EnrollmentViewModel @Inject constructor(
     }
 
     private fun clearBitmaps() {
-        capturedBitmaps.forEach { it.recycle() }
+        capturedBitmaps.forEach { it.bitmap.recycle() }
         capturedBitmaps.clear()
     }
 

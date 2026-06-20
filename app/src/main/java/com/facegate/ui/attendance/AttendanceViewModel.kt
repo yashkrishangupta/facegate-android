@@ -81,14 +81,17 @@ class AttendanceViewModel @Inject constructor(
     /**
      * Called from CameraX ImageAnalysis on every camera frame.
      * Maps PipelineFrameStatus → ScanState so the Fragment renders correctly.
+     *
+     * @param rotationDegrees From ImageProxy.imageInfo.rotationDegrees — needed
+     *   so the pipeline can rotate the frame upright before detection/alignment.
      */
-    fun processFrame(bitmap: Bitmap) {
+    fun processFrame(bitmap: Bitmap, rotationDegrees: Int = 0) {
         if (isProcessing) return
         isProcessing = true
 
         viewModelScope.launch {
             try {
-                val status = pipeline.processFrame(bitmap)
+                val status = pipeline.processFrame(bitmap, rotationDegrees)
                 _scanState.value = mapStatusToScanState(status)
             } catch (e: Exception) {
                 e.printStackTrace()

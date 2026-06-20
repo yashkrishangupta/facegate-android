@@ -29,18 +29,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-/**
- * ENROLLMENT FRAGMENT
- *
- * Fixed from original stub:
- *  - Uncommented and wired to the updated ViewModel API
- *  - capturePhoto() now passes a real Bitmap (not an Int index)
- *  - enrollStudent() now collects studentName / studentId / studentClass
- *    from a dialog before calling viewModel.enrollStudent(name, id, class)
- *  - CameraX preview + ImageCapture set up properly
- *  - Camera permission requested at runtime
- *  - EnrollmentState.Failed carries a reason string — shown in tvInstSub
- */
+
 @AndroidEntryPoint
 class EnrollmentFragment : Fragment() {
 
@@ -160,12 +149,13 @@ class EnrollmentFragment : Fragment() {
             cameraExecutor,
             object : ImageCapture.OnImageCapturedCallback() {
                 override fun onCaptureSuccess(image: ImageProxy) {
+                    val rotationDegrees = image.imageInfo.rotationDegrees
                     val bitmap = image.toBitmap()
                     image.close()
 
                     // Post UI work back to main thread
                     binding.root.post {
-                        val done = viewModel.capturePhoto(bitmap)
+                        val done = viewModel.capturePhoto(bitmap, rotationDegrees)
                         updatePhotoUI()
                         if (done) promptStudentInfo()
                     }

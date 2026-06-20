@@ -34,6 +34,17 @@ class FaceEmbedder(private val context: Context) {
     }
 
     /**
+     * ensureInitialized()
+     * Synchronized lazy-init guard used by embed() as a fallback in case the
+     * app-startup call to init() hasn't run (or hasn't finished) yet.
+     */
+    @Synchronized
+    private fun ensureInitialized() {
+        if (ortSession != null) return
+        init()
+    }
+
+    /**
      * warmup()
      * Runs one dummy inference so the first real frame is not slow.
      * Must be called after init().
@@ -56,6 +67,14 @@ class FaceEmbedder(private val context: Context) {
      * Returns FaceEmbedding with the vector and measured inference time.
      */
     suspend fun embed(alignedFace: AlignedFace): FaceEmbedding = withContext(Dispatchers.Default) {
+        // Safety net: if init() was never called (or hasn't finished yet) by the
+        // app-startup path, lazily initialize here instead of hard-failing.
+        // This is what was silently breaking enrollment — embed() used to throw
+        // immediately because nothing in the app ever called init().
+        if (ortSession == null) {
+            ensureInitialized()
+        }
+
         val env     = ortEnv     ?: throw IllegalStateException("OrtEnvironment not initialized — call init() first")
         val session = ortSession ?: throw IllegalStateException("OrtSession not initialized — call init() first")
 
@@ -108,7 +127,6 @@ class FaceEmbedder(private val context: Context) {
     private fun allocateAndPreprocess(bitmap: Bitmap): java.nio.FloatBuffer {
         val size = PipelineConfig.MODEL_INPUT_SIZE
 
-        // Bug fix: assert bitmap dimensions before processing so a wrong-size
         // bitmap from FaceAligner is caught immediately instead of silently
         // corrupting the tensor.
         require(bitmap.width == size && bitmap.height == size) {
@@ -121,7 +139,6 @@ class FaceEmbedder(private val context: Context) {
         val intValues  = IntArray(pixelCount)
         bitmap.getPixels(intValues, 0, size, 0, 0, size, size)
 
-        // Bug fix: use a DIRECT ByteBuffer backed by native memory.
         // OnnxTensor.createTensor() on Android NDK requires native-order direct buffers.
         val floatBuffer = ByteBuffer
             .allocateDirect(3 * pixelCount * Float.SIZE_BYTES)

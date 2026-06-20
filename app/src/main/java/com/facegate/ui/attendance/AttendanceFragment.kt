@@ -126,9 +126,14 @@ class AttendanceFragment : Fragment() {
             imageAnalysis.setAnalyzer(
                 ContextCompat.getMainExecutor(requireContext())
             ) { imageProxy ->
-                // Convert ImageProxy → Bitmap and pass to pipeline
+                // Capture rotation BEFORE closing — CameraX delivers raw
+                // sensor-orientation frames (almost always 90/270 in portrait),
+                // and the pipeline needs this to rotate the frame upright
+                // before face detection/alignment. This was previously
+                // dropped entirely, which is why recognition was unreliable.
+                val rotationDegrees = imageProxy.imageInfo.rotationDegrees
                 val bitmap = imageProxy.toBitmap()
-                viewModel.processFrame(bitmap)
+                viewModel.processFrame(bitmap, rotationDegrees)
                 imageProxy.close()
             }
 
