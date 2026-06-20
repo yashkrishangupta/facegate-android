@@ -44,4 +44,13 @@ interface AttendanceDao {
         WHERE studentId = :studentId AND timeStamp >= :startOfDay
     """)
     suspend fun isStudentMarkedToday(studentId: String, startOfDay: Long): Int
+
+    @Query("""
+        DELETE FROM attendance_records
+        WHERE studentId = :studentId AND timeStamp >= :startOfDay
+    """)
+    suspend fun deleteAttendanceToday(studentId: String, startOfDay: Long)
+
+    @Query("UPDATE attendance_records SET studentId = :newId WHERE studentId = :oldId")
+    suspend fun renameStudentId(oldId: String, newId: String)
 }

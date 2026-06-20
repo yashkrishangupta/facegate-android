@@ -7,8 +7,10 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -41,11 +43,11 @@ class StudentsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupClickListeners()
         observeStudents()
+        observeErrors()
     }
 
     override fun onResume() {
         super.onResume()
-        // Refresh list when returning from enrollment
         viewModel.loadStudents()
     }
 
@@ -70,6 +72,16 @@ class StudentsFragment : Fragment() {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // ── Observe one-shot error events (e.g. duplicate roll number) ───────────
+
+    private fun observeErrors() {
+        lifecycleScope.launch {
+            viewModel.errorEvents.collect { message ->
+                Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -134,6 +146,18 @@ class StudentsFragment : Fragment() {
         infoCol.addView(nameText)
         infoCol.addView(subText)
 
+        // Edit button
+        val editBtn = TextView(requireContext()).apply {
+            text     = "✎"
+            textSize = 16f
+            gravity  = Gravity.CENTER
+            setTextColor(Color.parseColor("#1D9E75"))
+            layoutParams = LinearLayout.LayoutParams(64, 64).apply { marginEnd = 8 }
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { showEditDialog(student) }
+        }
+
         // Delete button
         val deleteBtn = TextView(requireContext()).apply {
             text     = "✕"
@@ -148,6 +172,7 @@ class StudentsFragment : Fragment() {
 
         row.addView(avatar)
         row.addView(infoCol)
+        row.addView(editBtn)
         row.addView(deleteBtn)
         binding.studentListContainer.addView(row)
 
@@ -161,6 +186,75 @@ class StudentsFragment : Fragment() {
             }
             binding.studentListContainer.addView(divider)
         }
+    }
+
+    // ── Edit dialog ──────────────────────────────────────────────────────────
+
+    private fun showEditDialog(student: StudentEntity) {
+        val ctx = requireContext()
+        val padding = (16 * resources.displayMetrics.density).toInt()
+
+        val container = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(padding * 2, padding, padding * 2, padding)
+        }
+
+        val etRollNo = EditText(ctx).apply {
+            hint = "Roll number"
+            setText(student.studentId)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { bottomMargin = padding }
+        }
+
+        val etName = EditText(ctx).apply {
+            hint = "Full name"
+            setText(student.name)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { bottomMargin = padding }
+        }
+
+        val etClass = EditText(ctx).apply {
+            hint = "Class (e.g. 10A)"
+            setText(student.studentClass)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+        }
+
+        // Informational note so admin knows face data is safe
+        val tvNote = TextView(ctx).apply {
+            text     = "ℹ Face embedding is preserved — attendance history follows the new roll number."
+            textSize = 11f
+            setTextColor(Color.parseColor("#888780"))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { topMargin = padding }
+        }
+
+        container.addView(etRollNo)
+        container.addView(etName)
+        container.addView(etClass)
+        container.addView(tvNote)
+
+        AlertDialog.Builder(ctx)
+            .setTitle("Edit Student")
+            .setView(container)
+            .setPositiveButton("Save") { _, _ ->
+                val newRollNo = etRollNo.text.toString().trim()
+                val newName   = etName.text.toString().trim()
+                val newClass  = etClass.text.toString().trim()
+                if (newRollNo.isNotEmpty() && newName.isNotEmpty()) {
+                    viewModel.updateStudentRollNo(student.studentId, newRollNo, newName, newClass)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun confirmDelete(student: StudentEntity) {

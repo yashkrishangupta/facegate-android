@@ -28,4 +28,13 @@ interface StudentDao {
 
     @Query("DELETE FROM students")
     suspend fun deleteAllStudents()
+
+    @Query("UPDATE students SET name = :name, studentClass = :studentClass WHERE studentId = :studentId")
+    suspend fun updateStudentInfo(studentId: String, name: String, studentClass: String)
+
+    @Query("SELECT * FROM students WHERE studentId = :studentId LIMIT 1")
+    suspend fun getStudentById(studentId: String): StudentEntity?
+
+    @Query("UPDATE students SET studentId = :newId, name = :name, studentClass = :studentClass WHERE studentId = :oldId")
+    suspend fun updateStudentIdAndInfo(oldId: String, newId: String, name: String, studentClass: String)
 }

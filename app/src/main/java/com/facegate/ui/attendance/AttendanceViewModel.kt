@@ -17,7 +17,6 @@ import javax.inject.Inject
 
 /**
  * All possible states of the attendance camera screen.
- * Unchanged from original — Fragment observes this exactly as before.
  */
 sealed class ScanState {
     object Idle       : ScanState()
@@ -34,12 +33,6 @@ sealed class ScanState {
 
 /**
  * ATTENDANCE VIEWMODEL — fully wired to real pipeline
- *
- * Changed from original:
- *   - processScan() mock removed — replaced with processFrame(bitmap)
- *   - startSession() / stopSession() added for session lifecycle
- *   - isProcessing guard prevents frame queue buildup during ML inference
- *   - PipelineFrameStatus -> ScanState mapping replaces the Math.random() simulation
  */
 @HiltViewModel
 class AttendanceViewModel @Inject constructor(
@@ -53,6 +46,11 @@ class AttendanceViewModel @Inject constructor(
     // ML inference takes 150-400ms; camera delivers frames faster than that.
     @Volatile
     private var isProcessing = false
+
+    // Paused during Success/Failed so the result stays on screen for the full
+    // display duration instead of being overwritten by the next camera frame.
+    @Volatile
+    private var isPaused = false
 
     // ── Session lifecycle ────────────────────────────────────────────────────
 
@@ -78,15 +76,8 @@ class AttendanceViewModel @Inject constructor(
 
     // ── Main frame processing ────────────────────────────────────────────────
 
-    /**
-     * Called from CameraX ImageAnalysis on every camera frame.
-     * Maps PipelineFrameStatus → ScanState so the Fragment renders correctly.
-     *
-     * @param rotationDegrees From ImageProxy.imageInfo.rotationDegrees — needed
-     *   so the pipeline can rotate the frame upright before detection/alignment.
-     */
     fun processFrame(bitmap: Bitmap, rotationDegrees: Int = 0) {
-        if (isProcessing) return
+        if (isProcessing || isPaused) return
         isProcessing = true
 
         viewModelScope.launch {
@@ -116,28 +107,34 @@ class AttendanceViewModel @Inject constructor(
             is PipelineFrameStatus.Decision       -> {
                 when (val d = status.result.decision) {
 
-                    is AttendanceDecision.Accept -> ScanState.Success(
-                        studentName  = d.studentName,
-                        studentClass = "Confidence: ${(d.confidence * 100).toInt()}%",
-                        initials     = d.studentName
-                            .split(" ")
-                            .mapNotNull { it.firstOrNull()?.toString() }
-                            .take(2)
-                            .joinToString(""),
-                        markedTime   = SimpleDateFormat("hh:mm a", Locale.getDefault())
-                            .format(Date()),
-                    )
+                    is AttendanceDecision.Accept -> {
+                        isPaused = true
+                        ScanState.Success(
+                            studentName  = d.studentName,
+                            studentClass = "Confidence: ${(d.confidence * 100).toInt()}%",
+                            initials     = d.studentName
+                                .split(" ")
+                                .mapNotNull { it.firstOrNull()?.toString() }
+                                .take(2)
+                                .joinToString(""),
+                            markedTime   = SimpleDateFormat("hh:mm a", Locale.getDefault())
+                                .format(Date()),
+                        )
+                    }
 
-                    is AttendanceDecision.AlreadyMarked -> ScanState.Success(
-                        studentName  = d.studentId,
-                        studentClass = "Already marked",
-                        initials     = "--",
-                        markedTime   = SimpleDateFormat("hh:mm a", Locale.getDefault())
-                            .format(Date(d.markedAt)),
-                    )
+                    is AttendanceDecision.AlreadyMarked -> {
+                        isPaused = true
+                        ScanState.Success(
+                            studentName  = d.studentId,
+                            studentClass = "Already marked",
+                            initials     = "--",
+                            markedTime   = SimpleDateFormat("hh:mm a", Locale.getDefault())
+                                .format(Date(d.markedAt)),
+                        )
+                    }
 
-                    is AttendanceDecision.Reject    -> ScanState.Failed
-                    is AttendanceDecision.Ambiguous -> ScanState.Failed
+                    is AttendanceDecision.Reject    -> { isPaused = true; ScanState.Failed }
+                    is AttendanceDecision.Ambiguous -> { isPaused = true; ScanState.Failed }
                 }
             }
         }
@@ -146,6 +143,7 @@ class AttendanceViewModel @Inject constructor(
     // ── UI helpers ───────────────────────────────────────────────────────────
 
     fun resetScan() {
+        isPaused = false
         _scanState.value = ScanState.Idle
     }
 

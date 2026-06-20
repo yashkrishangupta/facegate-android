@@ -219,7 +219,6 @@ class ManualAttendanceFragment : Fragment() {
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                 )
-                alpha = if (sws.markedToday) 0.45f else 1f
             }
 
             // Initials avatar
@@ -264,30 +263,41 @@ class ManualAttendanceFragment : Fragment() {
             infoCol.addView(tvName)
             infoCol.addView(tvId)
 
-            // Action button
+            // ── Toggle button: "✓ Present" (tap to mark absent) or "Mark Present" ──
             val actionBtn = TextView(requireContext()).apply {
-                gravity = Gravity.CENTER
+                gravity     = Gravity.CENTER
+                isClickable = true
+                isFocusable = true
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                 )
                 if (sws.markedToday) {
-                    text      = "✓ Present"
-                    textSize  = 12f
-                    typeface  = Typeface.DEFAULT_BOLD
+                    // Already present — show green chip, tap to undo
+                    text     = "✓ Present"
+                    textSize = 12f
+                    typeface = Typeface.DEFAULT_BOLD
                     setTextColor(Color.parseColor("#1D9E75"))
-                    isClickable = false
+                    setPadding(dp(12), dp(8), dp(12), dp(8))
+                    setBackgroundResource(com.facegate.R.drawable.chip_active)
+                    setOnClickListener {
+                        viewModel.toggleAttendance(sws.student.studentId)
+                        Toast.makeText(
+                            requireContext(),
+                            "${sws.student.name} marked absent",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
                 } else {
-                    text      = "Mark Present"
-                    textSize  = 11f
-                    typeface  = Typeface.DEFAULT_BOLD
+                    // Not yet marked — show "Mark Present" button
+                    text     = "Mark Present"
+                    textSize = 11f
+                    typeface = Typeface.DEFAULT_BOLD
                     setTextColor(Color.WHITE)
                     setPadding(dp(12), dp(8), dp(12), dp(8))
                     setBackgroundResource(com.facegate.R.drawable.badge_green)
-                    isClickable = true
-                    isFocusable = true
                     setOnClickListener {
-                        viewModel.markStudentPresent(sws.student.studentId)
+                        viewModel.toggleAttendance(sws.student.studentId)
                         Toast.makeText(
                             requireContext(),
                             "${sws.student.name} marked present",

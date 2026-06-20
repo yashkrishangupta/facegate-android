@@ -114,9 +114,6 @@ class AttendanceFragment : Fragment() {
             preview.setSurfaceProvider(binding.cameraPreview.surfaceProvider)
 
             // ── Use case 2: ImageAnalysis (feeds frames to the ML pipeline) ───
-            // STRATEGY_KEEP_ONLY_LATEST: automatically drops frames if the pipeline
-            // is still processing the previous one — prevents frame queue buildup
-            // during the 150-400ms ML inference window.
             val imageAnalysis = ImageAnalysis.Builder()
                 .setTargetResolution(Size(640, 480))
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -126,11 +123,6 @@ class AttendanceFragment : Fragment() {
             imageAnalysis.setAnalyzer(
                 ContextCompat.getMainExecutor(requireContext())
             ) { imageProxy ->
-                // Capture rotation BEFORE closing — CameraX delivers raw
-                // sensor-orientation frames (almost always 90/270 in portrait),
-                // and the pipeline needs this to rotate the frame upright
-                // before face detection/alignment. This was previously
-                // dropped entirely, which is why recognition was unreliable.
                 val rotationDegrees = imageProxy.imageInfo.rotationDegrees
                 val bitmap = imageProxy.toBitmap()
                 viewModel.processFrame(bitmap, rotationDegrees)
@@ -196,7 +188,8 @@ class AttendanceFragment : Fragment() {
         binding.tvStatusMain.text  = "Place your face inside the oval"
         binding.tvStatusSub.text   = "Keep your face centered and look straight"
         binding.processingDots.visibility = View.GONE
-        binding.scanLine.visibility = View.GONE
+        binding.scanLine.visibility       = View.GONE
+        binding.btnRetry.visibility       = View.INVISIBLE
     }
 
     private fun showScanningState() {
@@ -206,6 +199,7 @@ class AttendanceFragment : Fragment() {
         binding.tvStatusMain.text  = "Hold still — scanning…"
         binding.tvStatusSub.text   = "Analyzing facial features"
         binding.processingDots.visibility = View.GONE
+        binding.btnRetry.visibility       = View.INVISIBLE
 
         // Only start animation if not already running — prevents jitter
         if (binding.scanLine.animation == null) {
@@ -224,6 +218,7 @@ class AttendanceFragment : Fragment() {
         binding.tvStatusMain.text  = "Identifying student…"
         binding.tvStatusSub.text   = "Matching against database"
         binding.processingDots.visibility = View.VISIBLE
+        binding.btnRetry.visibility       = View.INVISIBLE
         animateProcessingDots()
     }
 
@@ -236,6 +231,7 @@ class AttendanceFragment : Fragment() {
         binding.tvStatusMain.text  = "Attendance Marked!"
         binding.tvStatusSub.text   = "${state.studentName} — ${state.studentClass}"
         binding.processingDots.visibility = View.GONE
+        binding.btnRetry.visibility       = View.INVISIBLE
     }
 
     private fun showFailState() {
@@ -247,6 +243,7 @@ class AttendanceFragment : Fragment() {
         binding.tvStatusMain.text  = "Face Not Recognized"
         binding.tvStatusSub.text   = "Please try again"
         binding.processingDots.visibility = View.GONE
+        binding.btnRetry.visibility       = View.VISIBLE
     }
 
     // ── PROCESSING DOTS ANIMATION ────────────────────────────────────────────

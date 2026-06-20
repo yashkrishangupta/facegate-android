@@ -191,7 +191,8 @@
             android:background="@drawable/btn_camera_back"
             android:clickable="true"
             android:focusable="true"
-            android:layout_marginEnd="20dp"/>
+            android:layout_marginEnd="20dp"
+            android:visibility="invisible"/>
 
         <FrameLayout
             android:id="@+id/btnShutter"

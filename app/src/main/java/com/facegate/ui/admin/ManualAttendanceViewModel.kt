@@ -47,7 +47,6 @@ class ManualAttendanceViewModel @Inject constructor(
                 _state.value = ManualAttendanceState.Empty
                 return@launch
             }
-            // Default to first class if none selected
             if (selectedClass == null) selectedClass = classes.firstOrNull()
             loadStudentsForClass(classes)
         }
@@ -78,23 +77,30 @@ class ManualAttendanceViewModel @Inject constructor(
         )
     }
 
-    fun markStudentPresent(studentId: String) {
+    /** Toggle: if already present today → mark absent (remove record); otherwise mark present. */
+    fun toggleAttendance(studentId: String) {
         viewModelScope.launch {
             val startOfDay = getStartOfDay()
-            // Prevent double marking
-            if (repository.isStudentMarkedToday(studentId, startOfDay)) return@launch
-            repository.addAttendance(
-                AttendanceEntity(
-                    studentId = studentId,
-                    timeStamp = System.currentTimeMillis(),
-                    synced    = false,
+            if (repository.isStudentMarkedToday(studentId, startOfDay)) {
+                // Already present — remove today's record to mark absent
+                repository.removeAttendanceToday(studentId, startOfDay)
+            } else {
+                // Not yet marked — insert a present record
+                repository.addAttendance(
+                    AttendanceEntity(
+                        studentId = studentId,
+                        timeStamp = System.currentTimeMillis(),
+                        synced    = false,
+                    )
                 )
-            )
-            // Reload to update the tick marks
+            }
             val classes = repository.getAllClasses()
             loadStudentsForClass(classes)
         }
     }
+
+    // Keep old name as an alias so any other callers don't break
+    fun markStudentPresent(studentId: String) = toggleAttendance(studentId)
 
     private fun getStartOfDay(): Long {
         val cal = Calendar.getInstance()

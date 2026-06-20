@@ -39,11 +39,16 @@ class AttendanceDecisionEngine {
             )
         }
 
-        // 2. AMBIGUOUS — two sub-cases:
+        // 2. ALREADY MARKED — checked BEFORE the ambiguity checks below.
+        if (alreadyMarkedMap.containsKey(top.studentId)) {
+            return AttendanceDecision.AlreadyMarked(
+                studentId = top.studentId,
+                markedAt = alreadyMarkedMap[top.studentId] ?: System.currentTimeMillis()
+            )
+        }
+
+        // 3. AMBIGUOUS — two sub-cases:
         //    a) Score is in the gray zone (0.40–0.60): not confident enough to Accept.
-        //       Bug 4 fix: previously this only fired when second != null, so with
-        //       1 enrolled student gray-zone scores fell through to step 5 (Reject)
-        //       with no explanation. Now gray zone always → Ambiguous regardless.
         //    b) Top score is above Accept threshold but too close to second match.
         if (top.cosineSimilarity < PipelineConfig.THRESHOLD_ACCEPT) {
             return AttendanceDecision.Ambiguous(
@@ -61,14 +66,6 @@ class AttendanceDecisionEngine {
                     reason          = "Ambiguous match: Too similar to another student (Twin risk)."
                 )
             }
-        }
-
-        // 3. ALREADY MARKED if the student is already in the attendance list for this session.
-        if (alreadyMarkedMap.containsKey(top.studentId)) {
-            return AttendanceDecision.AlreadyMarked(
-                studentId = top.studentId,
-                markedAt = alreadyMarkedMap[top.studentId] ?: System.currentTimeMillis()
-            )
         }
 
         // 4. ACCEPT — score is above threshold and not ambiguous.

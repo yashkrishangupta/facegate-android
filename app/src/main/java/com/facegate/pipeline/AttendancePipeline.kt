@@ -102,6 +102,13 @@ class AttendancePipeline(
         alreadyMarkedMap.clear()
         startFrameBuffering()
 
+        
+        val startOfDay = System.currentTimeMillis()
+            .let { it - (it % (24 * 60 * 60 * 1000)) }   // midnight UTC
+        repository.getTodayAttendance(startOfDay).forEach { record ->
+            alreadyMarkedMap[record.studentId] = record.timeStamp
+        }
+
         // Load templates from DB into in-memory list for fast search
         val students = repository.getStudents()
         enrolledTemplates.clear()
@@ -142,25 +149,10 @@ class AttendancePipeline(
     // MAIN ENTRY POINT
     // ═════════════════════════════════════════════════════════════════════════
 
-    /**
-     * Process one camera frame through all 8 stages.
-     * Called from CameraX ImageAnalysis at ~10fps.
-     * Returns PipelineFrameStatus — the UI observes this via StateFlow.
-     *
-     * @param rotationDegrees Rotation needed to make [bitmap] upright, taken
-     *   from CameraX's ImageProxy.imageInfo.rotationDegrees. CameraX delivers
-     *   raw sensor-orientation frames — on a phone in portrait this is almost
-     *   always 90 or 270, NOT 0. Previously this was hardcoded to 0 everywhere,
-     *   so ML Kit detected faces (and FaceAligner cropped landmarks) on a
-     *   sideways frame, producing garbage embeddings and wrong/missed matches.
-     */
     suspend fun processFrame(bitmap: Bitmap, rotationDegrees: Int = 0): PipelineFrameStatus {
         sessionId ?: return PipelineFrameStatus.NoSession
         val t0 = SystemClock.elapsedRealtime()
 
-        // Rotate once to upright so every downstream stage (ML Kit, quality
-        // checks, alignment crop) operates on — and reports coordinates in —
-        // the SAME coordinate space.
         val uprightBitmap = rotateIfNeeded(bitmap, rotationDegrees)
 
         // ── Stage 1: ML Kit Face Detection ───────────────────────────────────
@@ -258,11 +250,6 @@ class AttendancePipeline(
     ): EnrollmentResult {
 
         val uprightPhoto = rotateIfNeeded(photo, rotationDegrees)
-
-        // Bug 2 fix: ImageCapture delivers full sensor resolution (e.g. 3024×4032).
-        // QualityChecker computes faceArea/imageArea — at 12MP even a large face
-        // gives a ratio well below MIN_FACE_SIZE_RATIO=0.20, so enrollment always
-        // returns QualityFailed. Scale down to ≤640px wide before any processing.
         val scaledPhoto = scaleBitmapToMaxWidth(uprightPhoto, 640)
 
         // Detect face
@@ -301,7 +288,7 @@ class AttendancePipeline(
             StudentEntity(
                 studentId    = studentId,
                 name         = studentName,
-                studentClass = studentClass,      // ← now saved properly
+                studentClass = studentClass,      
                 embedding    = embedding.vector.joinToString(","),
             )
         )
@@ -320,6 +307,11 @@ class AttendancePipeline(
 
     /** How many students are loaded in the current session. */
     fun enrolledCount(): Int = enrolledTemplates.size
+
+    /** Record a manual attendance decision. */
+    fun markAlreadyMarked(studentId: String, timestamp: Long = System.currentTimeMillis()) {
+        alreadyMarkedMap[studentId] = timestamp
+    }
 
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -343,25 +335,40 @@ class AttendancePipeline(
                         synced    = false,
                     )
                 )
+
+                repository.resolveConflictsForStudent(sessionId ?: "no_session", decision.studentId)
             }
             is AttendanceDecision.Ambiguous -> {
-                // Write ambiguous match to the conflict queue for admin review.
-                // Both candidates are stored so the admin sees exactly who the
-                // system was torn between and can mark the correct one present.
-                repository.addConflict(
-                    ConflictEntity(
-                        topStudentId      = decision.topCandidate?.studentId    ?: "unknown",
-                        topStudentName    = decision.topCandidate?.studentName  ?: "Unknown",
-                        topScore          = decision.topCandidate?.cosineSimilarity ?: 0f,
-                        secondStudentId   = decision.secondCandidate?.studentId   ?: "unknown",
-                        secondStudentName = decision.secondCandidate?.studentName ?: "Unknown",
-                        secondScore       = decision.secondCandidate?.cosineSimilarity ?: 0f,
+                
+                val topId = decision.topCandidate?.studentId ?: "unknown"
+                val existing = repository.findOpenConflict(sessionId ?: "no_session", topId)
+
+                if (existing != null) {
+                    repository.updateConflict(
+                        id                = existing.id,
+                        topScore          = decision.topCandidate?.cosineSimilarity ?: existing.topScore,
+                        secondStudentId   = decision.secondCandidate?.studentId    ?: existing.secondStudentId,
+                        secondStudentName = decision.secondCandidate?.studentName  ?: existing.secondStudentName,
+                        secondScore       = decision.secondCandidate?.cosineSimilarity ?: existing.secondScore,
                         reason            = decision.reason,
-                        sessionId         = sessionId ?: "no_session",
                         timestamp         = System.currentTimeMillis(),
-                        resolved          = false,
                     )
-                )
+                } else {
+                    repository.addConflict(
+                        ConflictEntity(
+                            topStudentId      = topId,
+                            topStudentName    = decision.topCandidate?.studentName  ?: "Unknown",
+                            topScore          = decision.topCandidate?.cosineSimilarity ?: 0f,
+                            secondStudentId   = decision.secondCandidate?.studentId   ?: "unknown",
+                            secondStudentName = decision.secondCandidate?.studentName ?: "Unknown",
+                            secondScore       = decision.secondCandidate?.cosineSimilarity ?: 0f,
+                            reason            = decision.reason,
+                            sessionId         = sessionId ?: "no_session",
+                            timestamp         = System.currentTimeMillis(),
+                            resolved          = false,
+                        )
+                    )
+                }
             }
             is AttendanceDecision.Reject,
             is AttendanceDecision.AlreadyMarked -> {
@@ -379,16 +386,6 @@ class AttendancePipeline(
         return Bitmap.createScaledBitmap(bitmap, w, h, true)
     }
 
-    /**
-     * Rotates [bitmap] to upright orientation using [rotationDegrees] (from
-     * CameraX's ImageProxy.imageInfo.rotationDegrees). No-op if already 0.
-     *
-     * This MUST happen before face detection/quality/alignment so that ML
-     * Kit's reported bounding box and landmarks line up with the same bitmap
-     * we crop from later — previously rotation was ignored entirely (hardcoded
-     * to 0), so on a typical portrait-held phone every frame was analyzed and
-     * cropped sideways, producing bad embeddings and wrong recognition.
-     */
     private fun rotateIfNeeded(bitmap: Bitmap, rotationDegrees: Int): Bitmap {
         if (rotationDegrees == 0) return bitmap
         val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
@@ -419,11 +416,7 @@ class AttendancePipeline(
     private fun isBufferReady(): Boolean =
         frameBuffer.size >= PipelineConfig.FRAME_BUFFER_SIZE
 
-    /**
-     * Parse a comma-separated float string back to FloatArray.
-     * Used when loading StudentEntity.embedding from Room.
-     * Returns null if the stored string is corrupted/empty.
-     */
+    
     private fun parseEmbedding(raw: String): FloatArray? {
         return try {
             val parts = raw.split(",")

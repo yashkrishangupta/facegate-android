@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -183,7 +184,7 @@ class ConflictQueueFragment : Fragment() {
             )
             isClickable = true
             isFocusable = true
-            setOnClickListener { viewModel.resolveConflict(conflict.id) }
+            setOnClickListener { showResolveDialog(conflict) }
         }
 
         rowLayout.addView(avatar)
@@ -201,6 +202,25 @@ class ConflictQueueFragment : Fragment() {
             }
             container.addView(divider)
         }
+    }
+
+    /**
+     * Bug fix: the Resolve button used to silently mark the conflict resolved
+     * with no record of the outcome. Now it asks the admin explicitly whether
+     * the flagged person should be marked Present or left Absent.
+     */
+    private fun showResolveDialog(conflict: ConflictEntity) {
+        AlertDialog.Builder(requireContext())
+            .setTitle(conflict.topStudentName ?: "Unknown Student")
+            .setMessage("Mark this person present or absent for today?")
+            .setPositiveButton("Mark Present") { _, _ ->
+                viewModel.resolveConflict(conflict, markPresent = true)
+            }
+            .setNegativeButton("Mark Absent") { _, _ ->
+                viewModel.resolveConflict(conflict, markPresent = false)
+            }
+            .setNeutralButton("Cancel", null)
+            .show()
     }
 
     private fun showEmptyState(message: String) {
