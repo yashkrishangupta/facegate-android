@@ -16,4 +16,14 @@ interface AttendanceDao {
 
     @Query("UPDATE attendance_records SET synced = 1 WHERE id = :id")
     suspend fun markAsSynced(id: Int)
+
+    // ── Added for dashboard + reports ────────────────────────────────────────
+
+    /** All records from today (timeStamp >= start of today in ms) */
+    @Query("SELECT * FROM attendance_records WHERE timeStamp >= :startOfDay")
+    suspend fun getTodayAttendance(startOfDay: Long): List<AttendanceEntity>
+
+    /** All records ever — used for report total count */
+    @Query("SELECT * FROM attendance_records")
+    suspend fun getAllAttendance(): List<AttendanceEntity>
 }
