@@ -53,7 +53,6 @@ class AdminDashboard : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Refresh stats every time the admin returns to this screen
         viewModel.loadStats()
     }
 
@@ -80,11 +79,54 @@ class AdminDashboard : Fragment() {
     private fun observeStats() {
         lifecycleScope.launch {
             viewModel.stats.collect { stats ->
-                binding.tvTotalStudents.text  = stats.totalStudents.toString()
-                binding.tvPresentToday.text   = stats.presentToday.toString()
-                binding.tvAbsentToday.text    = stats.absentToday.toString()
-                // Show conflict badge count instead of "holidays" (no holidays table in DB)
-                binding.tvHolidaysLeft.text   = stats.pendingConflicts.toString()
+
+                // ── Stat cards ────────────────────────────────────────────────
+                binding.tvTotalStudents.text = stats.totalStudents.toString()
+                binding.tvPresentToday.text  = stats.presentToday.toString()
+                binding.tvAbsentToday.text   = stats.absentToday.toString()
+                binding.tvHolidaysLeft.text  = stats.pendingConflicts.toString()
+
+                // ── Progress bars (live percentages) ──────────────────────────
+                // Total students bar is always full — it's a reference, not a ratio
+                binding.progressTotalStudents.progress = if (stats.totalStudents > 0) 100 else 0
+                binding.progressPresent.progress       = stats.attendancePct
+                binding.progressAbsent.progress        = stats.absentPct
+                // Conflicts bar: capped at 100 so it looks proportional up to 10 conflicts
+                binding.progressConflicts.progress     =
+                    (stats.pendingConflicts * 10).coerceAtMost(100)
+
+                // ── Dynamic subtitles ─────────────────────────────────────────
+                binding.tvPresentSubtitle.text = "${stats.attendancePct}% attendance rate"
+                binding.tvAbsentSubtitle.text  = "${stats.absentPct}% absent today"
+                binding.tvConflictsSubtitle.text = when (stats.pendingConflicts) {
+                    0    -> "No unresolved matches"
+                    1    -> "1 match needs review"
+                    else -> "${stats.pendingConflicts} matches need review"
+                }
+
+                // ── Tile subtitles ────────────────────────────────────────────
+                binding.tvTileStudentsSub.text = when (stats.totalStudents) {
+                    0    -> "No students yet"
+                    1    -> "1 enrolled"
+                    else -> "${stats.totalStudents} enrolled"
+                }
+                binding.tvTileManualSub.text = when (stats.presentToday) {
+                    0    -> "None marked yet"
+                    1    -> "1 present today"
+                    else -> "${stats.presentToday} present today"
+                }
+                binding.tvTileReportsSub.text = "${stats.attendancePct}% today"
+
+                // ── Conflict banner (visible only when conflicts > 0) ─────────
+                if (stats.pendingConflicts > 0) {
+                    binding.conflictBanner.visibility = View.VISIBLE
+                    binding.tvConflictTitle.text = when (stats.pendingConflicts) {
+                        1    -> "1 Open Conflict"
+                        else -> "${stats.pendingConflicts} Open Conflicts"
+                    }
+                } else {
+                    binding.conflictBanner.visibility = View.GONE
+                }
             }
         }
     }
@@ -113,6 +155,9 @@ class AdminDashboard : Fragment() {
         }
         binding.navReports.setOnClickListener {
             findNavController().navigate(R.id.action_dashboard_to_reports)
+        }
+        binding.navConflicts.setOnClickListener {
+            findNavController().navigate(R.id.action_dashboard_to_conflicts)
         }
         binding.navExit.setOnClickListener {
             requireActivity().onBackPressedDispatcher.onBackPressed()

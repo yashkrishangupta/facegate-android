@@ -130,7 +130,7 @@
 
             </LinearLayout>
 
-            <!-- Conflict Banner -->
+            <!-- Conflict Banner (hidden when 0 conflicts) -->
             <LinearLayout
                 android:id="@+id/conflictBanner"
                 android:layout_width="match_parent"
@@ -139,7 +139,8 @@
                 android:gravity="center_vertical"
                 android:padding="12dp"
                 android:background="@drawable/bg_conflict_banner"
-                android:layout_marginBottom="20dp">
+                android:layout_marginBottom="20dp"
+                android:visibility="gone">
 
                 <ImageView
                     android:layout_width="20dp"
@@ -158,14 +159,14 @@
                         android:id="@+id/tvConflictTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="3 Open Conflicts"
+                        android:text=""
                         android:textSize="13sp"
                         android:textStyle="bold"
                         android:textColor="#791F1F"/>
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Students marked both present and absent today"
+                        android:text="Ambiguous face matches need your review"
                         android:textSize="11sp"
                         android:textColor="#A32D2D"
                         android:layout_marginTop="2dp"/>
@@ -227,7 +228,7 @@
                             android:id="@+id/tvTotalStudents"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="248"
+                            android:text="0"
                             android:textSize="30sp"
                             android:textStyle="bold"
                             android:textColor="#1A202C"/>
@@ -239,6 +240,7 @@
                             android:textColor="#888780"
                             android:layout_marginTop="6dp"/>
                         <ProgressBar
+                            android:id="@+id/progressTotalStudents"
                             android:layout_width="match_parent"
                             android:layout_height="3dp"
                             android:layout_marginTop="14dp"
@@ -276,24 +278,26 @@
                             android:id="@+id/tvPresentToday"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="211"
+                            android:text="0"
                             android:textSize="30sp"
                             android:textStyle="bold"
                             android:textColor="#1A202C"/>
                         <TextView
+                            android:id="@+id/tvPresentSubtitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="85.1% attendance rate"
+                            android:text="0% attendance rate"
                             android:textSize="11sp"
                             android:textColor="#888780"
                             android:layout_marginTop="6dp"/>
                         <ProgressBar
+                            android:id="@+id/progressPresent"
                             android:layout_width="match_parent"
                             android:layout_height="3dp"
                             android:layout_marginTop="14dp"
                             style="@android:style/Widget.ProgressBar.Horizontal"
                             android:progressTint="#639922"
-                            android:progress="85"
+                            android:progress="0"
                             android:progressBackgroundTint="#D3D1C7"/>
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
@@ -334,29 +338,31 @@
                             android:id="@+id/tvAbsentToday"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="37"
+                            android:text="0"
                             android:textSize="30sp"
                             android:textStyle="bold"
                             android:textColor="#1A202C"/>
                         <TextView
+                            android:id="@+id/tvAbsentSubtitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="14.9% absent today"
+                            android:text="0% absent today"
                             android:textSize="11sp"
                             android:textColor="#888780"
                             android:layout_marginTop="6dp"/>
                         <ProgressBar
+                            android:id="@+id/progressAbsent"
                             android:layout_width="match_parent"
                             android:layout_height="3dp"
                             android:layout_marginTop="14dp"
                             style="@android:style/Widget.ProgressBar.Horizontal"
                             android:progressTint="#E24B4A"
-                            android:progress="15"
+                            android:progress="0"
                             android:progressBackgroundTint="#D3D1C7"/>
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
-                <!-- Holidays Left -->
+                <!-- Pending Conflicts -->
                 <androidx.cardview.widget.CardView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
@@ -373,7 +379,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="HOLIDAYS LEFT"
+                            android:text="PENDING CONFLICTS"
                             android:textSize="10sp"
                             android:textStyle="bold"
                             android:textColor="#888780"
@@ -383,24 +389,26 @@
                             android:id="@+id/tvHolidaysLeft"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="8"
+                            android:text="0"
                             android:textSize="30sp"
                             android:textStyle="bold"
                             android:textColor="#1A202C"/>
                         <TextView
+                            android:id="@+id/tvConflictsSubtitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Remaining this semester"
+                            android:text="No unresolved matches"
                             android:textSize="11sp"
                             android:textColor="#888780"
                             android:layout_marginTop="6dp"/>
                         <ProgressBar
+                            android:id="@+id/progressConflicts"
                             android:layout_width="match_parent"
                             android:layout_height="3dp"
                             android:layout_marginTop="14dp"
                             style="@android:style/Widget.ProgressBar.Horizontal"
                             android:progressTint="#BA7517"
-                            android:progress="40"
+                            android:progress="0"
                             android:progressBackgroundTint="#D3D1C7"/>
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
@@ -466,9 +474,10 @@
                                 android:textStyle="bold"
                                 android:textColor="#1A202C"/>
                             <TextView
+                                android:id="@+id/tvTileStudentsSub"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Add, edit, remove"
+                                android:text="0 enrolled"
                                 android:textSize="11sp"
                                 android:textColor="#888780"
                                 android:layout_marginTop="3dp"/>
@@ -518,9 +527,10 @@
                                 android:textStyle="bold"
                                 android:textColor="#1A202C"/>
                             <TextView
+                                android:id="@+id/tvTileManualSub"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Mark individually"
+                                android:text="0 present today"
                                 android:textSize="11sp"
                                 android:textColor="#888780"
                                 android:layout_marginTop="3dp"/>
@@ -631,6 +641,7 @@
                                 android:textStyle="bold"
                                 android:textColor="#1A202C"/>
                             <TextView
+                                android:id="@+id/tvTileReportsSub"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Analytics and export"
@@ -722,6 +733,30 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Reports"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="#888780"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navConflicts"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@android:drawable/ic_dialog_alert"
+                app:tint="#888780"
+                android:contentDescription="Conflicts"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Conflicts"
                 android:textSize="10sp"
                 android:textStyle="bold"
                 android:textColor="#888780"/>
