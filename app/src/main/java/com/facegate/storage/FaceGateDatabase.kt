@@ -19,7 +19,7 @@ import com.facegate.storage.entity.SyncLogEntity
         SyncLogEntity::class,
         ConflictEntity::class,
     ],
-    version = 3,
+    version = 1,
     exportSchema = false,
 )
 abstract class FaceGateDatabase : RoomDatabase() {
