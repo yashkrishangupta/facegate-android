@@ -7,10 +7,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.facegate.R
 import com.facegate.databinding.FragmentAdminDashboardBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -21,8 +24,9 @@ class AdminDashboard : Fragment() {
     private var _binding: FragmentAdminDashboardBinding? = null
     private val binding get() = _binding!!
 
-    private val clockHandler = Handler(Looper.getMainLooper())
+    private val viewModel: AdminDashboardViewModel by viewModels()
 
+    private val clockHandler = Handler(Looper.getMainLooper())
     private val clockRunnable = object : Runnable {
         override fun run() {
             updateClock()
@@ -33,28 +37,24 @@ class AdminDashboard : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View {
-        _binding = FragmentAdminDashboardBinding.inflate(
-            inflater,
-            container,
-            false
-        )
+        _binding = FragmentAdminDashboardBinding.inflate(inflater, container, false)
         return binding.root
     }
 
-    override fun onViewCreated(
-        view: View,
-        savedInstanceState: Bundle?
-    ) {
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         setupClickListeners()
         updateDate()
-
         clockHandler.post(clockRunnable)
+        observeStats()
+    }
 
-        loadStats()
+    override fun onResume() {
+        super.onResume()
+        // Refresh stats every time the admin returns to this screen
+        viewModel.loadStats()
     }
 
     override fun onDestroyView() {
@@ -63,104 +63,59 @@ class AdminDashboard : Fragment() {
         _binding = null
     }
 
-    // ─────────────────────────────────────────────
-    // Clock & Date
-    // ─────────────────────────────────────────────
+    // ── Clock & Date ─────────────────────────────────────────────────────────
 
     private fun updateClock() {
-        val time = SimpleDateFormat(
-            "hh:mm a",
-            Locale.getDefault()
-        ).format(Date())
-
-        binding.tvClock.text = time
+        binding.tvClock.text = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
     }
 
     private fun updateDate() {
-        val date = SimpleDateFormat(
-            "EEEE, d MMMM yyyy",
-            Locale.getDefault()
+        binding.tvDate.text = SimpleDateFormat(
+            "EEEE, d MMMM yyyy", Locale.getDefault()
         ).format(Date())
-
-        binding.tvDate.text = date
     }
 
-    // ─────────────────────────────────────────────
-    // Dashboard Stats
-    // ─────────────────────────────────────────────
+    // ── Stats from DB ────────────────────────────────────────────────────────
 
-    private fun loadStats() {
-        binding.tvTotalStudents.text = "248"
-        binding.tvPresentToday.text = "211"
-        binding.tvAbsentToday.text = "37"
-        binding.tvHolidaysLeft.text = "8"
+    private fun observeStats() {
+        lifecycleScope.launch {
+            viewModel.stats.collect { stats ->
+                binding.tvTotalStudents.text  = stats.totalStudents.toString()
+                binding.tvPresentToday.text   = stats.presentToday.toString()
+                binding.tvAbsentToday.text    = stats.absentToday.toString()
+                // Show conflict badge count instead of "holidays" (no holidays table in DB)
+                binding.tvHolidaysLeft.text   = stats.pendingConflicts.toString()
+            }
+        }
     }
 
-    // ─────────────────────────────────────────────
-    // Navigation Click Listeners
-    // ─────────────────────────────────────────────
+    // ── Navigation ───────────────────────────────────────────────────────────
 
     private fun setupClickListeners() {
-
-        // Students
         binding.tileStudents.setOnClickListener {
-            findNavController().navigate(
-                R.id.action_dashboard_to_students
-            )
+            findNavController().navigate(R.id.action_dashboard_to_students)
         }
-
-        // Manual Attendance
         binding.tileManual.setOnClickListener {
-            findNavController().navigate(
-                R.id.action_dashboard_to_manual
-            )
+            findNavController().navigate(R.id.action_dashboard_to_manual)
         }
-
-        // Holidays
         binding.tileHolidays.setOnClickListener {
-            findNavController().navigate(
-                R.id.action_dashboard_to_holidays
-            )
+            findNavController().navigate(R.id.action_dashboard_to_holidays)
         }
-
-        // Reports
         binding.tileReports.setOnClickListener {
-            findNavController().navigate(
-                R.id.action_dashboard_to_reports
-            )
+            findNavController().navigate(R.id.action_dashboard_to_reports)
         }
-
-        // Conflict Queue
         binding.btnResolve.setOnClickListener {
-            findNavController().navigate(
-                R.id.action_dashboard_to_conflicts
-            )
+            findNavController().navigate(R.id.action_dashboard_to_conflicts)
         }
-
-        // Bottom Nav → Home (already here — no-op)
-        binding.navHome.setOnClickListener {
-            // Already on dashboard
-        }
-
-        // Bottom Nav → Students
+        binding.navHome.setOnClickListener { /* already here */ }
         binding.navStudents.setOnClickListener {
-            findNavController().navigate(
-                R.id.action_dashboard_to_students
-            )
+            findNavController().navigate(R.id.action_dashboard_to_students)
         }
-
-        // Bottom Nav → Reports
         binding.navReports.setOnClickListener {
-            findNavController().navigate(
-                R.id.action_dashboard_to_reports
-            )
+            findNavController().navigate(R.id.action_dashboard_to_reports)
         }
-
-        // Exit — return to role selector
         binding.navExit.setOnClickListener {
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
-
-
     }
 }

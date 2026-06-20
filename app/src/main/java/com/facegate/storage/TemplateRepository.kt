@@ -13,79 +13,61 @@ class TemplateRepository(
     private val studentDao    : StudentDao,
     private val attendanceDao : AttendanceDao,
     private val syncLogDao    : SyncLogDao,
-    private val conflictDao   : ConflictDao,    // ← injected in version 2
+    private val conflictDao   : ConflictDao,
 ) {
 
     // ── Student ───────────────────────────────────────────────────────────────
 
-    suspend fun addStudent(student: StudentEntity) {
+    suspend fun addStudent(student: StudentEntity) =
         studentDao.insertStudent(student)
-    }
 
-    suspend fun getStudents(): List<StudentEntity> {
-        return studentDao.getAllStudents()
-    }
+    suspend fun getStudents(): List<StudentEntity> =
+        studentDao.getAllStudents()
 
 
     // ── Attendance ────────────────────────────────────────────────────────────
 
-    suspend fun addAttendance(record: AttendanceEntity) {
+    suspend fun addAttendance(record: AttendanceEntity) =
         attendanceDao.insertAttendance(record)
-    }
 
-    suspend fun getUnsyncedAttendance(): List<AttendanceEntity> {
-        return attendanceDao.getUnsyncedRecords()
-    }
+    suspend fun getUnsyncedAttendance(): List<AttendanceEntity> =
+        attendanceDao.getUnsyncedRecords()
 
-    suspend fun markAttendanceSynced(id: Int) {
+    suspend fun markAttendanceSynced(id: Int) =
         attendanceDao.markAsSynced(id)
-    }
+
+    /** Records from today only — used by dashboard + reports */
+    suspend fun getTodayAttendance(startOfDay: Long): List<AttendanceEntity> =
+        attendanceDao.getTodayAttendance(startOfDay)
+
+    /** All records ever — used by reports for historical total */
+    suspend fun getAllAttendance(): List<AttendanceEntity> =
+        attendanceDao.getAllAttendance()
 
 
     // ── Sync Logs ─────────────────────────────────────────────────────────────
 
-    suspend fun addSyncLog(log: SyncLogEntity) {
+    suspend fun addSyncLog(log: SyncLogEntity) =
         syncLogDao.insertLog(log)
-    }
 
-    suspend fun getSyncLogs(): List<SyncLogEntity> {
-        return syncLogDao.getAllLogs()
-    }
+    suspend fun getSyncLogs(): List<SyncLogEntity> =
+        syncLogDao.getAllLogs()
 
 
     // ── Conflict Queue ────────────────────────────────────────────────────────
 
-    /**
-     * Persist an ambiguous match as a conflict for admin review.
-     * Called by AttendancePipeline.handleDecision() on Ambiguous decisions.
-     */
-    suspend fun addConflict(conflict: ConflictEntity) {
+    suspend fun addConflict(conflict: ConflictEntity) =
         conflictDao.insertConflict(conflict)
-    }
 
-    /**
-     * Returns all unresolved conflicts, newest first.
-     * Used by ConflictQueueFragment / its ViewModel to populate the list.
-     */
-    suspend fun getUnresolvedConflicts(): List<ConflictEntity> {
-        return conflictDao.getUnresolvedConflicts()
-    }
+    suspend fun getUnresolvedConflicts(): List<ConflictEntity> =
+        conflictDao.getUnresolvedConflicts()
 
-    suspend fun getAllConflicts(): List<ConflictEntity> {
-        return conflictDao.getAllConflicts()
-    }
+    suspend fun getAllConflicts(): List<ConflictEntity> =
+        conflictDao.getAllConflicts()
 
-    /**
-     * Mark a conflict as resolved after admin decision.
-     */
-    suspend fun resolveConflict(id: Int) {
+    suspend fun resolveConflict(id: Int) =
         conflictDao.markResolved(id)
-    }
 
-    /**
-     * Badge count for the admin dashboard conflict indicator.
-     */
-    suspend fun getUnresolvedConflictCount(): Int {
-        return conflictDao.getUnresolvedCount()
-    }
+    suspend fun getUnresolvedConflictCount(): Int =
+        conflictDao.getUnresolvedCount()
 }

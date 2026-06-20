@@ -5,41 +5,39 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.facegate.databinding.FragmentAttendanceReportBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
-/**
- * ATTENDANCE REPORT FRAGMENT
- * Matches: #s-reports in HTML
- * Shows monthly stats, class wise bars, export buttons
- */
 @AndroidEntryPoint
 class AttendanceReportFragment : Fragment() {
 
     private var _binding: FragmentAttendanceReportBinding? = null
     private val binding get() = _binding!!
 
-    // ── LIFECYCLE ────────────────────────────────────
+    private val viewModel: ReportViewModel by viewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View {
-        _binding = FragmentAttendanceReportBinding.inflate(
-            inflater, container, false
-        )
+        _binding = FragmentAttendanceReportBinding.inflate(inflater, container, false)
         return binding.root
     }
 
-    override fun onViewCreated(
-        view: View,
-        savedInstanceState: Bundle?
-    ) {
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        loadReportData()
+        observeStats()
         setupClickListeners()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadStats()
     }
 
     override fun onDestroyView() {
@@ -47,54 +45,40 @@ class AttendanceReportFragment : Fragment() {
         _binding = null
     }
 
-    // ── LOAD DATA ────────────────────────────────────
+    // ── Real DB data ─────────────────────────────────────────────────────────
 
-    /**
-     * Loads report statistics into UI
-     * In real app: fetch from Database via ViewModel
-     */
-    private fun loadReportData() {
-        binding.tvMonthlyPct.text   = "85.1%"
-        binding.tvPresentCount.text = "211"
-        binding.tvAbsentCount.text  = "37"
-        binding.tvTopClass.text     = "92.4%"
+    private fun observeStats() {
+        lifecycleScope.launch {
+            viewModel.stats.collect { stats ->
+                // Today's attendance percentage
+                binding.tvMonthlyPct.text   = stats.attendancePct
+
+                // Today's present / absent
+                binding.tvPresentCount.text = stats.presentToday.toString()
+                binding.tvAbsentCount.text  = stats.absentToday.toString()
+
+                // Top class — using total enrolled as a proxy until class-wise
+                // breakdown is available (requires class field on AttendanceEntity)
+                binding.tvTopClass.text     = "${stats.totalStudents} enrolled"
+            }
+        }
     }
 
-    // ── EXPORT ───────────────────────────────────────
+    // ── Export (TODO when backend is ready) ──────────────────────────────────
 
-    /**
-     * Export attendance to Excel (.xlsx)
-     * In real app: generate file and share via Intent
-     */
     private fun exportToExcel() {
-        // TODO: implement Excel export
+        // TODO: generate .xlsx from attendance records and share via Intent
     }
 
-    /**
-     * Export attendance to PDF
-     * In real app: generate PDF and share via Intent
-     */
     private fun exportToPdf() {
-        // TODO: implement PDF export
+        // TODO: generate PDF from attendance records and share via Intent
     }
-
-    // ── CLICK LISTENERS ──────────────────────────────
 
     private fun setupClickListeners() {
-
-        // Back button
         binding.btnBack.setOnClickListener {
             findNavController().navigateUp()
         }
-
-        // Export Excel button
-        binding.btnExportExcel.setOnClickListener {
-            exportToExcel()
-        }
-
-        // Export PDF button
-        binding.btnExportPdf.setOnClickListener {
-            exportToPdf()
-        }
+        binding.btnExportExcel.setOnClickListener { exportToExcel() }
+        binding.btnExportPdf.setOnClickListener   { exportToPdf()   }
     }
 }
