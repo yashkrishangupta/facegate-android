@@ -44,36 +44,33 @@ class ConflictQueueViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Resolve a conflict with the admin's explicit decision, instead of
-     * silently marking it resolved with no record of what happened.
-     *
-     * @param markPresent true → mark [conflict.topStudentId] present today.
-     *                    false → leave them absent (no attendance record);
-     *                    just clear the conflict from the queue.
-     */
-    fun resolveConflict(conflict: ConflictEntity, markPresent: Boolean) {
+    fun resolveConflict(
+        conflict           : ConflictEntity,
+        presentStudentId   : String?,
+        presentStudentName : String?,
+    ) {
         viewModelScope.launch {
-            if (markPresent) {
+            if (presentStudentId != null) {
                 val startOfDay = getStartOfDay()
-                val timestamp = System.currentTimeMillis()
-                if (!repository.isStudentMarkedToday(conflict.topStudentId, startOfDay)) {
+                val timestamp  = System.currentTimeMillis()
+                if (!repository.isStudentMarkedToday(presentStudentId, startOfDay)) {
                     repository.addAttendance(
                         AttendanceEntity(
-                            studentId = conflict.topStudentId,
+                            studentId = presentStudentId,
                             timeStamp = timestamp,
                             synced    = false,
                         )
                     )
                 }
-
-                pipeline.markAlreadyMarked(conflict.topStudentId, timestamp)
+                pipeline.markAlreadyMarked(presentStudentId, timestamp)
             }
 
-            repository.resolveAllConflictsForStudent(conflict.topStudentId)
+            // Resolve this conflict row and any duplicates for both candidates
             repository.resolveConflict(conflict.id)
+            repository.resolveAllConflictsForStudent(conflict.topStudentId)
+            repository.resolveAllConflictsForStudent(conflict.secondStudentId)
 
-            loadConflicts() 
+            loadConflicts()
         }
     }
 

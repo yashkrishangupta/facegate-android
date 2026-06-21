@@ -34,8 +34,16 @@ class TemplateRepository(
     suspend fun getStudentCount(): Int =
         studentDao.getStudentCount()
 
-    suspend fun deleteStudent(studentId: String) =
+    /**
+     * Delete a student and cascade:
+     *   - attendance_records for that student (avoids phantom present counts)
+     *   - conflict_queue rows where they appear as top or second candidate
+     */
+    suspend fun deleteStudent(studentId: String) {
         studentDao.deleteStudent(studentId)
+        attendanceDao.deleteAllAttendanceForStudent(studentId)
+        conflictDao.deleteAllConflictsForStudent(studentId)
+    }
 
     /**
      * Update name and class only — embedding is preserved so face recognition is unaffected.

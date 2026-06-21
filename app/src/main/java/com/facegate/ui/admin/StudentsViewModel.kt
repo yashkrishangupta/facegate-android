@@ -2,6 +2,7 @@ package com.facegate.ui.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.facegate.pipeline.AttendancePipeline
 import com.facegate.storage.TemplateRepository
 import com.facegate.storage.entity.StudentEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,6 +22,7 @@ sealed class StudentsState {
 @HiltViewModel
 class StudentsViewModel @Inject constructor(
     private val repository: TemplateRepository,
+    private val pipeline  : AttendancePipeline,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<StudentsState>(StudentsState.Loading)
@@ -43,7 +45,8 @@ class StudentsViewModel @Inject constructor(
 
     fun deleteStudent(studentId: String) {
         viewModelScope.launch {
-            repository.deleteStudent(studentId)
+            repository.deleteStudent(studentId)   // cascades attendance + conflict rows
+            pipeline.removeStudentFromSession(studentId)  // sync live session memory
             loadStudents()
         }
     }

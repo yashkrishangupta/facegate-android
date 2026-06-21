@@ -20,7 +20,7 @@ sealed class EnrollmentState {
     object Idle          : EnrollmentState()
     object Processing    : EnrollmentState()
     object Success       : EnrollmentState()
-    object DuplicateFace : EnrollmentState()
+    data class DuplicateFace(val existingName: String) : EnrollmentState()
     data class Failed(val reason: String = "Please try again") : EnrollmentState()
 }
 
@@ -44,6 +44,11 @@ class EnrollmentViewModel @Inject constructor(
     val events: SharedFlow<EnrollmentEvent> = _events
 
     private val verifiedBitmaps = mutableListOf<Bitmap>()
+
+    // Stored when a duplicate is detected so forceEnroll() can retry without re-asking for details
+    private var pendingName  : String = ""
+    private var pendingId    : String = ""
+    private var pendingClass : String = ""
 
     // ── Photo capture ────────────────────────────────────────────────────────
 
@@ -89,6 +94,11 @@ class EnrollmentViewModel @Inject constructor(
             return
         }
 
+        // Store so forceEnroll() can retry if admin dismisses the duplicate dialog
+        pendingName  = studentName
+        pendingId    = studentId
+        pendingClass = studentClass
+
         viewModelScope.launch {
             _enrollmentState.value = EnrollmentState.Processing
 
@@ -111,7 +121,7 @@ class EnrollmentViewModel @Inject constructor(
 
             _enrollmentState.value = when (result) {
                 is EnrollmentResult.Success               -> EnrollmentState.Success
-                is EnrollmentResult.DuplicateRisk         -> EnrollmentState.DuplicateFace
+                is EnrollmentResult.DuplicateRisk         -> EnrollmentState.DuplicateFace(result.existingStudentName)
                 is EnrollmentResult.NoFaceDetected        -> EnrollmentState.Failed(
                     "No face detected in photos. Retake with good lighting."
                 )
@@ -125,7 +135,32 @@ class EnrollmentViewModel @Inject constructor(
         }
     }
 
-    // ── Reset ────────────────────────────────────────────────────────────────
+    fun forceEnroll() {
+        if (verifiedBitmaps.isEmpty() || pendingId.isEmpty()) {
+            _enrollmentState.value = EnrollmentState.Failed("Session expired — please retake photos.")
+            return
+        }
+        viewModelScope.launch {
+            _enrollmentState.value = EnrollmentState.Processing
+            try {
+                pipeline.forceEnrollStudent(
+                    studentId       = pendingId,
+                    studentName     = pendingName,
+                    studentClass    = pendingClass,
+                    verifiedBitmaps = verifiedBitmaps.toList(),
+                )
+                clearBitmaps()
+                _enrollmentState.value = EnrollmentState.Success
+            } catch (e: Exception) {
+                clearBitmaps()
+                _enrollmentState.value = EnrollmentState.Failed(
+                    e.message ?: "Enrollment failed — please try again"
+                )
+            }
+        }
+    }
+
+        // ── Reset ────────────────────────────────────────────────────────────────
 
     fun reset() {
         clearBitmaps()

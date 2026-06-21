@@ -60,4 +60,8 @@ interface ConflictDao {
 
     @Query("UPDATE conflict_queue SET secondStudentId = :newId WHERE secondStudentId = :oldId")
     suspend fun renameSecondStudentId(oldId: String, newId: String)
+
+    /** Hard-delete ALL conflict rows involving a student (called when student is removed). */
+    @Query("DELETE FROM conflict_queue WHERE topStudentId = :studentId OR secondStudentId = :studentId")
+    suspend fun deleteAllConflictsForStudent(studentId: String)
 }

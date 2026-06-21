@@ -297,9 +297,8 @@ class EnrollmentFragment : Fragment() {
 
                     is EnrollmentState.DuplicateFace -> {
                         infoDialogShown = false
-                        binding.tvDuplicateWarning.visibility = View.VISIBLE
-                        viewModel.reset()
-                        updatePhotoUI()
+                        binding.tvDuplicateWarning.visibility = View.GONE
+                        showDuplicateDialog(state.existingName)
                     }
 
                     is EnrollmentState.Failed -> {
@@ -313,6 +312,28 @@ class EnrollmentFragment : Fragment() {
                 }
             }
         }
+    }
+
+
+    // ── Duplicate face dialog ─────────────────────────────────────────────────
+
+    private fun showDuplicateDialog(existingName: String) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Possible Duplicate Face")
+            .setMessage(
+                "This face closely matches an already enrolled student: $existingName.\n\n" +
+                "Are you sure this is a different person and want to enroll them anyway?"
+            )
+            .setPositiveButton("Enroll Anyway") { _, _ ->
+                // User confirmed — force-enroll by calling enroll directly with a flag
+                viewModel.forceEnroll()
+            }
+            .setNegativeButton("Cancel — Retake") { _, _ ->
+                viewModel.reset()
+                updatePhotoUI()
+            }
+            .setCancelable(false)
+            .show()
     }
 
     // ── Click listeners ───────────────────────────────────────────────────────

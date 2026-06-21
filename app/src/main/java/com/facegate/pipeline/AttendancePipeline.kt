@@ -111,6 +111,8 @@ class AttendancePipeline(
         )
     }
 
+
+
     fun endSession() {
         enrolledTemplates.clear()
         alreadyMarkedMap.clear()
@@ -270,9 +272,13 @@ class AttendancePipeline(
             .coerceAtLeast(1e-10f)
         val normalised = FloatArray(dim) { averaged[it] / norm }
 
-        // ── Duplicate check against in-memory templates ───────────────────────
+        // ── Duplicate check — always load fresh from DB ──────────────────────
         val blendedEmbedding = FaceEmbedding(vector = normalised, inferenceTimeMs = 0)
-        val duplicate = similaritySearch.findDuplicateRisk(blendedEmbedding, enrolledTemplates)
+        val dbTemplates = repository.getStudents().mapNotNull { entity ->
+            val emb = parseEmbedding(entity.embedding) ?: return@mapNotNull null
+            EnrolledTemplate(studentId = entity.studentId, studentName = entity.name, embedding = emb)
+        }
+        val duplicate = similaritySearch.findDuplicateRisk(blendedEmbedding, dbTemplates)
         if (duplicate != null) {
             return EnrollmentResult.DuplicateRisk(
                 existingStudentId   = duplicate.studentId,
@@ -290,7 +296,6 @@ class AttendancePipeline(
             )
         )
 
-        // Add to in-memory cache so this session can detect them immediately
         enrolledTemplates.add(
             EnrolledTemplate(
                 studentId   = studentId,
@@ -357,10 +362,60 @@ class AttendancePipeline(
         return EnrollmentResult.Success
     }
 
+
+    suspend fun forceEnrollStudent(
+        studentId       : String,
+        studentName     : String,
+        studentClass    : String,
+        verifiedBitmaps : List<Bitmap>,
+    ) {
+        require(verifiedBitmaps.isNotEmpty()) { "No verified bitmaps supplied" }
+
+        val vectors = mutableListOf<FloatArray>()
+        for (bmp in verifiedBitmaps) {
+            val image = InputImage.fromBitmap(bmp, 0)
+            val faces = faceDetector.process(image).await()
+            val face  = faces.firstOrNull() ?: continue
+            val aligned     = faceAligner.align(bmp, face)
+            val alignedFace = AlignedFace(aligned.alignedBitmap, bmp)
+            vectors.add(faceEmbedder.embed(alignedFace).vector)
+        }
+        if (vectors.isEmpty()) return
+
+        val dim = PipelineConfig.EMBEDDING_SIZE
+        val averaged = FloatArray(dim)
+        for (vec in vectors) for (i in 0 until dim) averaged[i] += vec[i]
+        for (i in 0 until dim) averaged[i] = averaged[i] / vectors.size
+        val norm = Math.sqrt(averaged.map { it * it.toDouble() }.sum())
+            .toFloat().coerceAtLeast(1e-10f)
+        val normalised = FloatArray(dim) { averaged[it] / norm }
+
+        repository.addStudent(
+            StudentEntity(
+                studentId    = studentId,
+                name         = studentName,
+                studentClass = studentClass,
+                embedding    = normalised.joinToString(","),
+            )
+        )
+        enrolledTemplates.add(
+            EnrolledTemplate(
+                studentId   = studentId,
+                studentName = studentName,
+                embedding   = normalised,
+            )
+        )
+    }
+
     fun enrolledCount(): Int = enrolledTemplates.size
 
     fun markAlreadyMarked(studentId: String, timestamp: Long = System.currentTimeMillis()) {
         alreadyMarkedMap[studentId] = timestamp
+    }
+
+    fun removeStudentFromSession(studentId: String) {
+        enrolledTemplates.removeAll { it.studentId == studentId }
+        alreadyMarkedMap.remove(studentId)
     }
 
 
@@ -466,13 +521,11 @@ class AttendancePipeline(
         }
     }
 }
-
 // ── Capture quality result types ─────────────────────────────────────────────
 
 enum class CaptureRejectReason { NO_FACE, MULTIPLE_FACES, QUALITY }
 
 sealed class CaptureQualityResult {
-
     data class Pass(val bitmap: Bitmap) : CaptureQualityResult()
     data class Fail(
         val reason     : CaptureRejectReason,

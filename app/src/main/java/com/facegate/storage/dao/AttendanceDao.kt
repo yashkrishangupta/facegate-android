@@ -51,6 +51,9 @@ interface AttendanceDao {
     """)
     suspend fun deleteAttendanceToday(studentId: String, startOfDay: Long)
 
+    @Query("DELETE FROM attendance_records WHERE studentId = :studentId")
+    suspend fun deleteAllAttendanceForStudent(studentId: String)
+
     @Query("UPDATE attendance_records SET studentId = :newId WHERE studentId = :oldId")
     suspend fun renameStudentId(oldId: String, newId: String)
 }
