@@ -207,6 +207,7 @@ class AttendancePipeline(
     suspend fun checkCaptureQuality(
         bitmap: Bitmap,
         rotationDegrees: Int = 0,
+        forEnrollment: Boolean = false,
     ): CaptureQualityResult {
         val upright = rotateIfNeeded(bitmap, rotationDegrees)
         val scaled  = scaleBitmapToMaxWidth(upright, 640)
@@ -217,7 +218,7 @@ class AttendancePipeline(
         return when (faces.size) {
             0    -> CaptureQualityResult.Fail(CaptureRejectReason.NO_FACE)
             1    -> {
-                val quality = qualityChecker.check(scaled, faces[0])
+                val quality = qualityChecker.check(scaled, faces[0], skipPoseCheck = forEnrollment)
                 if (quality.passed) {
                     CaptureQualityResult.Pass(scaled)
                 } else {
@@ -471,7 +472,7 @@ class AttendancePipeline(
 enum class CaptureRejectReason { NO_FACE, MULTIPLE_FACES, QUALITY }
 
 sealed class CaptureQualityResult {
-    /** Shot passed — [bitmap] is the scaled, upright version ready for embedding. */
+
     data class Pass(val bitmap: Bitmap) : CaptureQualityResult()
     data class Fail(
         val reason     : CaptureRejectReason,

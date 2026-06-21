@@ -25,6 +25,7 @@ import androidx.navigation.fragment.findNavController
 import com.facegate.R
 import com.facegate.databinding.FragmentEnrollmentBinding
 import dagger.hilt.android.AndroidEntryPoint
+import com.facegate.ui.enrollment.EnrollmentEvent
 import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -250,26 +251,35 @@ class EnrollmentFragment : Fragment() {
     // ── ViewModel observer ────────────────────────────────────────────────────
 
     private fun observeViewModel() {
+        // ── One-shot shot events (never dropped) ─────────────────────────────
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.events.collect { event ->
+                when (event) {
+                    is EnrollmentEvent.ShotAccepted -> {
+                        binding.btnCapture.isClickable = true
+                        updatePhotoUI()
+                    }
+                    is EnrollmentEvent.ShotRejected -> {
+                        binding.btnCapture.isClickable = true
+                        binding.tvInstSub.text = "⚠ ${event.reason} — retake this shot"
+                        Toast.makeText(requireContext(), event.reason, Toast.LENGTH_SHORT).show()
+                        updatePhotoUI()
+                    }
+                }
+            }
+        }
+
+        // ── Persistent state ──────────────────────────────────────────────────
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.enrollmentState.collect { state ->
                 when (state) {
 
-                    is EnrollmentState.Idle,
-                    is EnrollmentState.Capturing -> {
+                    is EnrollmentState.Idle -> {
                         binding.btnCapture.isClickable = true
                         binding.tvDuplicateWarning.visibility = View.GONE
                         updatePhotoUI()
                     }
 
-                    // ── NEW: per-shot rejection ───────────────────────────────
-                    is EnrollmentState.ShotRejected -> {
-                        binding.btnCapture.isClickable = true
-                        binding.tvInstSub.text = "⚠ ${state.reason} — retake this shot"
-                        Toast.makeText(requireContext(), state.reason, Toast.LENGTH_SHORT).show()
-                        updatePhotoUI()  // dot count unchanged
-                    }
-
-                    // Processing == 5 good shots collected; show the info dialog
                     is EnrollmentState.Processing -> {
                         binding.btnCapture.isClickable = false
                         updatePhotoUI()
@@ -296,6 +306,7 @@ class EnrollmentFragment : Fragment() {
                         infoDialogShown = false
                         binding.tvDuplicateWarning.visibility = View.GONE
                         binding.tvInstSub.text = state.reason
+                        binding.btnCapture.isClickable = true
                         viewModel.reset()
                         updatePhotoUI()
                     }

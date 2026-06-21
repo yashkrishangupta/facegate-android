@@ -9,24 +9,27 @@ import com.facegate.pipeline.CaptureRejectReason
 import com.facegate.pipeline.EnrollmentResult
 import com.facegate.pipeline.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-// All possible states of the enrollment screen.
- 
 sealed class EnrollmentState {
     object Idle          : EnrollmentState()
-    object Capturing     : EnrollmentState()
     object Processing    : EnrollmentState()
     object Success       : EnrollmentState()
     object DuplicateFace : EnrollmentState()
     data class Failed(val reason: String = "Please try again") : EnrollmentState()
-    data class ShotRejected(val reason: String) : EnrollmentState()
 }
 
-// ENROLLMENT VIEWMODEL — per-shot quality gate + averaged embedding
+sealed class EnrollmentEvent {
+    /** Shot passed quality — dot count increased, button re-enabled */
+    data class ShotAccepted(val newCount: Int) : EnrollmentEvent()
+    /** Shot failed quality — show reason, re-enable button */
+    data class ShotRejected(val reason: String) : EnrollmentEvent()
+}
 
 @HiltViewModel
 class EnrollmentViewModel @Inject constructor(
@@ -36,30 +39,36 @@ class EnrollmentViewModel @Inject constructor(
     private val _enrollmentState = MutableStateFlow<EnrollmentState>(EnrollmentState.Idle)
     val enrollmentState: StateFlow<EnrollmentState> = _enrollmentState
 
+    // SharedFlow — replay=0 so each event is delivered exactly once
+    private val _events = MutableSharedFlow<EnrollmentEvent>(replay = 0, extraBufferCapacity = 8)
+    val events: SharedFlow<EnrollmentEvent> = _events
+
     private val verifiedBitmaps = mutableListOf<Bitmap>()
 
     // ── Photo capture ────────────────────────────────────────────────────────
 
     fun capturePhoto(bitmap: Bitmap, rotationDegrees: Int = 0) {
         viewModelScope.launch {
-            val result = pipeline.checkCaptureQuality(bitmap, rotationDegrees)
+            val result = pipeline.checkCaptureQuality(bitmap, rotationDegrees, forEnrollment = true)
             when (result) {
                 is CaptureQualityResult.Pass -> {
                     verifiedBitmaps.add(result.bitmap)
                     if (verifiedBitmaps.size >= 5) {
+                        // All 5 done — move to Processing (shows dialog)
                         _enrollmentState.value = EnrollmentState.Processing
                     } else {
-                        _enrollmentState.value = EnrollmentState.Capturing
+                        // Emit event so fragment re-enables button + updates dots
+                        _events.emit(EnrollmentEvent.ShotAccepted(verifiedBitmaps.size))
                     }
                 }
                 is CaptureQualityResult.Fail -> {
                     val reason = when (result.reason) {
                         CaptureRejectReason.NO_FACE        -> "No face detected — look at the camera"
-                        CaptureRejectReason.MULTIPLE_FACES -> "Multiple faces detected — only one person should be in frame"
+                        CaptureRejectReason.MULTIPLE_FACES -> "Multiple faces — only one person in frame"
                         CaptureRejectReason.QUALITY        -> result.failDetail.toUserMessage()
                     }
-                    _enrollmentState.value = EnrollmentState.ShotRejected(reason)
-                    _enrollmentState.value = EnrollmentState.Capturing
+                    // Emit event — fragment re-enables button from this
+                    _events.emit(EnrollmentEvent.ShotRejected(reason))
                     bitmap.recycle()
                 }
             }
@@ -76,7 +85,7 @@ class EnrollmentViewModel @Inject constructor(
         studentClass: String,
     ) {
         if (verifiedBitmaps.isEmpty()) {
-            _enrollmentState.value = EnrollmentState.Failed("No photos captured. Please take photos first.")
+            _enrollmentState.value = EnrollmentState.Failed("No photos captured.")
             return
         }
 
@@ -101,15 +110,15 @@ class EnrollmentViewModel @Inject constructor(
             clearBitmaps()
 
             _enrollmentState.value = when (result) {
-                is EnrollmentResult.Success        -> EnrollmentState.Success
-                is EnrollmentResult.DuplicateRisk  -> EnrollmentState.DuplicateFace
-                is EnrollmentResult.NoFaceDetected -> EnrollmentState.Failed(
-                    "No face detected in photos. Please retake with good lighting."
+                is EnrollmentResult.Success               -> EnrollmentState.Success
+                is EnrollmentResult.DuplicateRisk         -> EnrollmentState.DuplicateFace
+                is EnrollmentResult.NoFaceDetected        -> EnrollmentState.Failed(
+                    "No face detected in photos. Retake with good lighting."
                 )
                 is EnrollmentResult.MultipleFacesDetected -> EnrollmentState.Failed(
                     "Multiple faces detected. Only one person should be in frame."
                 )
-                is EnrollmentResult.QualityFailed  -> EnrollmentState.Failed(
+                is EnrollmentResult.QualityFailed         -> EnrollmentState.Failed(
                     result.reasons.toUserMessage()
                 )
             }

@@ -21,7 +21,7 @@ import kotlin.math.abs
  */
 class QualityChecker {
 
-    fun check(bitmap: Bitmap, face: Face): QualityResult {
+    fun check(bitmap: Bitmap, face: Face, skipPoseCheck: Boolean = false): QualityResult {
         val failReasons = mutableListOf<QualityFailReason>()
 
         // ── Check 1: Blur ──────────────────────────────────────────────
@@ -48,13 +48,18 @@ class QualityChecker {
         }
 
         // ── Check 4: Head pose ─────────────────────────────────────────
+        // Skipped during enrollment — shots 2-5 deliberately ask for
+        // varied angles (left, right, up, down) which would otherwise
+        // always exceed these thresholds and reject every angled shot.
         val yaw   = face.headEulerAngleY
         val pitch = face.headEulerAngleX
         val roll  = face.headEulerAngleZ
 
-        if (abs(yaw)   > PipelineConfig.MAX_YAW_DEGREES)   failReasons.add(QualityFailReason.HEAD_TURNED_YAW)
-        if (abs(pitch) > PipelineConfig.MAX_PITCH_DEGREES) failReasons.add(QualityFailReason.HEAD_TILTED_PITCH)
-        if (abs(roll)  > PipelineConfig.MAX_ROLL_DEGREES)  failReasons.add(QualityFailReason.HEAD_ROTATED_ROLL)
+        if (!skipPoseCheck) {
+            if (abs(yaw)   > PipelineConfig.MAX_YAW_DEGREES)   failReasons.add(QualityFailReason.HEAD_TURNED_YAW)
+            if (abs(pitch) > PipelineConfig.MAX_PITCH_DEGREES) failReasons.add(QualityFailReason.HEAD_TILTED_PITCH)
+            if (abs(roll)  > PipelineConfig.MAX_ROLL_DEGREES)  failReasons.add(QualityFailReason.HEAD_ROTATED_ROLL)
+        }
 
         // ── Check 5: Landmark confidence ───────────────────────────────
         val landmarkCount      = face.allLandmarks.size
