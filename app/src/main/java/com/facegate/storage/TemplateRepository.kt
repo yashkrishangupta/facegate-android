@@ -8,9 +8,14 @@ import com.facegate.storage.entity.StudentEntity
 import com.facegate.storage.entity.SyncLogEntity
 
 class TemplateRepository(
-    private val studentDao: StudentDao,
-    private val attendanceDao: AttendanceDao,
-    private val syncLogDao: SyncLogDao
+    private val studentDao    : StudentDao,
+    private val attendanceDao : AttendanceDao,
+    private val syncLogDao    : SyncLogDao,
+    private val conflictDao   : ConflictDao,
+    private val timetableDao  : TimetableDao,
+    private val sessionDao    : SessionDao,
+    private val overrideDao   : OverrideDao,
+    private val holidayDao    : HolidayDao,
 ) {
 
     // Student

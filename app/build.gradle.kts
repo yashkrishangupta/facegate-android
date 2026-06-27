@@ -45,6 +45,20 @@ android {
     buildFeatures {
         viewBinding = true
     }
+
+//    packaging {
+//        resources {
+//            excludes += setOf(
+//                "META-INF/INDEX.LIST",
+//                "META-INF/io.netty.versions.properties"
+//            )
+//        }
+//    }
+}
+
+// Room schema export location
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {

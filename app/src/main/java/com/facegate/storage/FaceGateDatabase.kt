@@ -13,14 +13,23 @@ import com.facegate.storage.entity.SyncLogEntity
     entities = [
         AttendanceEntity::class,
         StudentEntity::class,
-        SyncLogEntity::class
+        SyncLogEntity::class,
+        ConflictEntity::class,
+        TimetableEntity::class,
+        SessionEntity::class,
+        OverrideEntity::class,
+        HolidayEntity::class,
     ],
     version = 1,
     exportSchema = false
 )
 abstract class FaceGateDatabase : RoomDatabase() {
-
-    abstract fun attendanceDao(): AttendanceDao
-    abstract fun studentDao(): StudentDao
-    abstract fun syncLogDao(): SyncLogDao
+    abstract fun attendanceDao() : AttendanceDao
+    abstract fun studentDao()    : StudentDao
+    abstract fun syncLogDao()    : SyncLogDao
+    abstract fun conflictDao()   : ConflictDao
+    abstract fun timetableDao()  : TimetableDao
+    abstract fun sessionDao()    : SessionDao
+    abstract fun overrideDao()   : OverrideDao
+    abstract fun holidayDao()    : HolidayDao
 }
