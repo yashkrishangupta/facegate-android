@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <!-- ── Top bar ─────────────────────────────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_revert"
+            android:contentDescription="Back" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="16dp"
+            android:text="Today's Schedule"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Date"
+            android:textSize="12sp" />
+
+    </LinearLayout>
+
+    <!-- ── Holiday banner (amber, hidden by default) ────────────────────── -->
+    <!--
+        Spec: amber background, holiday name + "No Classes" message.
+        Uses bg_conflict_banner drawable.
+    -->
+    <LinearLayout
+        android:id="@+id/bannerHoliday"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_conflict_banner"
+        android:padding="16dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tvHolidayMessage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Holiday Name — No Classes"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+    <!-- ── Empty state (hidden by default) ─────────────────────────────── -->
+    <TextView
+        android:id="@+id/tvEmptyState"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="No classes scheduled for today"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+    <!-- ── Period list ───────────────────────────────────────────────────── -->
+    <!--
+        Spec: ScrollView with period rows:
+          - Period chip "P1" … chip_active drawable
+          - Subject (bold 14sp) + Batch (11sp hint color) stacked in centre
+          - Time and status chip on right
+          - Status chip: UPCOMING=chip_pending, ACTIVE=chip_present, DONE=chip_absent
+          - Start button: badge_green — hidden if DONE
+        Rows are built programmatically in TodayScheduleFragment.createRowView().
+    -->
+    <ScrollView
+        android:id="@+id/scrollView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/periodListContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp" />
+
+    </ScrollView>
+
+    <!-- ── Add Unplanned Session button ─────────────────────────────────── -->
+    <Button
+        android:id="@+id/btnAddUnplanned"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:background="@drawable/badge_blue"
+        android:text="+ Add Unplanned Session"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp" />
+
+</LinearLayout>
