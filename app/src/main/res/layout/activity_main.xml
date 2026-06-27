@@ -1,208 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
-
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F5F7FA">
 
-    <!-- =========================
-         ROLE SELECTOR
-    ========================== -->
-
+    <!--
+        ROLE SELECTOR — visible on launch.
+        Wrapped in its own FrameLayout so we can fade it as a single unit.
+    -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/roleSelector"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="24dp">
-
-        <!-- Logo -->
-
-        <ImageView
-            android:id="@+id/logo"
-            android:layout_width="90dp"
-            android:layout_height="90dp"
-            android:layout_marginTop="48dp"
-            android:src="@mipmap/ic_launcher"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <!-- Title -->
+        android:visibility="visible">
 
         <TextView
             android:id="@+id/txtTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="FaceGate"
-            android:textColor="#1E3A8A"
-            android:textSize="34sp"
+            android:text="FaceGate Attendance"
+            android:textSize="28sp"
             android:textStyle="bold"
-            app:layout_constraintEnd_toEndOf="parent"
+            android:textColor="#1A237E"
+            app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/logo" />
-
-        <!-- Subtitle -->
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginTop="60dp"/>
 
         <TextView
             android:id="@+id/txtSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
             android:text="Offline Face Recognition Attendance System"
-            android:textColor="#6B7280"
-            android:textSize="16sp"
-            app:layout_constraintEnd_toEndOf="parent"
+            android:textSize="14sp"
+            android:textColor="#666666"
+            app:layout_constraintTop_toBottomOf="@id/txtTitle"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/txtTitle" />
-
-        <!-- Small Badge -->
-
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/badgeCard"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            app:cardBackgroundColor="#E8F0FE"
-            app:cardCornerRadius="20dp"
             app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginTop="8dp"/>
+
+        <Button
+            android:id="@+id/btnStudent"
+            android:layout_width="280dp"
+            android:layout_height="70dp"
+            android:text="Student Mode"
+            android:textSize="18sp"
+            android:backgroundTint="#1976D2"
+            app:layout_constraintTop_toBottomOf="@id/txtSubtitle"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/txtSubtitle">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingHorizontal="20dp"
-                android:paddingVertical="8dp"
-                android:text="AI Powered • Offline • Secure"
-                android:textColor="#2563EB"
-                android:textStyle="bold" />
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- STUDENT CARD -->
-
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/studentCard"
-            android:layout_width="0dp"
-            android:layout_height="90dp"
-            android:layout_marginTop="50dp"
-            app:cardCornerRadius="22dp"
-            app:cardElevation="8dp"
             app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginTop="80dp"/>
+
+        <Button
+            android:id="@+id/btnAdmin"
+            android:layout_width="280dp"
+            android:layout_height="70dp"
+            android:text="Admin Mode"
+            android:textSize="18sp"
+            android:backgroundTint="#3949AB"
+            app:layout_constraintTop_toBottomOf="@id/btnStudent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/badgeCard">
-
-            <Button
-                android:id="@+id/btnStudent"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:backgroundTint="#2563EB"
-                android:text="  STUDENT MODE"
-                android:textAllCaps="false"
-                android:textColor="@android:color/white"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- ADMIN CARD -->
-
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/adminCard"
-            android:layout_width="0dp"
-            android:layout_height="90dp"
-            android:layout_marginTop="24dp"
-            app:cardCornerRadius="22dp"
-            app:cardElevation="8dp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/studentCard">
-
-            <Button
-                android:id="@+id/btnAdmin"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:backgroundTint="#1E3A8A"
-                android:text="   ADMIN MODE"
-                android:textAllCaps="false"
-                android:textColor="@android:color/white"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Features -->
-
-        <LinearLayout
-            android:id="@+id/features"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="36dp"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:weightSum="3"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/adminCard">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:text="⚡ Fast"
-                android:textColor="#444444"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:text="🔒 Secure"
-                android:textColor="#444444"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:text="📶 Offline"
-                android:textColor="#444444"
-                android:textStyle="bold" />
-
-        </LinearLayout>
-
-        <!-- Footer -->
-
-        <TextView
-            android:id="@+id/footer"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="18dp"
-            android:text="Version 2.0 • FaceGate"
-            android:textColor="#9CA3AF"
-            android:textSize="12sp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent" />
+            android:layout_marginTop="24dp"/>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- =========================
-         NAV HOST
-    ========================== -->
-
+    <!--
+        SHARED NAV HOST — hidden until a role is chosen.
+        Loads either nav_graph (Admin) or student_nav_graph (Student)
+        at runtime via navInflater. No default graph set here so Room
+        doesn't auto-navigate before the user picks a role.
+    -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/nav_host_fragment"
         android:name="androidx.navigation.fragment.NavHostFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone"
-        app:defaultNavHost="true" />
+        app:defaultNavHost="true"/>
 
 </FrameLayout>

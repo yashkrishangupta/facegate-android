@@ -15,9 +15,9 @@ class TemplateRepository(
     private val attendanceDao : AttendanceDao,
     private val syncLogDao    : SyncLogDao,
     private val conflictDao   : ConflictDao,
-    private val timetableDao  : TimetableDao,    
-    private val sessionDao    : SessionDao,       
-    private val overrideDao   : OverrideDao,   
+    private val timetableDao  : TimetableDao,
+    private val sessionDao    : SessionDao,
+    private val overrideDao   : OverrideDao,
     private val holidayDao    : HolidayDao,
 ) {
 

@@ -69,7 +69,7 @@
         android:id="@+id/studentsFragment"
         android:name="com.facegate.ui.admin.StudentsFragment"
         android:label="Students"
-        tools:layout="@layout/fragment_students">
+        tools:layout="@layout/fragment_student">
 
         <action
             android:id="@+id/action_students_to_enrollment"

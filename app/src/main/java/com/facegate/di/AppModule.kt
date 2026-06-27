@@ -41,10 +41,10 @@ object AppModule {
         attendanceDao = database.attendanceDao(),
         syncLogDao    = database.syncLogDao(),
         conflictDao   = database.conflictDao(),
-        timetableDao  = database.timetableDao(), 
-        sessionDao    = database.sessionDao(),     
-        overrideDao   = database.overrideDao(),    
-        holidayDao    = database.holidayDao(),  
+        timetableDao  = database.timetableDao(),
+        sessionDao    = database.sessionDao(),
+        overrideDao   = database.overrideDao(),
+        holidayDao    = database.holidayDao(),
     )
 
     @Provides
