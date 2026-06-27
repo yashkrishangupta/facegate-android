@@ -1,229 +1,468 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#08080F">
+    android:background="#070B16">
 
+    <!-- ========================= -->
     <!-- TOP BAR -->
-    <LinearLayout
-        android:id="@+id/topBar"
+    <!-- ========================= -->
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/topCard"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="16dp"
+        android:layout_height="72dp"
+        android:layout_margin="16dp"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="6dp"
+        app:cardBackgroundColor="#151D2D"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <TextView
-            android:id="@+id/btnBack"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:text="← Back"
-            android:textColor="#FFFFFF"
-            android:textSize="13sp"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
-            android:gravity="center"
-            android:background="@drawable/btn_camera_back"
-            android:clickable="true"
-            android:focusable="true"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="16dp">
 
-        <View
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1"/>
+            <TextView
+                android:id="@+id/btnBack"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:gravity="center"
+                android:text="←"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:background="@drawable/btn_camera_back"/>
 
-        <TextView
-            android:id="@+id/tvScanBadge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Searching…"
-            android:textColor="#B5D4F4"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:paddingTop="7dp"
-            android:paddingBottom="7dp"
-            android:background="@drawable/badge_blue"/>
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:paddingStart="14dp">
 
-    </LinearLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="FaceGate AI"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold"
+                    android:textSize="18sp"/>
 
-    <!-- CAMERA VIEWPORT -->
-    <FrameLayout
-        android:id="@+id/cameraContainer"
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Attendance Scanner"
+                    android:textColor="#90FFFFFF"
+                    android:textSize="12sp"/>
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvScanBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🟢 READY"
+                android:textColor="#64FFDA"
+                android:textStyle="bold"
+                android:textSize="12sp"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="8dp"
+                android:background="@drawable/badge_blue"/>
+
+        </LinearLayout>
+
+    </androidx.cardview.widget.CardView>
+
+    <!-- ========================= -->
+    <!-- CAMERA CARD -->
+    <!-- ========================= -->
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cameraCard"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_margin="16dp"
-        android:background="@drawable/bg_camera"
-        app:layout_constraintTop_toBottomOf="@id/topBar"
+        android:layout_marginHorizontal="18dp"
+        android:layout_marginTop="12dp"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="10dp"
+        app:cardBackgroundColor="#101827"
+        app:layout_constraintTop_toBottomOf="@id/topCard"
         app:layout_constraintBottom_toTopOf="@id/instructionLayout"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- CameraX Preview -->
-        <androidx.camera.view.PreviewView
-            android:id="@+id/cameraPreview"
+        <FrameLayout
+            android:id="@+id/cameraContainer"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"/>
+            android:layout_height="match_parent">
 
-        <!-- Face Oval -->
-        <ImageView
-            android:id="@+id/faceOval"
-            android:layout_width="300dp"
-            android:layout_height="400dp"
-            android:layout_gravity="center"
-            android:contentDescription="Face guide oval"
-            android:src="@drawable/oval_face_guide" />
+            <androidx.camera.view.PreviewView
+                android:id="@+id/cameraPreview"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"/>
 
-        <!-- Scan Line -->
-        <View
-            android:id="@+id/scanLine"
-            android:layout_width="280dp"
-            android:layout_height="2dp"
-            android:layout_gravity="center"
-            android:background="@drawable/scan_line_gradient"
-            android:visibility="gone"/>
+            <!-- Dark Overlay -->
 
-    </FrameLayout>
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#22000000"/>
 
-    <!-- INSTRUCTIONS -->
-    <LinearLayout
+            <!-- Face Guide -->
+
+            <ImageView
+                android:id="@+id/faceOval"
+                android:layout_width="260dp"
+                android:layout_height="360dp"
+                android:layout_gravity="center"
+                android:src="@drawable/oval_face_guide"/>
+
+            <!-- AI Scan Line -->
+
+            <View
+                android:id="@+id/scanLine"
+                android:layout_width="260dp"
+                android:layout_height="3dp"
+                android:layout_gravity="center"
+                android:background="@drawable/scan_line_gradient"/>
+
+            <!-- AI Status -->
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|end"
+                android:layout_margin="16dp"
+                android:orientation="horizontal"
+                android:background="@drawable/badge_blue"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp">
+
+                <View
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/circle_deco_blue"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=" AI Active"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold"
+                    android:textSize="11sp"/>
+
+            </LinearLayout>
+
+        </FrameLayout>
+
+    </androidx.cardview.widget.CardView>
+    <!-- ====================================== -->
+    <!-- AI STATUS CARD -->
+    <!-- ====================================== -->
+
+    <androidx.cardview.widget.CardView
         android:id="@+id/instructionLayout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:padding="12dp"
+        android:layout_marginHorizontal="18dp"
+        android:layout_marginTop="18dp"
+        android:layout_marginBottom="12dp"
+        app:cardCornerRadius="22dp"
+        app:cardElevation="8dp"
+        app:cardBackgroundColor="#131C2D"
         app:layout_constraintBottom_toTopOf="@id/controlsLayout"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <TextView
-            android:id="@+id/tvStatusLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="READY"
-            android:textColor="#B5D4F4"
-            android:textSize="10sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.15"
-            android:layout_marginBottom="6dp"/>
-
-        <TextView
-            android:id="@+id/tvStatusMain"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Place your face inside the oval"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:gravity="center"/>
-
-        <TextView
-            android:id="@+id/tvStatusSub"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Keep your face centered and look straight"
-            android:textColor="#6BFFFFFF"
-            android:textSize="13sp"
-            android:gravity="center"
-            android:layout_marginTop="6dp"/>
-
-        <!-- Processing Dots -->
         <LinearLayout
-            android:id="@+id/processingDots"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center"
-            android:layout_marginTop="10dp"
-            android:visibility="gone">
+            android:orientation="vertical"
+            android:padding="20dp">
 
-            <View
-                android:id="@+id/dot1"
-                android:layout_width="7dp"
-                android:layout_height="7dp"
-                android:layout_marginEnd="6dp"
-                android:background="@drawable/circle_deco_blue"/>
-            <View
-                android:id="@+id/dot2"
-                android:layout_width="7dp"
-                android:layout_height="7dp"
-                android:layout_marginEnd="6dp"
-                android:background="@drawable/circle_deco_blue"/>
-            <View
-                android:id="@+id/dot3"
-                android:layout_width="7dp"
-                android:layout_height="7dp"
-                android:background="@drawable/circle_deco_blue"/>
+            <!-- STATUS ROW -->
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvStatusLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="AI STATUS"
+                    android:textStyle="bold"
+                    android:textSize="11sp"
+                    android:textColor="#5DA9FF"/>
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1"/>
+
+                <TextView
+                    android:id="@+id/tvConfidence"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="98%"
+                    android:textColor="#52FFA5"
+                    android:textStyle="bold"
+                    android:textSize="20sp"/>
+
+            </LinearLayout>
+
+            <!-- MAIN STATUS -->
+
+            <TextView
+                android:id="@+id/tvStatusMain"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Place your face inside the guide"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:textSize="20sp"
+                android:layout_marginTop="14dp"/>
+
+            <!-- SUB STATUS -->
+
+            <TextView
+                android:id="@+id/tvStatusSub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Keep your face centered and look directly at the camera."
+                android:textColor="#A5AFC4"
+                android:textSize="13sp"
+                android:layout_marginTop="6dp"/>
+
+            <!-- AI ANALYSIS -->
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="18dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Lighting"
+                        android:textColor="#90FFFFFF"/>
+
+                    <TextView
+                        android:id="@+id/tvLighting"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Good ✓"
+                        android:textColor="#4DFF91"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Face Position"
+                        android:textColor="#90FFFFFF"/>
+
+                    <TextView
+                        android:id="@+id/tvPosition"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Centered ✓"
+                        android:textColor="#4DFF91"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Recognition"
+                        android:textColor="#90FFFFFF"/>
+
+                    <TextView
+                        android:id="@+id/tvRecognition"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Waiting..."
+                        android:textColor="#FFC857"/>
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- PROGRESS BAR -->
+
+            <ProgressBar
+                android:id="@+id/scanProgress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="8dp"
+                android:layout_marginTop="18dp"
+                android:max="100"
+                android:progress="0"/>
+
+            <!-- PROCESSING DOTS -->
+
+            <LinearLayout
+                android:id="@+id/processingDots"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="18dp">
+
+                <View
+                    android:id="@+id/dot1"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:background="@drawable/circle_deco_blue"/>
+
+                <View
+                    android:id="@+id/dot2"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/circle_deco_blue"/>
+
+                <View
+                    android:id="@+id/dot3"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/circle_deco_blue"/>
+
+            </LinearLayout>
+
         </LinearLayout>
 
-    </LinearLayout>
+    </androidx.cardview.widget.CardView>
 
-    <!-- BOTTOM CONTROLS -->
-    <LinearLayout
+    <!-- ========================================= -->
+    <!-- PREMIUM BOTTOM CONTROLS -->
+    <!-- ========================================= -->
+
+    <androidx.cardview.widget.CardView
         android:id="@+id/controlsLayout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:paddingBottom="24dp"
-        android:paddingTop="12dp"
+        android:layout_margin="18dp"
+        app:cardCornerRadius="26dp"
+        app:cardElevation="12dp"
+        app:cardBackgroundColor="#131C2D"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <TextView
-            android:id="@+id/btnRetry"
-            android:layout_width="wrap_content"
-            android:layout_height="44dp"
-            android:text="↺  Retry"
-            android:textColor="#CCFFFFFF"
-            android:textSize="13sp"
-            android:gravity="center"
-            android:paddingStart="20dp"
-            android:paddingEnd="20dp"
-            android:background="@drawable/btn_camera_back"
-            android:clickable="true"
-            android:focusable="true"
-            android:layout_marginEnd="20dp"
-            android:visibility="invisible"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
 
-        <FrameLayout
-            android:id="@+id/btnShutter"
-            android:layout_width="70dp"
-            android:layout_height="70dp"
-            android:background="@drawable/shutter_button_bg"
-            android:clickable="true"
-            android:focusable="true">
-            <ImageView
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:layout_gravity="center"
-                android:src="@android:drawable/ic_menu_camera"
-                android:contentDescription="Capture"/>
-        </FrameLayout>
+            <!-- Capture Hint -->
 
-        <TextView
-            android:id="@+id/btnCancel"
-            android:layout_width="wrap_content"
-            android:layout_height="44dp"
-            android:text="✕  Cancel"
-            android:textColor="#CCFFFFFF"
-            android:textSize="13sp"
-            android:gravity="center"
-            android:paddingStart="20dp"
-            android:paddingEnd="20dp"
-            android:background="@drawable/btn_camera_back"
-            android:clickable="true"
-            android:focusable="true"
-            android:layout_marginStart="20dp"/>
+            <TextView
+                android:id="@+id/tvCaptureHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tap the capture button to verify attendance"
+                android:textColor="#A9B7C9"
+                android:textSize="13sp"
+                android:layout_gravity="center_horizontal"/>
 
-    </LinearLayout>
+            <!-- Buttons -->
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:layout_marginTop="18dp"
+                android:orientation="horizontal">
+
+                <!-- Retry -->
+
+                <TextView
+                    android:id="@+id/btnRetry"
+                    android:layout_width="90dp"
+                    android:layout_height="46dp"
+                    android:gravity="center"
+                    android:text="Retry"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFF"
+                    android:background="@drawable/btn_camera_back"
+                    android:visibility="invisible"/>
+
+                <!-- Capture -->
+
+                <FrameLayout
+                    android:id="@+id/btnShutter"
+                    android:layout_width="90dp"
+                    android:layout_height="90dp"
+                    android:layout_marginHorizontal="28dp"
+                    android:background="@drawable/shutter_button_bg"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_gravity="center"
+                        android:src="@android:drawable/ic_menu_camera"
+                        app:tint="#FFFFFF"/>
+
+                </FrameLayout>
+
+                <!-- Cancel -->
+
+                <TextView
+                    android:id="@+id/btnCancel"
+                    android:layout_width="90dp"
+                    android:layout_height="46dp"
+                    android:gravity="center"
+                    android:text="Cancel"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFF"
+                    android:background="@drawable/btn_camera_back"/>
+
+            </LinearLayout>
+
+            <!-- Footer -->
+
+            <TextView
+                android:id="@+id/tvFooter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Powered by FaceGate AI"
+                android:textColor="#5DA9FF"
+                android:textStyle="bold"
+                android:textSize="11sp"
+                android:layout_marginTop="18dp"
+                android:layout_gravity="center_horizontal"/>
+
+        </LinearLayout>
+
+    </androidx.cardview.widget.CardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
