@@ -158,14 +158,14 @@ class AdminDashboard : Fragment() {
         }
 
         // ── NEW tiles — Timetable, Changes Log, Schedule ───────────────────
-        //binding.tileTimetable.setOnClickListener {
-        //    findNavController().navigate(R.id.action_dashboard_to_timetableSetup)
-        //}
-        //binding.tileChangesLog.setOnClickListener {
-        //    findNavController().navigate(R.id.action_dashboard_to_changesLog)
-        //}
-        //binding.tileStartAttendance.setOnClickListener {
-        //    findNavController().navigate(R.id.action_dashboard_to_schedule)
-        //}
+        binding.tileTimetable.setOnClickListener {
+            findNavController().navigate(R.id.action_dashboard_to_timetableSetup)
+        }
+        binding.tileChangesLog.setOnClickListener {
+            findNavController().navigate(R.id.action_dashboard_to_changesLog)
+        }
+        binding.tileStartAttendance.setOnClickListener {
+            findNavController().navigate(R.id.action_dashboard_to_schedule)
+        }
     }
 }
