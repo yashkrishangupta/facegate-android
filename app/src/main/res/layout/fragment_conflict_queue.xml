@@ -70,7 +70,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="These students were marked twice. Please resolve manually."
+                    android:text="These students were very similar. Please resolve manually."
                     android:textSize="12sp"
                     android:textColor="#991B1B"
                     android:textStyle="bold"/>

@@ -12,17 +12,23 @@ import androidx.navigation.fragment.NavHostFragment
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
- * MERGED MAIN ACTIVITY
- *
- * Replaces MainActivity + NavigationActivity + StudentNavigationActivity.
+ * MAIN ACTIVITY
  *
  * Layout has two layers:
- *   - roleSelector  : the Student / Admin buttons (visible on launch)
- *   - navHostFragment: a single FragmentContainerView (hidden until a role is chosen)
+ *   - roleSelector   : "Take Attendance" / "Admin Mode" buttons (visible on launch)
+ *   - navHostFragment: a single FragmentContainerView (hidden until a mode is chosen)
  *
- * On role selection the selector fades out, the nav host loads the correct
- * graph (nav_graph for Admin, student_nav_graph for Student), and the
- * system back button is wired to pop the nav stack or return to the selector.
+ * IMPORTANT: there is only ONE nav graph (nav_graph.xml). Both modes load it;
+ * they differ only in which destination it starts on:
+ *   - Take Attendance -> todayScheduleFragment (teacher picks today's session,
+ *     then proceeds to attendanceFragment via action_schedule_to_attendance,
+ *     which always supplies real sessionId/subject/batch/windowMinutes args)
+ *   - Admin Mode       -> adminDashboard (timetable setup, changes log, reports, etc.)
+ *
+ * There used to be a second graph (student_nav_graph.xml) that opened
+ * attendanceFragment directly with NO arguments at all, which crashed
+ * navArgs(). That graph has been removed for good — AttendanceFragment must
+ * always be reached through TodayScheduleFragment's nav action.
  */
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -53,24 +59,29 @@ class MainActivity : AppCompatActivity() {
 
         onBackPressedDispatcher.addCallback(this, navBackCallback)
 
-        findViewById<View>(R.id.btnStudent).setOnClickListener {
-            launchGraph(R.navigation.student_nav_graph)
+        findViewById<View>(R.id.btnAttendance).setOnClickListener {
+            launchGraph(startDestinationId = R.id.todayScheduleFragment)
         }
 
         findViewById<View>(R.id.btnAdmin).setOnClickListener {
-            launchGraph(R.navigation.nav_graph)
+            launchGraph(startDestinationId = R.id.adminDashboard)
         }
     }
 
     // ── Graph loading ─────────────────────────────────────────────────────────
 
-    private fun launchGraph(graphResId: Int) {
+    /**
+     * Loads nav_graph.xml and overrides its start destination before attaching
+     * it to the NavController, so the same graph can serve both the teacher's
+     * "jump straight to today's schedule" flow and the full admin flow.
+     */
+    private fun launchGraph(startDestinationId: Int) {
         val navHostFragment =
             supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
 
-        // Inflate the chosen graph and set it as the current graph
         val inflater = navHostFragment.navController.navInflater
-        val graph    = inflater.inflate(graphResId)
+        val graph    = inflater.inflate(R.navigation.nav_graph)
+        graph.setStartDestination(startDestinationId)
         navHostFragment.navController.setGraph(graph, null)
 
         navController = navHostFragment.navController

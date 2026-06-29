@@ -10,6 +10,16 @@
     <!--
         ROLE SELECTOR — visible on launch.
         Wrapped in its own FrameLayout so we can fade it as a single unit.
+
+        Both buttons load the SAME nav_graph.xml — there is no separate
+        student/attendance graph. Only the start destination differs:
+          - Attendance Mode -> todayScheduleFragment (teacher picks a
+            session, then proceeds to attendanceFragment via the existing
+            action_schedule_to_attendance, which always supplies real
+            sessionId/subject/batch/windowMinutes args)
+          - Admin Mode       -> adminDashboard (timetable setup, changes
+            log, reports, etc.)
+        This guarantees AttendanceFragment is never reached without args.
     -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/roleSelector"
@@ -43,10 +53,10 @@
             android:layout_marginTop="8dp"/>
 
         <Button
-            android:id="@+id/btnStudent"
+            android:id="@+id/btnAttendance"
             android:layout_width="280dp"
             android:layout_height="70dp"
-            android:text="Student Mode"
+            android:text="Take Attendance"
             android:textSize="18sp"
             android:backgroundTint="#1976D2"
             app:layout_constraintTop_toBottomOf="@id/txtSubtitle"
@@ -61,7 +71,7 @@
             android:text="Admin Mode"
             android:textSize="18sp"
             android:backgroundTint="#3949AB"
-            app:layout_constraintTop_toBottomOf="@id/btnStudent"
+            app:layout_constraintTop_toBottomOf="@id/btnAttendance"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             android:layout_marginTop="24dp"/>
@@ -70,9 +80,9 @@
 
     <!--
         SHARED NAV HOST — hidden until a role is chosen.
-        Loads either nav_graph (Admin) or student_nav_graph (Student)
-        at runtime via navInflater. No default graph set here so Room
-        doesn't auto-navigate before the user picks a role.
+        Always loads nav_graph.xml; only the start destination changes
+        (see MainActivity.launchGraph). No default graph set here so it
+        doesn't auto-navigate before the user picks a mode.
     -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/nav_host_fragment"
