@@ -46,12 +46,13 @@ class TodayScheduleFragment : Fragment() {
         binding.tvDate.text = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date())
 
         binding.btnBack.setOnClickListener {
-            if (!findNavController().navigateUp()) {
-                requireActivity().onBackPressedDispatcher.onBackPressed()
-            }
+            // TodayScheduleFragment is the START destination when entered via the
+            // "Take Attendance" front door, so findNavController().navigateUp()
+            // has nothing to pop and silently does nothing. Going through the
+            // activity's back dispatcher instead lets MainActivity's callback fall
+            // back to showing the role selector when the nav back stack is empty.
+            requireActivity().onBackPressedDispatcher.onBackPressed()
         }
-
-        binding.btnBack.setOnClickListener { findNavController().navigateUp() }
 
         binding.btnAddUnplanned.setOnClickListener { showUnplannedSessionDialog() }
 
@@ -157,21 +158,23 @@ class TodayScheduleFragment : Fragment() {
             })
         })
 
-        // Start button — hidden when DONE
+        // Start button — ACTIVE only.
+        // UPCOMING: not shown yet (window hasn't started — pressing Start early would give
+        //           the teacher a fresh full window instead of counting from scheduled time).
+        // DONE:     window closed.
         val btnStart = Button(ctx).apply {
             text = "Start"
             setBackgroundResource(com.facegate.R.drawable.badge_green)
             setTextColor(Color.WHITE)
-            visibility = if (item.status == ScheduleItem.Status.DONE) View.GONE else View.VISIBLE
+            visibility = if (item.status == ScheduleItem.Status.ACTIVE) View.VISIBLE else View.GONE
             setOnClickListener {
-                viewModel.startSession(item.entry) { sessionId ->
-                    // onStarted runs on Dispatchers.Main (viewModelScope default).
-                    // findNavController().navigate() is safe here.
+                viewModel.startSession(item.entry) { sessionId, scheduledStartTimeMs ->
                     navigateToAttendance(
-                        sessionId     = sessionId,
-                        subject       = item.entry.subject,
-                        batch         = item.entry.batch,
-                        windowMinutes = item.entry.windowMinutes,
+                        sessionId            = sessionId,
+                        subject              = item.entry.subject,
+                        batch                = item.entry.batch,
+                        windowMinutes        = item.entry.windowMinutes,
+                        scheduledStartTimeMs = scheduledStartTimeMs,
                     )
                 }
             }
@@ -221,9 +224,9 @@ class TodayScheduleFragment : Fragment() {
                 val window  = windowInput.text.toString().toIntOrNull() ?: 10
                 val reason  = reasonInput.text.toString().trim()
 
-                viewModel.startUnplannedSession(subject, batch, window, reason) { sessionId ->
+                viewModel.startUnplannedSession(subject, batch, window, reason) { sessionId, scheduledStartTimeMs ->
                     // onStarted runs on Main — safe to navigate.
-                    navigateToAttendance(sessionId, subject, batch, window)
+                    navigateToAttendance(sessionId, subject, batch, window, scheduledStartTimeMs)
                 }
             }
             .setNegativeButton("Cancel", null)
@@ -233,17 +236,19 @@ class TodayScheduleFragment : Fragment() {
     // ── Navigation ────────────────────────────────────────────────────────────
 
     private fun navigateToAttendance(
-        sessionId: String,
-        subject: String,
-        batch: String,
-        windowMinutes: Int,
+        sessionId           : String,
+        subject             : String,
+        batch               : String,
+        windowMinutes       : Int,
+        scheduledStartTimeMs: Long = 0L,
     ) {
         findNavController().navigate(
             TodayScheduleFragmentDirections.actionScheduleToAttendance(
-                sessionId     = sessionId,
-                subject       = subject,
-                batch         = batch,
-                windowMinutes = windowMinutes,
+                sessionId            = sessionId,
+                subject              = subject,
+                batch                = batch,
+                windowMinutes        = windowMinutes,
+                scheduledStartTimeMs = scheduledStartTimeMs,
             )
         )
     }

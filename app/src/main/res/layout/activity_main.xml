@@ -66,6 +66,80 @@
             android:text="AI Powered Face Recognition Attendance"
             android:textColor="#B8C5D6"
             android:textSize="15sp"/>
+            
+        <!--Student Portal-->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnAttendance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            app:cardBackgroundColor="#1A2436"
+            app:cardCornerRadius="22dp"
+            app:cardElevation="8dp"
+            app:strokeColor="#2F4E73"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="18dp">
+
+                <FrameLayout
+                    android:layout_width="62dp"
+                    android:layout_height="62dp"
+                    android:background="@drawable/logo_circle">
+
+                    <ImageView
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:layout_gravity="center"
+                        android:src="@android:drawable/ic_menu_myplaces"
+                        app:tint="#5DA9FF"
+                        android:contentDescription="Student"/>
+
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="18dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text= "Take Attendance"
+                        android:textColor="#FFFFFF"
+                        android:textStyle="bold"
+                        android:textSize="18sp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Select Class and Record Attendance"
+                        android:textColor="#90A6BD"
+                        android:textSize="13sp"
+                        android:layout_marginTop="4dp"/>
+
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/ic_media_next"
+                    app:tint="#5DA9FF"
+                    android:contentDescription="Go"/>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
         <!--Admin Portal-->
 
         <com.google.android.material.card.MaterialCardView
@@ -134,79 +208,6 @@
                 </LinearLayout>
 
                 <!-- Arrow -->
-
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_media_next"
-                    app:tint="#5DA9FF"
-                    android:contentDescription="Go"/>
-
-            </LinearLayout>
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <!--Student Portal-->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/btnAttendance"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:foreground="?attr/selectableItemBackground"
-            app:cardBackgroundColor="#1A2436"
-            app:cardCornerRadius="22dp"
-            app:cardElevation="8dp"
-            app:strokeColor="#2F4E73"
-            app:strokeWidth="1dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:padding="18dp">
-
-                <FrameLayout
-                    android:layout_width="62dp"
-                    android:layout_height="62dp"
-                    android:background="@drawable/logo_circle">
-
-                    <ImageView
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
-                        android:layout_gravity="center"
-                        android:src="@android:drawable/ic_menu_myplaces"
-                        app:tint="#5DA9FF"
-                        android:contentDescription="Student"/>
-
-                </FrameLayout>
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="18dp"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text= "Take Attendance"
-                        android:textColor="#FFFFFF"
-                        android:textStyle="bold"
-                        android:textSize="18sp"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Select Class and Record Attendance"
-                        android:textColor="#90A6BD"
-                        android:textSize="13sp"
-                        android:layout_marginTop="4dp"/>
-
-                </LinearLayout>
 
                 <ImageView
                     android:layout_width="24dp"

@@ -90,16 +90,24 @@ class AttendancePipeline(
         faceEmbedder.warmup()
     }
 
-    suspend fun startSession(sessionId: String, windowMinutes: Int = PipelineConfig.DEFAULT_WINDOW_MINUTES) {
-        this.sessionId = sessionId
-        this.windowMinutes = windowMinutes
-        this.sessionStartTime = System.currentTimeMillis()
+    suspend fun startSession(
+        sessionId           : String,
+        windowMinutes       : Int  = PipelineConfig.DEFAULT_WINDOW_MINUTES,
+        scheduledStartTimeMs: Long = 0L,                         // 0 → fall back to now
+    ) {
+        this.sessionId        = sessionId
+        this.windowMinutes    = windowMinutes
+        // Window always counts from the SCHEDULED start time so late arrivals
+        // don't get a fresh full window just because the teacher hit Start late.
+        this.sessionStartTime = if (scheduledStartTimeMs > 0L) scheduledStartTimeMs
+                                else System.currentTimeMillis()
         alreadyMarkedMap.clear()
         startFrameBuffering()
 
         val startOfDay = System.currentTimeMillis()
             .let { it - (it % (24 * 60 * 60 * 1000)) }
-        repository.getTodayAttendance(startOfDay).forEach { record ->
+        val endOfDay = startOfDay + (24 * 60 * 60 * 1000) - 1
+        repository.getAttendanceForRange(startOfDay, endOfDay).forEach { record ->
             alreadyMarkedMap[record.studentId] = record.timeStamp
         }
 

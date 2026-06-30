@@ -94,10 +94,16 @@ class AttendanceViewModel @Inject constructor(
      * not generated here.
      * Loads enrolled students from DB into memory for the pipeline.
      */
-    fun startSession(sessionId: String, subject: String, batch: String, windowMinutes: Int) {
+    fun startSession(
+        sessionId            : String,
+        subject              : String,
+        batch                : String,
+        windowMinutes        : Int,
+        scheduledStartTimeMs : Long = 0L,
+    ) {
         viewModelScope.launch {
             try { pipeline.init() } catch (_: Exception) {}
-            pipeline.startSession(sessionId, windowMinutes)
+            pipeline.startSession(sessionId, windowMinutes, scheduledStartTimeMs)
             _scanState.value = ScanState.Scanning("Ready — show your face")
             startCountdownTimer(windowMinutes)
         }

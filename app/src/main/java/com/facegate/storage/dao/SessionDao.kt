@@ -15,4 +15,11 @@ interface SessionDao {
     suspend fun getSessionsForDate(startOfDay: Long, endOfDay: Long): List<SessionEntity>
     @Query("SELECT * FROM sessions WHERE sessionId = :sessionId LIMIT 1")
     suspend fun getById(sessionId: String): SessionEntity?
+
+    @Query("""
+        SELECT * FROM sessions
+        WHERE timetableId = :timetableId AND startTime >= :startOfDay AND startTime <= :endOfDay
+        ORDER BY startTime DESC LIMIT 1
+    """)
+    suspend fun findSessionForTimetableOnDate(timetableId: Int?, startOfDay: Long, endOfDay: Long): SessionEntity?
 }

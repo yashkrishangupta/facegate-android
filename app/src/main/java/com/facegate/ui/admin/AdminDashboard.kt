@@ -74,43 +74,68 @@ class AdminDashboard : Fragment() {
         ).format(Date())
     }
 
-    // ── Stats from DB ─────────────────────────────────────────────────────────
+    // ── Stats ─────────────────────────────────────────────────────────────────
 
     private fun observeStats() {
         lifecycleScope.launch {
             viewModel.stats.collect { stats ->
 
+                // ── Card 1: Total Students ─────────────────────────────────────
                 binding.tvTotalStudents.text = stats.totalStudents.toString()
-                binding.tvPresentToday.text  = stats.presentToday.toString()
-                binding.tvAbsentToday.text   = stats.absentToday.toString()
-                binding.tvHolidaysLeft.text  = stats.pendingConflicts.toString()
-
                 binding.progressTotalStudents.progress = if (stats.totalStudents > 0) 100 else 0
-                binding.progressPresent.progress       = stats.attendancePct
-                binding.progressAbsent.progress        = stats.absentPct
-                binding.progressConflicts.progress     =
-                    (stats.pendingConflicts * 10).coerceAtMost(100)
+                binding.tvTileStudentsSub.text = when (stats.totalStudents) {
+                    0    -> "No students yet"
+                    1    -> "1 enrolled"
+                    else -> "${stats.totalStudents} enrolled"
+                }
 
-                binding.tvPresentSubtitle.text   = "${stats.attendancePct}% attendance rate"
-                binding.tvAbsentSubtitle.text    = "${stats.absentPct}% absent today"
+                // ── Card 2: Periods Conducted ──────────────────────────────────
+                binding.tvPresentToday.text = stats.periodsConducted.toString()
+                binding.progressPresent.progress =
+                    if (stats.totalPeriodsToday > 0)
+                        ((stats.periodsConducted.toFloat() / stats.totalPeriodsToday) * 100).toInt()
+                    else if (stats.periodsConducted > 0) 100 else 0
+                binding.tvPresentSubtitle.text =
+                    if (stats.totalPeriodsToday > 0)
+                        "of ${stats.totalPeriodsToday} scheduled today"
+                    else "No timetable set for today"
+
+                // ── Card 3: Periods Remaining ──────────────────────────────────
+                binding.tvAbsentToday.text = stats.periodsRemaining.toString()
+                binding.progressAbsent.progress =
+                    if (stats.totalPeriodsToday > 0)
+                        ((stats.periodsRemaining.toFloat() / stats.totalPeriodsToday) * 100).toInt()
+                    else 0
+                binding.tvAbsentSubtitle.text =
+                    if (stats.periodsRemaining == 0 && stats.totalPeriodsToday == 0)
+                        "No timetable for today"
+                    else if (stats.periodsRemaining == 0)
+                        "All periods done ✓"
+                    else
+                        "${stats.attendancePctToday}% avg attendance"
+
+                // ── Card 4: Pending Conflicts ──────────────────────────────────
+                binding.tvHolidaysLeft.text = stats.pendingConflicts.toString()
+                binding.progressConflicts.progress =
+                    (stats.pendingConflicts * 10).coerceAtMost(100)
                 binding.tvConflictsSubtitle.text = when (stats.pendingConflicts) {
                     0    -> "No unresolved matches"
                     1    -> "1 match needs review"
                     else -> "${stats.pendingConflicts} matches need review"
                 }
 
-                binding.tvTileStudentsSub.text = when (stats.totalStudents) {
-                    0    -> "No students yet"
-                    1    -> "1 enrolled"
-                    else -> "${stats.totalStudents} enrolled"
+                // ── Tile subtitles ─────────────────────────────────────────────
+                binding.tvTileManualSub.text = when (stats.uniquePresentToday) {
+                    0    -> "None marked yet today"
+                    1    -> "1 student marked today"
+                    else -> "${stats.uniquePresentToday} students today"
                 }
-                binding.tvTileManualSub.text = when (stats.presentToday) {
-                    0    -> "None marked yet"
-                    1    -> "1 present today"
-                    else -> "${stats.presentToday} present today"
-                }
-                binding.tvTileReportsSub.text = "${stats.attendancePct}% today"
+                binding.tvTileReportsSub.text =
+                    if (stats.periodsConducted > 0)
+                        "${stats.attendancePctToday}% avg • ${stats.periodsConducted} session(s)"
+                    else "No sessions today"
 
+                // ── Conflict banner ────────────────────────────────────────────
                 if (stats.pendingConflicts > 0) {
                     binding.conflictBanner.visibility = View.VISIBLE
                     binding.tvConflictTitle.text = when (stats.pendingConflicts) {
@@ -127,7 +152,6 @@ class AdminDashboard : Fragment() {
     // ── Navigation ────────────────────────────────────────────────────────────
 
     private fun setupClickListeners() {
-        // ── Existing tiles ─────────────────────────────────────────────────
         binding.tileStudents.setOnClickListener {
             findNavController().navigate(R.id.action_dashboard_to_students)
         }
@@ -156,8 +180,6 @@ class AdminDashboard : Fragment() {
         binding.navExit.setOnClickListener {
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
-
-        // ── NEW tiles — Timetable, Changes Log, Schedule ───────────────────
         binding.tileTimetable.setOnClickListener {
             findNavController().navigate(R.id.action_dashboard_to_timetableSetup)
         }
