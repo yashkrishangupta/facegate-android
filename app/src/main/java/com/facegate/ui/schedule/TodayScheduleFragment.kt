@@ -45,6 +45,7 @@ class TodayScheduleFragment : Fragment() {
 
         binding.tvDate.text = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date())
 
+<<<<<<< HEAD
         binding.btnBack.setOnClickListener {
             // In Admin Mode this pops back to adminDashboard. In Attendance Mode,
             // todayScheduleFragment is the graph's start destination, so there's
@@ -54,6 +55,9 @@ class TodayScheduleFragment : Fragment() {
                 requireActivity().onBackPressedDispatcher.onBackPressed()
             }
         }
+=======
+        binding.btnBack.setOnClickListener { findNavController().navigateUp() }
+>>>>>>> d3cdf5f398b09779fb1b71194552fa1710e590db
 
         binding.btnAddUnplanned.setOnClickListener { showUnplannedSessionDialog() }
 
