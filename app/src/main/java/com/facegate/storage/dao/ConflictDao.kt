@@ -30,10 +30,33 @@ interface ConflictDao {
     """)
     suspend fun findOpenConflict(sessionId: String, topStudentId: String): ConflictEntity?
 
-    /** Refresh an existing open conflict row instead of inserting a duplicate. */
+    /**
+     * Find an open conflict for the same UNORDERED pair of people, regardless of which
+     * one currently sits in the top/second slot. This prevents creating a second conflict
+     * row when the same two people clash again but with their ranking flipped (e.g. A was
+     * top/B was second last time, now B scores higher and is top/A is second).
+     */
+    @Query("""
+        SELECT * FROM conflict_queue
+        WHERE resolved = 0 AND sessionId = :sessionId
+        AND (
+            (topStudentId = :idA AND secondStudentId = :idB) OR
+            (topStudentId = :idB AND secondStudentId = :idA)
+        )
+        LIMIT 1
+    """)
+    suspend fun findOpenConflictForPair(sessionId: String, idA: String, idB: String): ConflictEntity?
+
+    /**
+     * Refresh an existing open conflict row instead of inserting a duplicate.
+     * Also allowed to update topStudentId/topStudentName, since the higher-scoring
+     * candidate this round may not be the same person who was "top" last time.
+     */
     @Query("""
         UPDATE conflict_queue
-        SET topScore = :topScore,
+        SET topStudentId = :topStudentId,
+            topStudentName = :topStudentName,
+            topScore = :topScore,
             secondStudentId = :secondStudentId,
             secondStudentName = :secondStudentName,
             secondScore = :secondScore,
@@ -43,6 +66,8 @@ interface ConflictDao {
     """)
     suspend fun updateConflict(
         id: Int,
+        topStudentId: String,
+        topStudentName: String,
         topScore: Float,
         secondStudentId: String,
         secondStudentName: String,

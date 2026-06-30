@@ -170,7 +170,7 @@ class AttendancePipeline(
         val qualityMs = SystemClock.elapsedRealtime() - tQuality
 
         if (!quality.passed) {
-            return PipelineFrameStatus.QualityFailed(quality.failReasons)
+            return PipelineFrameStatus.QualityFailed(quality.failReasons, quality)
         }
 
         bufferFrame(uprightBitmap, rawFace, quality.qualityScore)
@@ -179,6 +179,7 @@ class AttendancePipeline(
             return PipelineFrameStatus.Buffering(
                 framesCollected = frameBuffer.size,
                 framesNeeded    = PipelineConfig.FRAME_BUFFER_SIZE,
+                quality         = quality,
             )
         }
 
@@ -217,6 +218,7 @@ class AttendancePipeline(
                 inferenceMs  = inferenceMs,
                 similarityMs = similarityMs,
                 totalMs      = totalMs,
+                quality      = quality,
             )
         )
     }
@@ -228,6 +230,7 @@ class AttendancePipeline(
         bitmap: Bitmap,
         rotationDegrees: Int = 0,
         forEnrollment: Boolean = false,
+        shotIndex: Int = 0,
     ): CaptureQualityResult {
         val upright = rotateIfNeeded(bitmap, rotationDegrees)
         val scaled  = scaleBitmapToMaxWidth(upright, 640)
@@ -243,9 +246,11 @@ class AttendancePipeline(
                     faces[0],
                     poseToleranceMultiplier = if (forEnrollment)
                         PipelineConfig.ENROLLMENT_POSE_TOLERANCE_MULTIPLIER else 1.0f,
+                    expectedPose = if (forEnrollment)
+                        EnrollmentPose.forShotIndex(shotIndex) else EnrollmentPose.FRONTAL,
                 )
                 if (quality.passed) {
-                    CaptureQualityResult.Pass(scaled)
+                    CaptureQualityResult.Pass(scaled, quality.qualityScore)
                 } else {
                     CaptureQualityResult.Fail(
                         reason     = CaptureRejectReason.QUALITY,
@@ -265,10 +270,14 @@ class AttendancePipeline(
     ): EnrollmentResult {
         require(verifiedBitmaps.isNotEmpty()) { "No verified bitmaps supplied" }
 
-        data class CapturedEmbedding(val vector: FloatArray, val landmarksFound: Boolean)
+        data class CapturedEmbedding(
+            val vector: FloatArray,
+            val landmarksFound: Boolean,
+            val weight: Float,
+        )
         val captured = mutableListOf<CapturedEmbedding>()
 
-        for (bmp in verifiedBitmaps) {
+        for ((index, bmp) in verifiedBitmaps.withIndex()) {
             // Re-detect to get the Face landmark for alignment
             val image = InputImage.fromBitmap(bmp, 0)
             val faces = faceDetector.process(image).await()
@@ -277,7 +286,19 @@ class AttendancePipeline(
             val aligned     = faceAligner.align(bmp, face)
             val alignedFace = AlignedFace(aligned.alignedBitmap, bmp)
             val embedding   = faceEmbedder.embed(alignedFace)
-            captured.add(CapturedEmbedding(embedding.vector, aligned.landmarksFound))
+
+            // The first shot is the straight-on / frontal capture, which
+            // ML models embed most reliably (no pose-induced distortion).
+            // Shots 2-5 are deliberately off-axis to add some pose
+            // robustness, but shouldn't dilute the frontal shot's
+            // contribution as much as a plain average would. We also fold
+            // in this capture's own quality score, so a sharper/better-lit
+            // shot counts more than a borderline one that barely passed.
+            val quality = qualityChecker.check(bmp, face, expectedPose = EnrollmentPose.forShotIndex(index))
+            val poseWeight = if (index == 0) PipelineConfig.FRONTAL_SHOT_WEIGHT else 1.0f
+            val weight = poseWeight * quality.qualityScore.coerceAtLeast(0.1f)
+
+            captured.add(CapturedEmbedding(embedding.vector, aligned.landmarksFound, weight))
         }
 
         if (captured.isEmpty()) {
@@ -285,16 +306,18 @@ class AttendancePipeline(
         }
 
         val landmarkAligned = captured.filter { it.landmarksFound }
-        val vectors = (if (landmarkAligned.isNotEmpty()) landmarkAligned else captured)
-            .map { it.vector }
+        val weighted = if (landmarkAligned.isNotEmpty()) landmarkAligned else captured
 
-        // ── Average all vectors, then L2-normalise ────────────────────────────
+        // ── Weighted average of all vectors, then L2-normalise ────────────────
         val dim = PipelineConfig.EMBEDDING_SIZE
         val averaged = FloatArray(dim)
-        for (vec in vectors) {
-            for (i in 0 until dim) averaged[i] += vec[i]
+        var totalWeight = 0f
+        for (item in weighted) {
+            totalWeight += item.weight
+            for (i in 0 until dim) averaged[i] += item.vector[i] * item.weight
         }
-        for (i in 0 until dim) averaged[i] = averaged[i] / vectors.size
+        val safeTotalWeight = totalWeight.coerceAtLeast(1e-6f)
+        for (i in 0 until dim) averaged[i] = averaged[i] / safeTotalWeight
 
         val norm = Math.sqrt(averaged.map { it * it.toDouble() }.sum()).toFloat()
             .coerceAtLeast(1e-10f)
@@ -399,21 +422,30 @@ class AttendancePipeline(
     ) {
         require(verifiedBitmaps.isNotEmpty()) { "No verified bitmaps supplied" }
 
-        val vectors = mutableListOf<FloatArray>()
-        for (bmp in verifiedBitmaps) {
+        data class CapturedVec(val vector: FloatArray, val weight: Float)
+        val vectors = mutableListOf<CapturedVec>()
+        for ((index, bmp) in verifiedBitmaps.withIndex()) {
             val image = InputImage.fromBitmap(bmp, 0)
             val faces = faceDetector.process(image).await()
             val face  = faces.firstOrNull() ?: continue
             val aligned     = faceAligner.align(bmp, face)
             val alignedFace = AlignedFace(aligned.alignedBitmap, bmp)
-            vectors.add(faceEmbedder.embed(alignedFace).vector)
+            val quality = qualityChecker.check(bmp, face, expectedPose = EnrollmentPose.forShotIndex(index))
+            val poseWeight = if (index == 0) PipelineConfig.FRONTAL_SHOT_WEIGHT else 1.0f
+            val weight = poseWeight * quality.qualityScore.coerceAtLeast(0.1f)
+            vectors.add(CapturedVec(faceEmbedder.embed(alignedFace).vector, weight))
         }
         if (vectors.isEmpty()) return
 
         val dim = PipelineConfig.EMBEDDING_SIZE
         val averaged = FloatArray(dim)
-        for (vec in vectors) for (i in 0 until dim) averaged[i] += vec[i]
-        for (i in 0 until dim) averaged[i] = averaged[i] / vectors.size
+        var totalWeight = 0f
+        for (item in vectors) {
+            totalWeight += item.weight
+            for (i in 0 until dim) averaged[i] += item.vector[i] * item.weight
+        }
+        val safeTotalWeight = totalWeight.coerceAtLeast(1e-6f)
+        for (i in 0 until dim) averaged[i] = averaged[i] / safeTotalWeight
         val norm = Math.sqrt(averaged.map { it * it.toDouble() }.sum())
             .toFloat().coerceAtLeast(1e-10f)
         val normalised = FloatArray(dim) { averaged[it] / norm }
@@ -486,27 +518,63 @@ class AttendancePipeline(
             }
             is AttendanceDecision.Ambiguous -> {
                 val topId    = decision.topCandidate?.studentId ?: "unknown"
-                val existing = repository.findOpenConflict(sessionId ?: "no_session", topId)
+                val secondId = decision.secondCandidate?.studentId ?: "unknown"
+
+                // Look up an existing open conflict for this same pair of people,
+                // regardless of which one is currently ranked top vs second. Two
+                // conflicting people should only ever occupy a single open row.
+                val existing = if (secondId != "unknown") {
+                    repository.findOpenConflictForPair(sessionId ?: "no_session", topId, secondId)
+                } else {
+                    // No second candidate identified (rare) — fall back to matching on topId alone.
+                    repository.findOpenConflict(sessionId ?: "no_session", topId)
+                }
+
+                val newTopScore    = decision.topCandidate?.cosineSimilarity ?: 0f
+                val newSecondScore = decision.secondCandidate?.cosineSimilarity ?: 0f
+                val newTopName     = decision.topCandidate?.studentName ?: "Unknown"
+                val newSecondName  = decision.secondCandidate?.studentName ?: "Unknown"
 
                 if (existing != null) {
+                    // Always re-rank so the higher-scoring candidate (top OR second, this
+                    // round or last) ends up in the topStudent slot. This handles the case
+                    // where the same two people clash again with their scores flipped, and
+                    // avoids ever creating a second conflict row for the same pair.
+                    val candidates = listOf(
+                        Triple(topId, newTopName, newTopScore),
+                        Triple(secondId, newSecondName, newSecondScore),
+                        Triple(existing.topStudentId, existing.topStudentName, existing.topScore),
+                        Triple(existing.secondStudentId, existing.secondStudentName, existing.secondScore),
+                    ).distinctBy { it.first }
+
+                    val ranked = candidates.sortedByDescending { it.third }
+                    val (finalTopId, finalTopName, finalTopScore) = ranked.getOrElse(0) {
+                        Triple(topId, newTopName, newTopScore)
+                    }
+                    val (finalSecondId, finalSecondName, finalSecondScore) = ranked.getOrElse(1) {
+                        Triple(secondId, newSecondName, newSecondScore)
+                    }
+
                     repository.updateConflict(
-                        id                = existing.id,
-                        topScore          = decision.topCandidate?.cosineSimilarity ?: existing.topScore,
-                        secondStudentId   = decision.secondCandidate?.studentId    ?: existing.secondStudentId,
-                        secondStudentName = decision.secondCandidate?.studentName  ?: existing.secondStudentName,
-                        secondScore       = decision.secondCandidate?.cosineSimilarity ?: existing.secondScore,
-                        reason            = decision.reason,
-                        timestamp         = System.currentTimeMillis(),
+                        id                 = existing.id,
+                        topStudentId       = finalTopId,
+                        topStudentName     = finalTopName,
+                        topScore           = finalTopScore,
+                        secondStudentId    = finalSecondId,
+                        secondStudentName  = finalSecondName,
+                        secondScore        = finalSecondScore,
+                        reason             = decision.reason,
+                        timestamp          = System.currentTimeMillis(),
                     )
                 } else {
                     repository.addConflict(
                         ConflictEntity(
                             topStudentId      = topId,
-                            topStudentName    = decision.topCandidate?.studentName  ?: "Unknown",
-                            topScore          = decision.topCandidate?.cosineSimilarity ?: 0f,
-                            secondStudentId   = decision.secondCandidate?.studentId   ?: "unknown",
-                            secondStudentName = decision.secondCandidate?.studentName ?: "Unknown",
-                            secondScore       = decision.secondCandidate?.cosineSimilarity ?: 0f,
+                            topStudentName    = newTopName,
+                            topScore          = newTopScore,
+                            secondStudentId   = secondId,
+                            secondStudentName = newSecondName,
+                            secondScore       = newSecondScore,
                             reason            = decision.reason,
                             sessionId         = sessionId ?: "no_session",
                             timestamp         = System.currentTimeMillis(),
@@ -574,7 +642,7 @@ class AttendancePipeline(
 enum class CaptureRejectReason { NO_FACE, MULTIPLE_FACES, QUALITY }
 
 sealed class CaptureQualityResult {
-    data class Pass(val bitmap: Bitmap) : CaptureQualityResult()
+    data class Pass(val bitmap: Bitmap, val qualityScore: Float = 1.0f) : CaptureQualityResult()
     data class Fail(
         val reason     : CaptureRejectReason,
         val failDetail : List<com.facegate.pipeline.QualityFailReason> = emptyList(),

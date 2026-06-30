@@ -45,22 +45,35 @@ class EnrollmentViewModel @Inject constructor(
 
     private val verifiedBitmaps = mutableListOf<Bitmap>()
 
-    // Stored when a duplicate is detected so forceEnroll() can retry without re-asking for details
+    // Set via setStudentInfo() right after the dialog is confirmed — BEFORE any
+    // photo is taken. Used both for the initial submission and for forceEnroll().
     private var pendingName  : String = ""
     private var pendingId    : String = ""
     private var pendingClass : String = ""
+
+    /** Called once the student-details dialog is confirmed, before the camera opens. */
+    fun setStudentInfo(name: String, id: String, studentClass: String) {
+        pendingName  = name
+        pendingId    = id
+        pendingClass = studentClass
+    }
 
     // ── Photo capture ────────────────────────────────────────────────────────
 
     fun capturePhoto(bitmap: Bitmap, rotationDegrees: Int = 0) {
         viewModelScope.launch {
-            val result = pipeline.checkCaptureQuality(bitmap, rotationDegrees, forEnrollment = true)
+            val result = pipeline.checkCaptureQuality(
+                bitmap,
+                rotationDegrees,
+                forEnrollment = true,
+                shotIndex = verifiedBitmaps.size,
+            )
             when (result) {
                 is CaptureQualityResult.Pass -> {
                     verifiedBitmaps.add(result.bitmap)
                     if (verifiedBitmaps.size >= 5) {
-                        // All 5 done — move to Processing (shows dialog)
-                        _enrollmentState.value = EnrollmentState.Processing
+                        // All 5 done — submit using the details collected up front.
+                        submitEnrollment()
                     } else {
                         // Emit event so fragment re-enables button + updates dots
                         _events.emit(EnrollmentEvent.ShotAccepted(verifiedBitmaps.size))
@@ -84,29 +97,21 @@ class EnrollmentViewModel @Inject constructor(
 
     // ── Enrollment ───────────────────────────────────────────────────────────
 
-    fun enrollStudent(
-        studentName : String,
-        studentId   : String,
-        studentClass: String,
-    ) {
-        if (verifiedBitmaps.isEmpty()) {
+    /** Submits the 5 verified shots under the details already collected via setStudentInfo(). */
+    private fun submitEnrollment() {
+        if (verifiedBitmaps.isEmpty() || pendingId.isEmpty()) {
             _enrollmentState.value = EnrollmentState.Failed("No photos captured.")
             return
         }
-
-        // Store so forceEnroll() can retry if admin dismisses the duplicate dialog
-        pendingName  = studentName
-        pendingId    = studentId
-        pendingClass = studentClass
 
         viewModelScope.launch {
             _enrollmentState.value = EnrollmentState.Processing
 
             val result = try {
                 pipeline.enrollStudentFromEmbeddings(
-                    studentId       = studentId,
-                    studentName     = studentName,
-                    studentClass    = studentClass,
+                    studentId       = pendingId,
+                    studentName     = pendingName,
+                    studentClass    = pendingClass,
                     verifiedBitmaps = verifiedBitmaps.toList(),
                 )
             } catch (e: Exception) {
@@ -117,7 +122,12 @@ class EnrollmentViewModel @Inject constructor(
                 return@launch
             }
 
-            clearBitmaps()
+            // Don't clear bitmaps yet if it's a duplicate-risk — forceEnroll()
+            // needs verifiedBitmaps to still be populated to retry without
+            // re-asking the user to retake all 5 photos.
+            if (result !is EnrollmentResult.DuplicateRisk) {
+                clearBitmaps()
+            }
 
             _enrollmentState.value = when (result) {
                 is EnrollmentResult.Success               -> EnrollmentState.Success
@@ -160,7 +170,7 @@ class EnrollmentViewModel @Inject constructor(
         }
     }
 
-        // ── Reset ────────────────────────────────────────────────────────────────
+    // ── Reset ────────────────────────────────────────────────────────────────
 
     fun reset() {
         clearBitmaps()

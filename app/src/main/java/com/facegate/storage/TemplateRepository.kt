@@ -134,15 +134,24 @@ class TemplateRepository(
     suspend fun findOpenConflict(sessionId: String, topStudentId: String): ConflictEntity? =
         conflictDao.findOpenConflict(sessionId, topStudentId)
 
+    suspend fun findOpenConflictForPair(sessionId: String, idA: String, idB: String): ConflictEntity? =
+        conflictDao.findOpenConflictForPair(sessionId, idA, idB)
+
     suspend fun updateConflict(
         id: Int,
+        topStudentId: String,
+        topStudentName: String,
         topScore: Float,
         secondStudentId: String,
         secondStudentName: String,
         secondScore: Float,
         reason: String,
         timestamp: Long,
-    ) = conflictDao.updateConflict(id, topScore, secondStudentId, secondStudentName, secondScore, reason, timestamp)
+    ) = conflictDao.updateConflict(
+        id, topStudentId, topStudentName, topScore,
+        secondStudentId, secondStudentName, secondScore,
+        reason, timestamp
+    )
 
     suspend fun resolveAllConflictsForStudent(studentId: String) =
         conflictDao.resolveAllConflictsForStudent(studentId)

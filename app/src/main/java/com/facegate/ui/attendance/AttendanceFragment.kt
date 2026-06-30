@@ -178,6 +178,49 @@ class AttendanceFragment : Fragment() {
                 updateCountdown(remainingMs)
             }
         }
+
+        lifecycleScope.launch {
+            viewModel.liveQuality.collect { quality ->
+                updateLiveQuality(quality)
+            }
+        }
+    }
+
+    /** Renders the real-time Lighting / Face Position / Recognition readout. No fixed values. */
+    private fun updateLiveQuality(quality: com.facegate.ui.attendance.LiveQuality?) {
+        if (_binding == null) return
+        if (quality == null) {
+            binding.tvLighting.text  = "—"
+            binding.tvLighting.setTextColor(android.graphics.Color.parseColor("#90FFFFFF"))
+            binding.tvPosition.text  = "—"
+            binding.tvPosition.setTextColor(android.graphics.Color.parseColor("#90FFFFFF"))
+            binding.tvConfidence.text = "--%"
+            return
+        }
+
+        val ok    = android.graphics.Color.parseColor("#4DFF91")
+        val bad   = android.graphics.Color.parseColor("#FF6B6B")
+        val amber = android.graphics.Color.parseColor("#FFC857")
+
+        binding.tvLighting.text = if (quality.lightingOk) "${quality.lightingLabel} ✓" else quality.lightingLabel
+        binding.tvLighting.setTextColor(if (quality.lightingOk) ok else bad)
+
+        binding.tvPosition.text = if (quality.positionOk) "${quality.positionLabel} ✓" else quality.positionLabel
+        binding.tvPosition.setTextColor(if (quality.positionOk) ok else bad)
+
+        binding.tvConfidence.text = "${quality.confidencePercent}%"
+        binding.tvConfidence.setTextColor(
+            when {
+                quality.confidencePercent >= 80 -> ok
+                quality.confidencePercent >= 50 -> amber
+                else -> bad
+            }
+        )
+
+        binding.tvRecognition.text = quality.recognitionLabel
+        binding.tvRecognition.setTextColor(
+            if (quality.confidencePercent >= 80) ok else amber
+        )
     }
 
     private fun updateCountdown(remainingMs: Long) {
@@ -252,6 +295,12 @@ class AttendanceFragment : Fragment() {
         binding.tvStatusSub.text   = "${state.studentName} — ${state.studentClass}"
         binding.processingDots.visibility = View.GONE
         binding.btnRetry.visibility       = View.INVISIBLE
+        binding.tvRecognition.text = "Matched ✓"
+        binding.tvRecognition.setTextColor(android.graphics.Color.parseColor("#4DFF91"))
+        state.confidencePercent?.let { pct ->
+            binding.tvConfidence.text = "$pct%"
+            binding.tvConfidence.setTextColor(android.graphics.Color.parseColor("#4DFF91"))
+        }
     }
 
     private fun showFailState(title: String, message: String) {
