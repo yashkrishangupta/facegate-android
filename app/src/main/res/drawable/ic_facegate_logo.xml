@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+
+    <!-- Outer Circle -->
+    <path
+        android:fillColor="#3B82F6"
+        android:pathData="M48,8
+                          A40,40 0 1,1 47.9,8z"/>
+
+    <!-- Inner Circle -->
+    <path
+        android:fillColor="#0F172A"
+        android:pathData="M48,18
+                          A30,30 0 1,1 47.9,18z"/>
+
+    <!-- Head -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48,30
+                          A8,8 0 1,1 47.9,30z"/>
+
+    <!-- Shoulders -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+            M30,66
+            C30,56 38,50 48,50
+            C58,50 66,56 66,66
+            L66,70
+            L30,70
+            Z"/>
+
+    <!-- Face Recognition Corner -->
+    <path
+        android:strokeColor="#5DA9FF"
+        android:strokeWidth="2"
+        android:fillColor="@android:color/transparent"
+        android:pathData="
+            M18,24
+            L18,16
+            L26,16"/>
+
+    <path
+        android:strokeColor="#5DA9FF"
+        android:strokeWidth="2"
+        android:fillColor="@android:color/transparent"
+        android:pathData="
+            M78,24
+            L78,16
+            L70,16"/>
+
+    <path
+        android:strokeColor="#5DA9FF"
+        android:strokeWidth="2"
+        android:fillColor="@android:color/transparent"
+        android:pathData="
+            M18,72
+            L18,80
+            L26,80"/>
+
+    <path
+        android:strokeColor="#5DA9FF"
+        android:strokeWidth="2"
+        android:fillColor="@android:color/transparent"
+        android:pathData="
+            M78,72
+            L78,80
+            L70,80"/>
+
+</vector>

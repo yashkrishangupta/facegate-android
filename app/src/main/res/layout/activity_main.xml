@@ -1,95 +1,314 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout
+
+<androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F7FA">
+    android:background="@drawable/bg_main_gradient">
+    <!-- Decorative Background -->
+    <View
+        android:layout_width="250dp"
+        android:layout_height="250dp"
+        android:layout_marginTop="-70dp"
+        android:layout_marginEnd="-70dp"
+        android:alpha="0.12"
+        android:background="@drawable/circle_blue"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!--
-        ROLE SELECTOR — visible on launch.
-        Wrapped in its own FrameLayout so we can fade it as a single unit.
+    <View
+        android:layout_width="160dp"
+        android:layout_height="160dp"
+        android:layout_marginBottom="-40dp"
+        android:layout_marginStart="-40dp"
+        android:alpha="0.08"
+        android:background="@drawable/circle_blue"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"/>
 
-        Both buttons load the SAME nav_graph.xml — there is no separate
-        student/attendance graph. Only the start destination differs:
-          - Attendance Mode -> todayScheduleFragment (teacher picks a
-            session, then proceeds to attendanceFragment via the existing
-            action_schedule_to_attendance, which always supplies real
-            sessionId/subject/batch/windowMinutes args)
-          - Admin Mode       -> adminDashboard (timetable setup, changes
-            log, reports, etc.)
-        This guarantees AttendanceFragment is never reached without args.
-    -->
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <!-- Main Content -->
+    <LinearLayout
         android:id="@+id/roleSelector"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="visible">
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="28dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
+        <!-- Logo Card -->
+        <ImageView
+            android:id="@+id/imgLogo"
+            android:layout_width="110dp"
+            android:layout_height="110dp"
+            android:src="@drawable/ic_facegate_logo"
+            android:contentDescription="FaceGate Logo"/>
+
+        <!-- Title -->
         <TextView
-            android:id="@+id/txtTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="FaceGate Attendance"
-            android:textSize="28sp"
+            android:layout_marginTop="24dp"
+            android:text="FaceGate"
+            android:textColor="#FFFFFF"
             android:textStyle="bold"
-            android:textColor="#1A237E"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginTop="60dp"/>
+            android:textSize="34sp"/>
 
         <TextView
-            android:id="@+id/txtSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Offline Face Recognition Attendance System"
-            android:textSize="14sp"
-            android:textColor="#666666"
-            app:layout_constraintTop_toBottomOf="@id/txtTitle"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginTop="8dp"/>
+            android:layout_marginTop="8dp"
+            android:text="AI Powered Face Recognition Attendance"
+            android:textColor="#B8C5D6"
+            android:textSize="15sp"/>
+        <!--Admin Portal-->
 
-        <Button
-            android:id="@+id/btnAttendance"
-            android:layout_width="280dp"
-            android:layout_height="70dp"
-            android:text="Take Attendance"
-            android:textSize="18sp"
-            android:backgroundTint="#1976D2"
-            app:layout_constraintTop_toBottomOf="@id/txtSubtitle"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginTop="80dp"/>
-
-        <Button
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/btnAdmin"
-            android:layout_width="280dp"
-            android:layout_height="70dp"
-            android:text="Admin Mode"
-            android:textSize="18sp"
-            android:backgroundTint="#3949AB"
-            app:layout_constraintTop_toBottomOf="@id/btnAttendance"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginTop="24dp"/>
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            app:cardBackgroundColor="#1A2436"
+            app:cardCornerRadius="22dp"
+            app:cardElevation="8dp"
+            app:strokeColor="#2F4E73"
+            app:strokeWidth="1dp">
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="18dp">
 
-    <!--
-        SHARED NAV HOST — hidden until a role is chosen.
-        Always loads nav_graph.xml; only the start destination changes
-        (see MainActivity.launchGraph). No default graph set here so it
-        doesn't auto-navigate before the user picks a mode.
-    -->
+                <!-- Icon -->
+
+                <FrameLayout
+                    android:layout_width="62dp"
+                    android:layout_height="62dp"
+                    android:background="@drawable/logo_circle">
+
+                    <ImageView
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:layout_gravity="center"
+                        android:src="@android:drawable/ic_lock_lock"
+                        app:tint="#5DA9FF"
+                        android:contentDescription="Admin"/>
+
+                </FrameLayout>
+
+                <!-- Text -->
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="18dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Admin Portal"
+                        android:textColor="#FFFFFF"
+                        android:textStyle="bold"
+                        android:textSize="18sp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Manage students, attendance, reports and timetable"
+                        android:textColor="#90A6BD"
+                        android:textSize="13sp"
+                        android:layout_marginTop="4dp"/>
+
+                </LinearLayout>
+
+                <!-- Arrow -->
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/ic_media_next"
+                    app:tint="#5DA9FF"
+                    android:contentDescription="Go"/>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!--Student Portal-->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnAttendance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            app:cardBackgroundColor="#1A2436"
+            app:cardCornerRadius="22dp"
+            app:cardElevation="8dp"
+            app:strokeColor="#2F4E73"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="18dp">
+
+                <FrameLayout
+                    android:layout_width="62dp"
+                    android:layout_height="62dp"
+                    android:background="@drawable/logo_circle">
+
+                    <ImageView
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:layout_gravity="center"
+                        android:src="@android:drawable/ic_menu_myplaces"
+                        app:tint="#5DA9FF"
+                        android:contentDescription="Student"/>
+
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="18dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Student Portal"
+                        android:textColor="#FFFFFF"
+                        android:textStyle="bold"
+                        android:textSize="18sp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="View attendance, verify identity and access profile"
+                        android:textColor="#90A6BD"
+                        android:textSize="13sp"
+                        android:layout_marginTop="4dp"/>
+
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/ic_media_next"
+                    app:tint="#5DA9FF"
+                    android:contentDescription="Go"/>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:src="@android:drawable/ic_lock_lock"
+                    app:tint="#5DA9FF"
+                    android:contentDescription="Secure"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Secure"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold"
+                    android:textSize="12sp"
+                    android:layout_marginTop="6dp"/>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:src="@android:drawable/ic_popup_sync"
+                    app:tint="#5DA9FF"
+                    android:contentDescription="Fast"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Fast"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold"
+                    android:textSize="12sp"
+                    android:layout_marginTop="6dp"/>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:src="@android:drawable/stat_notify_sync"
+                    app:tint="#5DA9FF"
+                    android:contentDescription="Offline"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Offline"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold"
+                    android:textSize="12sp"
+                    android:layout_marginTop="6dp"/>
+
+            </LinearLayout>
+
+        </LinearLayout>
+    </LinearLayout>
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/nav_host_fragment"
         android:name="androidx.navigation.fragment.NavHostFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone"
-        app:defaultNavHost="true"/>
+        app:defaultNavHost="true"
+        app:navGraph="@navigation/nav_graph"/>
 
-</FrameLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
