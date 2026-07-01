@@ -90,21 +90,32 @@ class TemplateRepository(
     suspend fun markAttendanceSynced(id: Int) =
         attendanceDao.markAsSynced(id)
 
-    suspend fun getTodayAttendance(startOfDay: Long): List<AttendanceEntity> =
-        attendanceDao.getTodayAttendance(startOfDay)
+    suspend fun getAttendanceForRange(startOfDay: Long, endOfDay: Long): List<AttendanceEntity> =
+        attendanceDao.getAttendanceForRange(startOfDay, endOfDay)
 
     suspend fun getAllAttendance(): List<AttendanceEntity> =
         attendanceDao.getAllAttendance()
 
-    suspend fun getClassWiseAttendance(startOfDay: Long): List<ClassAttendanceSummary> =
-        attendanceDao.getClassWiseAttendance(startOfDay)
+    suspend fun getClassWiseAttendance(startOfDay: Long, endOfDay: Long): List<ClassAttendanceSummary> =
+        attendanceDao.getClassWiseAttendance(startOfDay, endOfDay)
 
-    suspend fun isStudentMarkedToday(studentId: String, startOfDay: Long): Boolean =
-        attendanceDao.isStudentMarkedToday(studentId, startOfDay) > 0
+    suspend fun isStudentMarkedOnDate(studentId: String, startOfDay: Long, endOfDay: Long): Boolean =
+        attendanceDao.isStudentMarkedOnDate(studentId, startOfDay, endOfDay) > 0
 
-    /** Remove today's attendance for a student (mark absent / undo). */
-    suspend fun removeAttendanceToday(studentId: String, startOfDay: Long) =
-        attendanceDao.deleteAttendanceToday(studentId, startOfDay)
+    /** Remove a day's attendance for a student (mark absent / undo) — bounded to that single day. */
+    suspend fun removeAttendanceOnDate(studentId: String, startOfDay: Long, endOfDay: Long) =
+        attendanceDao.deleteAttendanceOnDate(studentId, startOfDay, endOfDay)
+
+    suspend fun getDailyCountsInRange(startMs: Long, endMs: Long) =
+        attendanceDao.getDailyCountsInRange(startMs, endMs)
+
+    // ── Session-specific attendance (for manual attendance editing per session) ──
+    suspend fun getAttendanceForSession(sessionId: String) =
+        attendanceDao.getAttendanceForSession(sessionId)
+    suspend fun isStudentMarkedForSession(studentId: String, sessionId: String): Boolean =
+        attendanceDao.isStudentMarkedForSession(studentId, sessionId) > 0
+    suspend fun deleteAttendanceForSession(studentId: String, sessionId: String) =
+        attendanceDao.deleteAttendanceForSession(studentId, sessionId)
 
     // ── Sync Logs ─────────────────────────────────────────────────────────────
 
@@ -134,15 +145,24 @@ class TemplateRepository(
     suspend fun findOpenConflict(sessionId: String, topStudentId: String): ConflictEntity? =
         conflictDao.findOpenConflict(sessionId, topStudentId)
 
+    suspend fun findOpenConflictForPair(sessionId: String, idA: String, idB: String): ConflictEntity? =
+        conflictDao.findOpenConflictForPair(sessionId, idA, idB)
+
     suspend fun updateConflict(
         id: Int,
+        topStudentId: String,
+        topStudentName: String,
         topScore: Float,
         secondStudentId: String,
         secondStudentName: String,
         secondScore: Float,
         reason: String,
         timestamp: Long,
-    ) = conflictDao.updateConflict(id, topScore, secondStudentId, secondStudentName, secondScore, reason, timestamp)
+    ) = conflictDao.updateConflict(
+        id, topStudentId, topStudentName, topScore,
+        secondStudentId, secondStudentName, secondScore,
+        reason, timestamp
+    )
 
     suspend fun resolveAllConflictsForStudent(studentId: String) =
         conflictDao.resolveAllConflictsForStudent(studentId)
@@ -162,6 +182,8 @@ class TemplateRepository(
     suspend fun getActiveSession() = sessionDao.getActiveSession()
     suspend fun getSessionsForDate(startOfDay: Long, endOfDay: Long) = sessionDao.getSessionsForDate(startOfDay, endOfDay)
     suspend fun getSessionById(sessionId: String) = sessionDao.getById(sessionId)
+    suspend fun findSessionForTimetableOnDate(timetableId: Int?, startOfDay: Long, endOfDay: Long) =
+        sessionDao.findSessionForTimetableOnDate(timetableId, startOfDay, endOfDay)
 
     // ── Overrides ──────────────────────────────────────────────────────────
     suspend fun insertOverride(override: OverrideEntity) = overrideDao.insert(override)

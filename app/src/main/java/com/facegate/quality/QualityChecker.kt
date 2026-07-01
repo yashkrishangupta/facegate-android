@@ -1,6 +1,7 @@
 package com.facegate.quality
 
 import android.graphics.Bitmap
+import com.facegate.pipeline.EnrollmentPose
 import com.facegate.pipeline.PipelineConfig
 import com.facegate.pipeline.QualityFailReason
 import com.facegate.pipeline.QualityResult
@@ -26,8 +27,19 @@ class QualityChecker {
      *   higher value (see PipelineConfig.ENROLLMENT_POSE_TOLERANCE_MULTIPLIER)
      *   since shots 2-5 deliberately ask for "slightly" turned/tilted angles
      *   that would otherwise always exceed the strict attendance limits.
+     * @param expectedPose Which on-screen pose prompt this shot corresponds
+     *   to (frontal / turn-left / turn-right / tilt-up / tilt-down). When set
+     *   to anything other than FRONTAL, the measured yaw/pitch must actually
+     *   deviate in that direction by at least MIN_DIRECTIONAL_*_DEGREES, on
+     *   top of staying under the usual max-tolerance ceiling. This stops a
+     *   straight-on photo from being accepted as a posed shot.
      */
-    fun check(bitmap: Bitmap, face: Face, poseToleranceMultiplier: Float = 1.0f): QualityResult {
+    fun check(
+        bitmap: Bitmap,
+        face: Face,
+        poseToleranceMultiplier: Float = 1.0f,
+        expectedPose: EnrollmentPose = EnrollmentPose.FRONTAL,
+    ): QualityResult {
         val failReasons = mutableListOf<QualityFailReason>()
 
         // ── Check 1: Blur ──────────────────────────────────────────────
@@ -65,6 +77,41 @@ class QualityChecker {
         if (abs(yaw)   > maxYaw)   failReasons.add(QualityFailReason.HEAD_TURNED_YAW)
         if (abs(pitch) > maxPitch) failReasons.add(QualityFailReason.HEAD_TILTED_PITCH)
         if (abs(roll)  > maxRoll)  failReasons.add(QualityFailReason.HEAD_ROTATED_ROLL)
+
+        // ── Check 4b: Pose actually matches what this shot asked for ────
+        // Only applies once the shot is already within the generic ceiling
+        // above — this just additionally requires the *right* pose, with
+        // enough deviation in the *right* direction.
+        when (expectedPose) {
+            EnrollmentPose.FRONTAL -> {
+                // Frontal shot — should stay close to center. A pose that's
+                // already flagged by Check 4 covers the "too far off" case;
+                // nothing extra needed here.
+            }
+            EnrollmentPose.TURN_LEFT -> {
+                // ML Kit headEulerAngleY: positive = turned toward the
+                // device's left from the camera's point of view.
+                if (yaw < PipelineConfig.MIN_DIRECTIONAL_YAW_DEGREES) {
+                    failReasons.add(QualityFailReason.WRONG_POSE_DIRECTION)
+                }
+            }
+            EnrollmentPose.TURN_RIGHT -> {
+                if (yaw > -PipelineConfig.MIN_DIRECTIONAL_YAW_DEGREES) {
+                    failReasons.add(QualityFailReason.WRONG_POSE_DIRECTION)
+                }
+            }
+            EnrollmentPose.TILT_UP -> {
+                // headEulerAngleX: positive = chin down / looking up.
+                if (pitch < PipelineConfig.MIN_DIRECTIONAL_PITCH_DEGREES) {
+                    failReasons.add(QualityFailReason.WRONG_POSE_DIRECTION)
+                }
+            }
+            EnrollmentPose.TILT_DOWN -> {
+                if (pitch > -PipelineConfig.MIN_DIRECTIONAL_PITCH_DEGREES) {
+                    failReasons.add(QualityFailReason.WRONG_POSE_DIRECTION)
+                }
+            }
+        }
 
         // ── Check 5: Landmark confidence ───────────────────────────────
         val landmarkCount      = face.allLandmarks.size

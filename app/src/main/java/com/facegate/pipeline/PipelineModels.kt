@@ -32,6 +32,20 @@ object PipelineConfig {
 
     const val ENROLLMENT_POSE_TOLERANCE_MULTIPLIER = 1.5f
 
+    // Directional enrollment shots (turn left/right, tilt up/down) must show
+    // at least this much deviation in the requested direction — otherwise a
+    // near-frontal shot would slip through as if it were a posed shot, and
+    // the averaged embedding would just be five copies of the same frontal
+    // pose instead of genuine pose coverage.
+    const val MIN_DIRECTIONAL_YAW_DEGREES   = 8f
+    const val MIN_DIRECTIONAL_PITCH_DEGREES = 6f
+
+    // Relative weight given to the frontal (1st) enrollment shot vs the 4
+    // posed shots when averaging embeddings — the frontal shot is the most
+    // reliable, distortion-free input, so it should anchor the template
+    // rather than be diluted equally with the others.
+    const val FRONTAL_SHOT_WEIGHT = 2.0f
+
     // ── Similarity thresholds ──────────────────────────────
     const val THRESHOLD_ACCEPT    = 0.60f
     const val THRESHOLD_REJECT    = 0.40f
@@ -86,6 +100,31 @@ enum class QualityFailReason {
     HEAD_TILTED_PITCH,
     HEAD_ROTATED_ROLL,
     LOW_LANDMARK_CONFIDENCE,
+    WRONG_POSE_DIRECTION,
+}
+
+/**
+ * Which of the 5 enrollment shots is being captured, so the quality checker
+ * can confirm the head is actually posed the way the on-screen prompt asked
+ * for — not just "somewhere under the generic tolerance". Previously every
+ * shot was checked against the same symmetric yaw/pitch tolerance, so e.g. a
+ * straight-on photo would silently pass as the "turn left" shot, defeating
+ * the purpose of capturing varied poses for the embedding.
+ */
+enum class EnrollmentPose {
+    FRONTAL, TURN_LEFT, TURN_RIGHT, TILT_UP, TILT_DOWN;
+
+    companion object {
+        /** Mirrors the shot order shown in EnrollmentFragment.updatePhotoUI(). */
+        fun forShotIndex(index: Int): EnrollmentPose = when (index) {
+            0 -> FRONTAL
+            1 -> TURN_LEFT
+            2 -> TURN_RIGHT
+            3 -> TILT_UP
+            4 -> TILT_DOWN
+            else -> FRONTAL
+        }
+    }
 }
 
 
@@ -166,6 +205,8 @@ data class PipelineResult(
     val inferenceMs: Long,
     val similarityMs: Long,
     val totalMs: Long,
+    /** Quality metrics (brightness/pose/etc.) from the frame that produced this decision. */
+    val quality: QualityResult? = null,
 )
 
 
@@ -176,8 +217,17 @@ sealed class PipelineFrameStatus {
     object Processing                                   : PipelineFrameStatus()
     object NoFace                                       : PipelineFrameStatus()
     object MultipleFaces                                : PipelineFrameStatus()
-    data class QualityFailed(val reasons: List<QualityFailReason>) : PipelineFrameStatus()
-    data class Buffering(val framesCollected: Int, val framesNeeded: Int) : PipelineFrameStatus()
+    data class QualityFailed(
+        val reasons: List<QualityFailReason>,
+        /** Real-time measured quality (brightness, pose, etc.) for this frame. */
+        val quality: QualityResult,
+    ) : PipelineFrameStatus()
+    data class Buffering(
+        val framesCollected: Int,
+        val framesNeeded: Int,
+        /** Real-time measured quality (brightness, pose, etc.) for this frame. */
+        val quality: QualityResult,
+    ) : PipelineFrameStatus()
     data class Decision(val result: PipelineResult)     : PipelineFrameStatus()
 }
 
@@ -206,6 +256,7 @@ fun QualityFailReason.toUserMessage(): String = when (this) {
     QualityFailReason.HEAD_TILTED_PITCH        -> "Keep your head level"
     QualityFailReason.HEAD_ROTATED_ROLL        -> "Straighten your head"
     QualityFailReason.LOW_LANDMARK_CONFIDENCE  -> "Ensure your face is fully visible"
+    QualityFailReason.WRONG_POSE_DIRECTION     -> "Please follow the on-screen pose for this shot"
 }
 
 fun List<QualityFailReason>.toUserMessage(): String =

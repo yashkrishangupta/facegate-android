@@ -108,23 +108,54 @@ class TodayScheduleViewModel @Inject constructor(
 
     /**
      * startSession(entry, onStarted)
-     * Creates a DB session record, then calls onStarted(sessionId) on the
-     * MAIN thread so the Fragment can safely call findNavController().navigate().
+     * Creates a DB session record using the SCHEDULED start time (not "now"),
+     * then calls onStarted(sessionId, scheduledStartTimeMs) on the MAIN thread
+     * so the Fragment can safely call findNavController().navigate().
      */
-    fun startSession(entry: TimetableEntity, onStarted: (sessionId: String) -> Unit) {
+    fun startSession(entry: TimetableEntity, onStarted: (sessionId: String, scheduledStartTimeMs: Long) -> Unit) {
         viewModelScope.launch {
+            // Build the scheduled wall-clock time from today's date + timetable H:M.
+            // This is what the pipeline will use as the window-countdown origin so
+            // latecomers don't get a full fresh window just because Start was pressed late.
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.HOUR_OF_DAY, entry.scheduledHour)
+            cal.set(Calendar.MINUTE,      entry.scheduledMinute)
+            cal.set(Calendar.SECOND,      0)
+            cal.set(Calendar.MILLISECOND, 0)
+            val scheduledStartTimeMs = cal.timeInMillis
+
+            val startOfDay = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0);      set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            val endOfDay = startOfDay + (24 * 60 * 60 * 1000) - 1
+
+            // If this period was already started today (teacher backed out and
+            // tapped Start again, or rotated through the screen twice), reuse that
+            // session instead of inserting a second row for the same period — that
+            // duplication is what was showing up as repeated entries for the same
+            // period in Manual Attendance's session filter.
+            val existing = try {
+                repository.findSessionForTimetableOnDate(entry.id, startOfDay, endOfDay)
+            } catch (e: Exception) { null }
+
+            if (existing != null) {
+                onStarted(existing.sessionId, existing.startTime)
+                return@launch
+            }
+
             val sessionId = UUID.randomUUID().toString()
             val session = SessionEntity(
                 sessionId     = sessionId,
                 timetableId   = entry.id,
                 subject       = entry.subject,
                 batch         = entry.batch,
-                startTime     = System.currentTimeMillis(),
+                startTime     = scheduledStartTimeMs,   // DB stores scheduled time, not "now"
                 windowMinutes = entry.windowMinutes,
                 endedAt       = null,
             )
             try { repository.insertSession(session) } catch (e: Exception) { /* logged by caller */ }
-            onStarted(sessionId) // runs on Main — Fragment can navigate safely
+            onStarted(sessionId, scheduledStartTimeMs) // runs on Main — Fragment can navigate safely
         }
     }
 
@@ -138,16 +169,17 @@ class TodayScheduleViewModel @Inject constructor(
         batch: String,
         windowMinutes: Int,
         reason: String,
-        onStarted: (sessionId: String) -> Unit,
+        onStarted: (sessionId: String, scheduledStartTimeMs: Long) -> Unit,
     ) {
         viewModelScope.launch {
             val sessionId = UUID.randomUUID().toString()
+            val scheduledStartTimeMs = System.currentTimeMillis() // unplanned → window starts now
             val session = SessionEntity(
                 sessionId     = sessionId,
                 timetableId   = null,          // unplanned — no timetable row
                 subject       = subject,
                 batch         = batch,
-                startTime     = System.currentTimeMillis(),
+                startTime     = scheduledStartTimeMs,
                 windowMinutes = windowMinutes,
                 endedAt       = null,
             )
@@ -163,7 +195,7 @@ class TodayScheduleViewModel @Inject constructor(
             )
             try { repository.insertOverride(override) } catch (e: Exception) {}
 
-            onStarted(sessionId) // runs on Main — Fragment can navigate safely
+            onStarted(sessionId, scheduledStartTimeMs) // runs on Main — Fragment can navigate safely
         }
     }
 }

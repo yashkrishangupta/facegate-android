@@ -87,17 +87,14 @@ class EnrollmentFragment : Fragment() {
 
         cameraExecutor = Executors.newSingleThreadExecutor()
 
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA)
-            == PackageManager.PERMISSION_GRANTED
-        ) {
-            startCamera()
-        } else {
-            requestCameraPermission.launch(Manifest.permission.CAMERA)
-        }
-
         setupClickListeners()
         observeViewModel()
         updatePhotoUI()
+
+        // Collect student details FIRST. Camera + capture button stay disabled
+        // until the dialog is confirmed (see promptStudentInfo()).
+        binding.btnCapture.isClickable = false
+        promptStudentInfo()
     }
 
     override fun onDestroyView() {
@@ -170,7 +167,7 @@ class EnrollmentFragment : Fragment() {
         )
     }
 
-    // ── Student info dialog ───────────────────────────────────────────────────
+    // ── Student info dialog (shown FIRST, before any photo is taken) ───────────
 
     private fun promptStudentInfo() {
         if (infoDialogShown) return
@@ -182,37 +179,55 @@ class EnrollmentFragment : Fragment() {
         val etName  = dialogView.findViewById<EditText>(R.id.etStudentName)
         val etId    = dialogView.findViewById<EditText>(R.id.etStudentId)
         val etClass = dialogView.findViewById<EditText>(R.id.etStudentClass)
+        val btnCancel   = dialogView.findViewById<android.widget.Button>(R.id.btnCancel)
+        val btnContinue = dialogView.findViewById<android.widget.Button>(R.id.btnContinue)
 
+        // NOTE: no setPositiveButton/setNegativeButton here — the dialog layout
+        // already supplies its own styled Cancel/Continue buttons (btnCancel /
+        // btnContinue). Adding AlertDialog's built-in buttons on top of those
+        // produced two "Continue" buttons stacked in the dialog, with the
+        // default (unstyled) one rendering outside the intended UI bounds.
         val dialog = AlertDialog.Builder(requireContext())
             .setView(dialogView)
-            .setPositiveButton("Enroll", null)
-            .setNegativeButton("Cancel") { _, _ ->
-                viewModel.reset()
-                infoDialogShown = false
-                updatePhotoUI()
-            }
             .setCancelable(false)
             .create()
 
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val name  = etName.text.toString().trim()
-                val id    = etId.text.toString().trim()
-                val cls   = etClass.text.toString().trim()
+        btnCancel.setOnClickListener {
+            // No photos have been taken yet at this point — just leave enrollment.
+            dialog.dismiss()
+            findNavController().navigateUp()
+        }
 
-                when {
-                    name.isEmpty()  -> etName.error  = "Required"
-                    id.isEmpty()    -> etId.error    = "Required"
-                    cls.isEmpty()   -> etClass.error = "Required"
-                    else -> {
-                        dialog.dismiss()
-                        viewModel.enrollStudent(name, id, cls)
-                    }
+        btnContinue.setOnClickListener {
+            val name  = etName.text.toString().trim()
+            val id    = etId.text.toString().trim()
+            val cls   = etClass.text.toString().trim()
+
+            when {
+                name.isEmpty()  -> etName.error  = "Required"
+                id.isEmpty()    -> etId.error    = "Required"
+                cls.isEmpty()   -> etClass.error = "Required"
+                else -> {
+                    viewModel.setStudentInfo(name, id, cls)
+                    dialog.dismiss()
+                    startEnrollmentCapture()
                 }
             }
         }
 
         dialog.show()
+    }
+
+    /** Called once student details are confirmed — now we open the camera for the 5 photos. */
+    private fun startEnrollmentCapture() {
+        binding.btnCapture.isClickable = true
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            startCamera()
+        } else {
+            requestCameraPermission.launch(Manifest.permission.CAMERA)
+        }
     }
 
     // ── UI update ─────────────────────────────────────────────────────────────
@@ -275,15 +290,18 @@ class EnrollmentFragment : Fragment() {
                 when (state) {
 
                     is EnrollmentState.Idle -> {
-                        binding.btnCapture.isClickable = true
+                        // Don't force-enable here: on first load the button is
+                        // deliberately disabled until startEnrollmentCapture() runs
+                        // (after the student-details dialog is confirmed).
                         binding.tvDuplicateWarning.visibility = View.GONE
                         updatePhotoUI()
                     }
 
                     is EnrollmentState.Processing -> {
+                        // All 5 photos passed quality — submitting under the details
+                        // already collected via promptStudentInfo() at the start.
                         binding.btnCapture.isClickable = false
                         updatePhotoUI()
-                        promptStudentInfo()
                     }
 
                     is EnrollmentState.Success -> {
@@ -322,7 +340,7 @@ class EnrollmentFragment : Fragment() {
             .setTitle("Possible Duplicate Face")
             .setMessage(
                 "This face closely matches an already enrolled student: $existingName.\n\n" +
-                "Are you sure this is a different person and want to enroll them anyway?"
+                        "Are you sure this is a different person and want to enroll them anyway?"
             )
             .setPositiveButton("Enroll Anyway") { _, _ ->
                 // User confirmed — force-enroll by calling enroll directly with a flag
@@ -330,6 +348,7 @@ class EnrollmentFragment : Fragment() {
             }
             .setNegativeButton("Cancel — Retake") { _, _ ->
                 viewModel.reset()
+                binding.btnCapture.isClickable = true
                 updatePhotoUI()
             }
             .setCancelable(false)

@@ -9,8 +9,10 @@ import android.util.Size
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.view.animation.AnimationUtils
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
@@ -39,6 +41,12 @@ class AttendanceFragment : Fragment() {
 
     private val handler = Handler(Looper.getMainLooper())
 
+    // ── Auto-flash state ─────────────────────────────────────────────────────
+    /** Camera reference — needed to toggle the hardware torch. */
+    private var camera: Camera? = null
+    /** Prevents redundant enable/disable calls when lighting status hasn't changed. */
+    private var torchEnabled = false
+
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (isGranted) startCamera()
@@ -63,9 +71,16 @@ class AttendanceFragment : Fragment() {
         observeViewModel()
         resetToIdle()
 
-        // Session args now come from TodayScheduleFragment via nav args,
-        // not generated inside the ViewModel.
-        viewModel.startSession(args.sessionId, args.subject, args.batch, args.windowMinutes)
+        // Session args now come from TodayScheduleFragment via nav args.
+        // scheduledStartTimeMs anchors the window-countdown to the class schedule,
+        // not to when the teacher actually pressed Start.
+        viewModel.startSession(
+            sessionId            = args.sessionId,
+            subject              = args.subject,
+            batch                = args.batch,
+            windowMinutes        = args.windowMinutes,
+            scheduledStartTimeMs = args.scheduledStartTimeMs,
+        )
 
         if (ContextCompat.checkSelfPermission(
                 requireContext(), Manifest.permission.CAMERA
@@ -84,6 +99,9 @@ class AttendanceFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
+        // Restore flash/brightness before leaving — avoids leaving the screen
+        // at max brightness or the torch on if the user navigates away mid-session.
+        autoFlash(false)
         // End session — clears biometric data from memory (security requirement)
         viewModel.stopSession()
         handler.removeCallbacksAndMessages(null)
@@ -128,8 +146,9 @@ class AttendanceFragment : Fragment() {
 
             try {
                 cameraProvider.unbindAll()
-                // Bind BOTH use cases — preview shows on screen, analysis feeds pipeline
-                cameraProvider.bindToLifecycle(
+                // Bind BOTH use cases — preview shows on screen, analysis feeds pipeline.
+                // Store the Camera object so we can toggle torch for auto-flash.
+                camera = cameraProvider.bindToLifecycle(
                     viewLifecycleOwner,
                     cameraSelector,
                     preview,
@@ -178,6 +197,82 @@ class AttendanceFragment : Fragment() {
                 updateCountdown(remainingMs)
             }
         }
+
+        lifecycleScope.launch {
+            viewModel.liveQuality.collect { quality ->
+                updateLiveQuality(quality)
+            }
+        }
+    }
+
+    /** Renders the real-time Lighting / Face Position / Recognition readout. No fixed values. */
+    private fun updateLiveQuality(quality: com.facegate.ui.attendance.LiveQuality?) {
+        if (_binding == null) return
+
+        // ── Auto-flash ─────────────────────────────────────────────────────
+        // When the pipeline reports the scene is too dark, switch on the torch
+        // (hardware flash on rear cameras) AND maximise screen brightness
+        // (acts as a screen-flash for front cameras). Both are restored once
+        // lighting is adequate again.
+        val tooDark = quality != null && !quality.lightingOk && quality.lightingLabel == "Too dark"
+        autoFlash(tooDark)
+
+        if (quality == null) {
+            binding.tvLighting.text  = "—"
+            binding.tvLighting.setTextColor(android.graphics.Color.parseColor("#90FFFFFF"))
+            binding.tvPosition.text  = "—"
+            binding.tvPosition.setTextColor(android.graphics.Color.parseColor("#90FFFFFF"))
+            binding.tvConfidence.text = "--%"
+            return
+        }
+
+        val ok    = android.graphics.Color.parseColor("#4DFF91")
+        val bad   = android.graphics.Color.parseColor("#FF6B6B")
+        val amber = android.graphics.Color.parseColor("#FFC857")
+
+        binding.tvLighting.text = if (quality.lightingOk) "${quality.lightingLabel} ✓" else quality.lightingLabel
+        binding.tvLighting.setTextColor(if (quality.lightingOk) ok else bad)
+
+        binding.tvPosition.text = if (quality.positionOk) "${quality.positionLabel} ✓" else quality.positionLabel
+        binding.tvPosition.setTextColor(if (quality.positionOk) ok else bad)
+
+        binding.tvConfidence.text = "${quality.confidencePercent}%"
+        binding.tvConfidence.setTextColor(
+            when {
+                quality.confidencePercent >= 80 -> ok
+                quality.confidencePercent >= 50 -> amber
+                else -> bad
+            }
+        )
+
+        binding.tvRecognition.text = quality.recognitionLabel
+        binding.tvRecognition.setTextColor(
+            if (quality.confidencePercent >= 80) ok else amber
+        )
+    }
+
+    /**
+     * Auto-flash: turns on when the pipeline detects it's too dark, off when
+     * lighting is adequate.
+     *
+     * Two mechanisms fire together:
+     * 1. Hardware torch — works on rear cameras and some devices with front flash.
+     * 2. Screen brightness max — acts as a screen-flash for front cameras.
+     *
+     * Both are restored to normal when lighting is ok again.
+     */
+    private fun autoFlash(enable: Boolean) {
+        if (torchEnabled == enable) return   // no change — skip redundant calls
+        torchEnabled = enable
+
+        // 1. Hardware torch (CameraX) — silently ignored if device doesn't support it
+        camera?.cameraControl?.enableTorch(enable)
+
+        // 2. Screen brightness — max (1.0) when too dark, system-default (-1) otherwise
+        val window = requireActivity().window
+        val lp = window.attributes
+        lp.screenBrightness = if (enable) 1.0f else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        window.attributes = lp
     }
 
     private fun updateCountdown(remainingMs: Long) {
@@ -252,6 +347,12 @@ class AttendanceFragment : Fragment() {
         binding.tvStatusSub.text   = "${state.studentName} — ${state.studentClass}"
         binding.processingDots.visibility = View.GONE
         binding.btnRetry.visibility       = View.INVISIBLE
+        binding.tvRecognition.text = "Matched ✓"
+        binding.tvRecognition.setTextColor(android.graphics.Color.parseColor("#4DFF91"))
+        state.confidencePercent?.let { pct ->
+            binding.tvConfidence.text = "$pct%"
+            binding.tvConfidence.setTextColor(android.graphics.Color.parseColor("#4DFF91"))
+        }
     }
 
     private fun showFailState(title: String, message: String) {

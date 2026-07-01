@@ -5,8 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.facegate.pipeline.AttendanceDecision
 import com.facegate.pipeline.AttendancePipeline
+import com.facegate.pipeline.PipelineConfig
 import com.facegate.pipeline.PipelineFrameStatus
 import com.facegate.pipeline.QualityFailReason
+import com.facegate.pipeline.QualityResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -17,6 +19,20 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+
+/**
+ * Live, per-frame readout of camera/face quality for the "AI ANALYSIS" panel
+ * (Lighting / Face Position / Recognition rows). Computed fresh from the
+ * actual camera frame on every processFrame() call — never a fixed placeholder.
+ */
+data class LiveQuality(
+    val lightingOk: Boolean,
+    val lightingLabel: String,
+    val positionOk: Boolean,
+    val positionLabel: String,
+    val confidencePercent: Int,
+    val recognitionLabel: String,
+)
 
 /**
  * All possible states of the attendance camera screen.
@@ -33,6 +49,7 @@ sealed class ScanState {
         val studentClass : String,
         val initials     : String,
         val markedTime   : String,
+        val confidencePercent: Int? = null,
     ) : ScanState()
 
     /** title/message default to the old generic copy so nothing else breaks. */
@@ -56,6 +73,10 @@ class AttendanceViewModel @Inject constructor(
     private val _windowCountdown = MutableStateFlow(0L)
     val windowCountdown: StateFlow<Long> = _windowCountdown
 
+    /** Real-time lighting / position / confidence readout, updated every frame. */
+    private val _liveQuality = MutableStateFlow<LiveQuality?>(null)
+    val liveQuality: StateFlow<LiveQuality?> = _liveQuality
+
     // Prevents queuing up multiple processFrame calls while one ML inference is running.
     // ML inference takes 150-400ms; camera delivers frames faster than that.
     @Volatile
@@ -73,10 +94,16 @@ class AttendanceViewModel @Inject constructor(
      * not generated here.
      * Loads enrolled students from DB into memory for the pipeline.
      */
-    fun startSession(sessionId: String, subject: String, batch: String, windowMinutes: Int) {
+    fun startSession(
+        sessionId            : String,
+        subject              : String,
+        batch                : String,
+        windowMinutes        : Int,
+        scheduledStartTimeMs : Long = 0L,
+    ) {
         viewModelScope.launch {
             try { pipeline.init() } catch (_: Exception) {}
-            pipeline.startSession(sessionId, windowMinutes)
+            pipeline.startSession(sessionId, windowMinutes, scheduledStartTimeMs)
             _scanState.value = ScanState.Scanning("Ready — show your face")
             startCountdownTimer(windowMinutes)
         }
@@ -93,6 +120,7 @@ class AttendanceViewModel @Inject constructor(
         countdownJob?.cancel()
         pipeline.endSession()
         _scanState.value = ScanState.Idle
+        _liveQuality.value = null
     }
 
     // ── Main frame processing ────────────────────────────────────────────────
@@ -104,6 +132,7 @@ class AttendanceViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val status = pipeline.processFrame(bitmap, rotationDegrees)
+                updateLiveQuality(status)
                 _scanState.value = mapStatusToScanState(status)
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -112,6 +141,67 @@ class AttendanceViewModel @Inject constructor(
                 isProcessing = false
             }
         }
+    }
+
+    /**
+     * Derives the real-time Lighting / Face Position / Recognition readout from
+     * whatever quality data this frame actually produced. No fixed values —
+     * every field reflects the camera frame just processed.
+     */
+    private fun updateLiveQuality(status: PipelineFrameStatus) {
+        when (status) {
+            is PipelineFrameStatus.QualityFailed -> _liveQuality.value = buildLiveQuality(status.quality)
+            is PipelineFrameStatus.Buffering     -> _liveQuality.value = buildLiveQuality(status.quality)
+            is PipelineFrameStatus.Decision       -> status.result.quality?.let {
+                _liveQuality.value = buildLiveQuality(it)
+            }
+            is PipelineFrameStatus.NoFace,
+            is PipelineFrameStatus.MultipleFaces,
+            is PipelineFrameStatus.NoSession,
+            is PipelineFrameStatus.Processing     -> {
+                // No face/quality data available this frame — leave the last
+                // known reading in place rather than fabricating a value.
+            }
+        }
+    }
+
+    private fun buildLiveQuality(quality: QualityResult): LiveQuality {
+        val lightingOk = quality.brightness in PipelineConfig.MIN_BRIGHTNESS..PipelineConfig.MAX_BRIGHTNESS
+        val lightingLabel = when {
+            quality.brightness < PipelineConfig.MIN_BRIGHTNESS -> "Too dark"
+            quality.brightness > PipelineConfig.MAX_BRIGHTNESS -> "Too bright"
+            else -> "Good"
+        }
+
+        val positionOk = quality.failReasons.none {
+            it == QualityFailReason.HEAD_TURNED_YAW ||
+                it == QualityFailReason.HEAD_TILTED_PITCH ||
+                it == QualityFailReason.HEAD_ROTATED_ROLL ||
+                it == QualityFailReason.FACE_TOO_SMALL
+        }
+        val positionLabel = when {
+            quality.failReasons.contains(QualityFailReason.FACE_TOO_SMALL) -> "Move closer"
+            quality.failReasons.contains(QualityFailReason.HEAD_TURNED_YAW) -> "Turned"
+            quality.failReasons.contains(QualityFailReason.HEAD_TILTED_PITCH) -> "Tilted"
+            quality.failReasons.contains(QualityFailReason.HEAD_ROTATED_ROLL) -> "Rotated"
+            else -> "Centered"
+        }
+
+        val confidencePercent = (quality.qualityScore * 100).toInt().coerceIn(0, 100)
+        val recognitionLabel = when {
+            !quality.passed                          -> "Adjusting…"
+            confidencePercent >= 80                   -> "Locking on…"
+            else                                       -> "Waiting…"
+        }
+
+        return LiveQuality(
+            lightingOk         = lightingOk,
+            lightingLabel      = lightingLabel,
+            positionOk         = positionOk,
+            positionLabel      = positionLabel,
+            confidencePercent  = confidencePercent,
+            recognitionLabel   = recognitionLabel,
+        )
     }
 
     /**
@@ -141,6 +231,7 @@ class AttendanceViewModel @Inject constructor(
                                 .joinToString(""),
                             markedTime   = SimpleDateFormat("hh:mm a", Locale.getDefault())
                                 .format(Date()),
+                            confidencePercent = (d.confidence * 100).toInt(),
                         )
                     }
 
@@ -185,6 +276,7 @@ class AttendanceViewModel @Inject constructor(
         QualityFailReason.HEAD_TILTED_PITCH       -> "Keep your head level"
         QualityFailReason.HEAD_ROTATED_ROLL       -> "Straighten your head — don't tilt sideways"
         QualityFailReason.LOW_LANDMARK_CONFIDENCE -> "Can't see your face clearly — adjust position"
+        QualityFailReason.WRONG_POSE_DIRECTION    -> "Please follow the on-screen pose for this shot"
     }
 
     private fun List<QualityFailReason>.toDisplayMessage(): String =
@@ -218,6 +310,7 @@ class AttendanceViewModel @Inject constructor(
     fun resetScan() {
         isPaused = false
         _scanState.value = ScanState.Idle
+        _liveQuality.value = null
     }
 
     override fun onCleared() {

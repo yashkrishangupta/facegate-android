@@ -5,7 +5,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#070B16">
+    android:background="@drawable/bg_main_gradient">
 
     <!-- ========================= -->
     <!-- TOP BAR -->
@@ -248,7 +248,7 @@
                     android:id="@+id/tvConfidence"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="98%"
+                    android:text="--%"
                     android:textColor="#52FFA5"
                     android:textStyle="bold"
                     android:textSize="20sp"/>
@@ -301,7 +301,7 @@
                         android:id="@+id/tvLighting"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Good ✓"
+                        android:text="—"
                         android:textColor="#4DFF91"/>
                 </LinearLayout>
 
@@ -321,7 +321,7 @@
                         android:id="@+id/tvPosition"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Centered ✓"
+                        android:text="—"
                         android:textColor="#4DFF91"/>
                 </LinearLayout>
 
