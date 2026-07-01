@@ -117,7 +117,7 @@ class AttendanceReportFragment : Fragment() {
     // ── Period toggle ──────────────────────────────────────────────────────────
 
     private fun applyTabSelected(tv: TextView, selected: Boolean) {
-        tv.setTextColor(Color.parseColor(if (selected) "#FFFFFF" else "#90A6BD"))
+        tv.setTextColor(Color.parseColor(if (selected) "#27500A" else "#042C53"))
         tv.setBackgroundResource(
             if (selected) com.facegate.R.drawable.chip_active
             else          com.facegate.R.drawable.chip_pending
@@ -206,9 +206,9 @@ class AttendanceReportFragment : Fragment() {
                         }
                     }
                     val textColor = if (isToday && count == 0) Color.parseColor("#2563EB")
-                        else if (count == 0 || (totalStudents > 0 && count.toFloat() / totalStudents < 0.5f))
-                            Color.parseColor("#90A6BD")
-                        else Color.WHITE
+                    else if (count == 0 || (totalStudents > 0 && count.toFloat() / totalStudents < 0.5f))
+                        Color.parseColor("#90A6BD")
+                    else Color.WHITE
 
                     val cell = calCell("$dayNum", textColor, bgColor = bgColor,
                         bold = isToday)
@@ -360,7 +360,7 @@ class AttendanceReportFragment : Fragment() {
             gravity  = android.view.Gravity.CENTER
             setPadding(dpI(14), dpI(7), dpI(14), dpI(7))
             typeface = if (selected) android.graphics.Typeface.DEFAULT_BOLD
-                       else          android.graphics.Typeface.DEFAULT
+            else          android.graphics.Typeface.DEFAULT
             setTextColor(if (selected) Color.parseColor("#5DA9FF") else Color.parseColor("#90A6BD"))
             background = android.graphics.drawable.GradientDrawable().apply {
                 shape        = android.graphics.drawable.GradientDrawable.RECTANGLE

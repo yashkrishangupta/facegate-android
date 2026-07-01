@@ -10,7 +10,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#FFFFFF"
+        android:background="@color/surface_topbar"
         android:elevation="4dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
@@ -19,14 +19,14 @@
 
         <TextView
             android:id="@+id/btnBack"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/logo_circle"
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
             android:text="←"
-            android:textColor="#2563EB"
+            android:textColor="#FFFFFF"
             android:textSize="22sp"
             android:textStyle="bold" />
 
@@ -74,13 +74,14 @@
                         android:layout_height="wrap_content"
                         android:layout_marginEnd="16dp"
                         android:text="⚠️"
-                        android:textSize="24sp" />
+                        android:textSize="24sp"
+                        android:textStyle="bold"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="These students were very similar. Please resolve manually."
-                        android:textColor="#92400E"
+                        android:textColor="#80360E"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -102,7 +103,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
-                app:cardBackgroundColor="#FFFFFF"
+                app:cardBackgroundColor="@color/surface_card"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="3dp">
 
