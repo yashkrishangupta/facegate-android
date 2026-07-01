@@ -108,8 +108,9 @@ class TodayScheduleFragment : Fragment() {
         val tvPeriod = TextView(ctx).apply {
             text = "P${item.entry.periodNumber}"
             setBackgroundResource(com.facegate.R.drawable.chip_active)
-            setTextColor(Color.WHITE)
-            setPadding(20, 12, 20, 12)
+            setTextColor(Color.parseColor("#090909"))
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding(dp(10), dp(6), dp(10), dp(6))
         }
 
         // Centre: subject (bold 14sp) + batch (11sp hint)
@@ -117,7 +118,7 @@ class TodayScheduleFragment : Fragment() {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-            ).apply { marginStart = 24 }
+            ).apply { marginStart = dp(16) }
         }
         centerCol.addView(TextView(ctx).apply {
             text = item.entry.subject
@@ -138,7 +139,7 @@ class TodayScheduleFragment : Fragment() {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { marginEnd = 24 }
+            ).apply { marginEnd = dp(16) }
         }
         rightCol.addView(TextView(ctx).apply {
             text = String.format("%02d:%02d", item.entry.scheduledHour, item.entry.scheduledMinute)
@@ -149,11 +150,12 @@ class TodayScheduleFragment : Fragment() {
         rightCol.addView(TextView(ctx).apply {
             text = item.status.name
             textSize = 10f
-            setPadding(10, 6, 10, 6)
+            setTextColor(Color.parseColor("#101828"))
+            setPadding(dp(6), dp(4), dp(6), dp(4))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = 6 }
+            ).apply { topMargin = dp(4) }
             setBackgroundResource(when (item.status) {
                 ScheduleItem.Status.UPCOMING -> com.facegate.R.drawable.chip_pending
                 ScheduleItem.Status.ACTIVE   -> com.facegate.R.drawable.chip_present
@@ -165,10 +167,22 @@ class TodayScheduleFragment : Fragment() {
         // UPCOMING: not shown yet (window hasn't started — pressing Start early would give
         //           the teacher a fresh full window instead of counting from scheduled time).
         // DONE:     window closed.
-        val btnStart = Button(ctx).apply {
+        val btnStart = Button(ctx, null, android.R.attr.borderlessButtonStyle).apply {
             text = "Start"
-            setBackgroundResource(com.facegate.R.drawable.badge_green)
+            textSize = 12f
+            isAllCaps = false
+            minWidth = 0
+            minimumWidth = 0
+            minHeight = 0
+            minimumHeight = 0
+            setPadding(dp(18), dp(8), dp(18), dp(8))
+            setBackgroundResource(com.facegate.R.drawable.button_primary)
             setTextColor(Color.WHITE)
+            stateListAnimator = null
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
             visibility = if (item.status == ScheduleItem.Status.ACTIVE) View.VISIBLE else View.GONE
             setOnClickListener {
                 viewModel.startSession(item.entry) { sessionId, scheduledStartTimeMs ->
@@ -201,7 +215,7 @@ class TodayScheduleFragment : Fragment() {
         val ctx = requireContext()
         val layout = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(64, 40, 64, 10)
+            setPadding(dp(24), dp(16), dp(24), dp(4))
         }
 
         val subjectInput = EditText(ctx).apply { hint = "Subject" }

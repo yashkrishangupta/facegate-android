@@ -107,7 +107,6 @@
                 android:layout_marginBottom="14dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:padding="8dp"
                 android:visibility="gone">
 
                 <TextView

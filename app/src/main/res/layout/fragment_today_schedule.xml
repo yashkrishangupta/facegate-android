@@ -13,7 +13,7 @@
         android:orientation="horizontal"
         android:padding="16dp"
         android:gravity="center_vertical"
-        android:background="#0D1727"
+        android:background="@color/surface_topbar"
         android:elevation="6dp">
 
         <ImageButton
@@ -22,7 +22,7 @@
             android:layout_height="36dp"
             android:background="@drawable/logo_circle"
             android:src="@android:drawable/ic_menu_revert"
-            app:tint="#5DA9FF"
+            app:tint="#FFFFFF"
             android:contentDescription="Back"/>
 
         <TextView
@@ -33,7 +33,7 @@
             android:text="Today's Schedule"
             android:textSize="20sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"/>
+            android:textColor="@color/text_on_surface"/>
 
         <TextView
             android:id="@+id/tvDate"
@@ -41,7 +41,7 @@
             android:layout_height="wrap_content"
             android:text="Date"
             android:textSize="12sp"
-            android:textColor="#90A6BD"/>
+            android:textColor="@color/text_white"/>
 
     </LinearLayout>
 
@@ -108,16 +108,15 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp"
-        android:background="#0D1727">
+        android:padding="16dp">
 
         <Button
             android:id="@+id/btnAddUnplanned"
             android:layout_width="match_parent"
             android:layout_height="50dp"
-            android:background="@drawable/badge_blue"
+            android:background="@drawable/button_primary"
             android:text="+ Add Unplanned Session"
-            android:textColor="#5DA9FF"
+            android:textColor="#FFFFFF"
             android:textSize="14sp"
             android:textStyle="bold"
             android:textAllCaps="false"/>

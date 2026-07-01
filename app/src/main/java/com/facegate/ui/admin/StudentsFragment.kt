@@ -96,7 +96,7 @@ class StudentsFragment : Fragment() {
         val row = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity     = Gravity.CENTER_VERTICAL
-            setPadding(40, 28, 40, 28)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -117,7 +117,7 @@ class StudentsFragment : Fragment() {
             gravity   = Gravity.CENTER
             setTextColor(Color.parseColor("#1D9E75"))
             setBackgroundResource(R.drawable.chip_active)
-            layoutParams = LinearLayout.LayoutParams(80, 80).apply { marginEnd = 28 }
+            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginEnd = dp(12) }
         }
 
         // Info column
@@ -140,7 +140,7 @@ class StudentsFragment : Fragment() {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = 4 }
+            ).apply { topMargin = dp(4) }
         }
 
         infoCol.addView(nameText)
@@ -152,7 +152,7 @@ class StudentsFragment : Fragment() {
             textSize = 16f
             gravity  = Gravity.CENTER
             setTextColor(Color.parseColor("#1D9E75"))
-            layoutParams = LinearLayout.LayoutParams(64, 64).apply { marginEnd = 8 }
+            layoutParams = LinearLayout.LayoutParams(dp(32), dp(32)).apply { marginEnd = dp(4) }
             isClickable = true
             isFocusable = true
             setOnClickListener { showEditDialog(student) }
@@ -164,7 +164,7 @@ class StudentsFragment : Fragment() {
             textSize = 14f
             gravity  = Gravity.CENTER
             setTextColor(Color.parseColor("#D85A30"))
-            layoutParams = LinearLayout.LayoutParams(64, 64)
+            layoutParams = LinearLayout.LayoutParams(dp(32), dp(32))
             isClickable = true
             isFocusable = true
             setOnClickListener { confirmDelete(student) }
@@ -182,7 +182,7 @@ class StudentsFragment : Fragment() {
                 setBackgroundColor(Color.parseColor("#0F000000"))
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, 1
-                ).apply { marginStart = 40; marginEnd = 40 }
+                ).apply { marginStart = dp(14); marginEnd = dp(14) }
             }
             binding.studentListContainer.addView(divider)
         }
@@ -270,6 +270,9 @@ class StudentsFragment : Fragment() {
         binding.tvStudentCount.text = "$count students enrolled"
     }
 
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
+
     private fun showMessage(msg: String) {
         val tv = TextView(requireContext()).apply {
             text      = msg
@@ -279,7 +282,7 @@ class StudentsFragment : Fragment() {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = 80 }
+            ).apply { topMargin = dp(32); bottomMargin = dp(32) }
         }
         binding.studentListContainer.addView(tv)
     }
