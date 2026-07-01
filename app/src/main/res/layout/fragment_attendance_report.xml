@@ -7,7 +7,7 @@
     android:background="@drawable/bg_main_gradient"
     android:orientation="vertical">
 
-    <!-- TOP BAR -->
+    <!-- HEADER AREA -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -15,7 +15,8 @@
         android:elevation="6dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="14dp">
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp">
 
         <TextView
             android:id="@+id/btnBack"
@@ -33,8 +34,9 @@
             android:textStyle="bold"/>
 
         <TextView
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:gravity="center"
             android:paddingEnd="52dp"
             android:text="Reports &amp; Analytics"
@@ -46,7 +48,9 @@
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:scrollbarStyle="outsideOverlay">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -103,6 +107,7 @@
                 android:layout_marginBottom="14dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
+                android:padding="8dp"
                 android:visibility="gone">
 
                 <TextView
