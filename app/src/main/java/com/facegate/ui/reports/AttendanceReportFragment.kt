@@ -117,7 +117,7 @@ class AttendanceReportFragment : Fragment() {
     // ── Period toggle ──────────────────────────────────────────────────────────
 
     private fun applyTabSelected(tv: TextView, selected: Boolean) {
-        tv.setTextColor(Color.parseColor(if (selected) "#FFFFFF" else "#475569"))
+        tv.setTextColor(Color.parseColor(if (selected) "#FFFFFF" else "#90A6BD"))
         tv.setBackgroundResource(
             if (selected) com.facegate.R.drawable.chip_active
             else          com.facegate.R.drawable.chip_pending
@@ -143,7 +143,7 @@ class AttendanceReportFragment : Fragment() {
             setContentPadding(dpI(16), dpI(16), dpI(16), dpI(16))
             radius        = dpI(16).toFloat()
             cardElevation = dpI(1).toFloat()
-            setCardBackgroundColor(Color.WHITE)
+            setCardBackgroundColor(Color.parseColor("#1A2436"))
         }
 
         val inner = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
@@ -154,7 +154,7 @@ class AttendanceReportFragment : Fragment() {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
-        dayNames.forEach { d -> headerRow.addView(calCell(d, Color.parseColor("#64748B"), bold = true)) }
+        dayNames.forEach { d -> headerRow.addView(calCell(d, Color.parseColor("#90A6BD"), bold = true)) }
         inner.addView(headerRow)
 
         val sdf    = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -193,7 +193,7 @@ class AttendanceReportFragment : Fragment() {
                     val isToday = dateStr == todayStr
 
                     val bgColor = when {
-                        count == 0         -> Color.parseColor(if (isToday) "#DBEAFE" else "#F1F5F9")
+                        count == 0         -> Color.parseColor(if (isToday) "#1A3A5C" else "#151F2F")
                         totalStudents == 0 -> Color.parseColor("#BBF7D0")
                         else -> {
                             val pct = count.toFloat() / totalStudents
@@ -207,7 +207,7 @@ class AttendanceReportFragment : Fragment() {
                     }
                     val textColor = if (isToday && count == 0) Color.parseColor("#2563EB")
                         else if (count == 0 || (totalStudents > 0 && count.toFloat() / totalStudents < 0.5f))
-                            Color.parseColor("#334155")
+                            Color.parseColor("#90A6BD")
                         else Color.WHITE
 
                     val cell = calCell("$dayNum", textColor, bgColor = bgColor,
@@ -248,7 +248,7 @@ class AttendanceReportFragment : Fragment() {
             Pair("#4ADE80", "≥70%"),
             Pair("#BBF7D0", "≥50%"),
             Pair("#FEF9C3", "<50%"),
-            Pair("#F1F5F9", "None"),
+            Pair("#151F2F", "None"),
         ).forEach { (hex, label) ->
             val dot = View(requireContext()).apply {
                 setBackgroundColor(Color.parseColor(hex))
@@ -258,7 +258,7 @@ class AttendanceReportFragment : Fragment() {
             val lbl = TextView(requireContext()).apply {
                 text     = label
                 textSize = 10f
-                setTextColor(Color.parseColor("#475569"))
+                setTextColor(Color.parseColor("#90A6BD"))
                 layoutParams = LinearLayout.LayoutParams(WRAP, WRAP)
                     .apply { marginEnd = dpI(12) }
             }
@@ -361,11 +361,11 @@ class AttendanceReportFragment : Fragment() {
             setPadding(dpI(14), dpI(7), dpI(14), dpI(7))
             typeface = if (selected) android.graphics.Typeface.DEFAULT_BOLD
                        else          android.graphics.Typeface.DEFAULT
-            setTextColor(if (selected) Color.parseColor("#1D9E75") else Color.parseColor("#888780"))
+            setTextColor(if (selected) Color.parseColor("#5DA9FF") else Color.parseColor("#90A6BD"))
             background = android.graphics.drawable.GradientDrawable().apply {
                 shape        = android.graphics.drawable.GradientDrawable.RECTANGLE
                 cornerRadius = dpI(20).toFloat()
-                setColor(if (selected) Color.parseColor("#E6F7F2") else Color.parseColor("#F5F5F5"))
+                setColor(if (selected) Color.parseColor("#1A3A5C") else Color.parseColor("#1E2E44"))
             }
             layoutParams = android.widget.LinearLayout.LayoutParams(WRAP, WRAP)
                 .apply { marginEnd = dpI(8) }
@@ -428,7 +428,7 @@ class AttendanceReportFragment : Fragment() {
                 val noteRow = rowLayout()
                 noteRow.addView(labelText(
                     "* ${p.sessionCount} session runs merged — unique students counted once",
-                    color  = "#94A3B8",
+                    color  = "#90A6BD",
                     flex   = 1f,
                 ))
                 container.addView(noteRow)
@@ -485,7 +485,7 @@ class AttendanceReportFragment : Fragment() {
     }
 
     private fun divider() = View(requireContext()).apply {
-        setBackgroundColor(Color.parseColor("#0F000000"))
+        setBackgroundColor(Color.parseColor("#1E2E44"))
         layoutParams = LinearLayout.LayoutParams(MATCH, 1)
     }
 
@@ -493,7 +493,7 @@ class AttendanceReportFragment : Fragment() {
         text     = msg
         textSize = 13f
         gravity  = Gravity.CENTER
-        setTextColor(Color.parseColor("#888780"))
+        setTextColor(Color.parseColor("#90A6BD"))
         layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = 24 }
     }
 

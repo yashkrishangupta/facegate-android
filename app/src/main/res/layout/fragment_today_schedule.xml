@@ -1,69 +1,81 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/bg_main_gradient">
 
-    <!-- ── Top bar ─────────────────────────────────────────────────────── -->
+    <!-- TOP BAR — dark -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="16dp"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:background="#0D1727"
+        android:elevation="6dp">
 
         <ImageButton
             android:id="@+id/btnBack"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/logo_circle"
             android:src="@android:drawable/ic_menu_revert"
-            android:contentDescription="Back" />
+            app:tint="#5DA9FF"
+            android:contentDescription="Back"/>
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="16dp"
+            android:layout_marginStart="14dp"
             android:text="Today's Schedule"
             android:textSize="20sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"/>
 
         <TextView
             android:id="@+id/tvDate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Date"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            android:textColor="#90A6BD"/>
 
     </LinearLayout>
 
-    <!-- ── Holiday banner (amber, hidden by default) ────────────────────── -->
-    <!--
-        Spec: amber background, holiday name + "No Classes" message.
-        Uses bg_conflict_banner drawable.
-    -->
+    <!-- HOLIDAY BANNER -->
     <LinearLayout
         android:id="@+id/bannerHoliday"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_conflict_banner"
-        android:padding="16dp"
+        android:background="#2D1A0A"
+        android:padding="14dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
         android:visibility="gone">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@android:drawable/ic_dialog_alert"
+            app:tint="#F59E0B"
+            android:contentDescription="Holiday"/>
 
         <TextView
             android:id="@+id/tvHolidayMessage"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Holiday Name — No Classes"
-            android:textColor="#FFFFFF"
+            android:layout_marginStart="10dp"
+            android:text="Holiday — No Classes"
+            android:textColor="#FCD34D"
             android:textSize="14sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"/>
 
     </LinearLayout>
 
-    <!-- ── Empty state (hidden by default) ─────────────────────────────── -->
+    <!-- EMPTY STATE -->
     <TextView
         android:id="@+id/tvEmptyState"
         android:layout_width="match_parent"
@@ -71,19 +83,11 @@
         android:layout_weight="1"
         android:gravity="center"
         android:text="No classes scheduled for today"
-        android:textSize="14sp"
-        android:visibility="gone" />
+        android:textSize="15sp"
+        android:textColor="#90A6BD"
+        android:visibility="gone"/>
 
-    <!-- ── Period list ───────────────────────────────────────────────────── -->
-    <!--
-        Spec: ScrollView with period rows:
-          - Period chip "P1" … chip_active drawable
-          - Subject (bold 14sp) + Batch (11sp hint color) stacked in centre
-          - Time and status chip on right
-          - Status chip: UPCOMING=chip_pending, ACTIVE=chip_present, DONE=chip_absent
-          - Start button: badge_green — hidden if DONE
-        Rows are built programmatically in TodayScheduleFragment.createRowView().
-    -->
+    <!-- PERIOD LIST -->
     <ScrollView
         android:id="@+id/scrollView"
         android:layout_width="match_parent"
@@ -96,19 +100,28 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp" />
+            android:padding="16dp"/>
 
     </ScrollView>
 
-    <!-- ── Add Unplanned Session button ─────────────────────────────────── -->
-    <Button
-        android:id="@+id/btnAddUnplanned"
+    <!-- ADD UNPLANNED SESSION -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:background="@drawable/badge_blue"
-        android:text="+ Add Unplanned Session"
-        android:textColor="#FFFFFF"
-        android:textSize="14sp" />
+        android:padding="16dp"
+        android:background="#0D1727">
+
+        <Button
+            android:id="@+id/btnAddUnplanned"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:background="@drawable/badge_blue"
+            android:text="+ Add Unplanned Session"
+            android:textColor="#5DA9FF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textAllCaps="false"/>
+
+    </LinearLayout>
 
 </LinearLayout>

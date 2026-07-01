@@ -45,7 +45,6 @@ class TodayScheduleFragment : Fragment() {
 
         binding.tvDate.text = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date())
 
-<<<<<<< HEAD
         binding.btnBack.setOnClickListener {
             // TodayScheduleFragment is the START destination when entered via the
             // "Take Attendance" front door, so findNavController().navigateUp()
@@ -54,9 +53,6 @@ class TodayScheduleFragment : Fragment() {
             // back to showing the role selector when the nav back stack is empty.
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
-=======
-        binding.btnBack.setOnClickListener { findNavController().navigateUp() }
->>>>>>> d3cdf5f398b09779fb1b71194552fa1710e590db
 
         binding.btnAddUnplanned.setOnClickListener { showUnplannedSessionDialog() }
 

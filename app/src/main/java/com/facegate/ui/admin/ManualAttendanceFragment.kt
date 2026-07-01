@@ -37,7 +37,7 @@ class ManualAttendanceFragment : Fragment() {
     ): View {
         val root = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#F0F4F8"))
+            setBackgroundResource(com.facegate.R.drawable.bg_main_gradient)
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -49,8 +49,8 @@ class ManualAttendanceFragment : Fragment() {
             orientation = LinearLayout.HORIZONTAL
             gravity     = Gravity.CENTER_VERTICAL
             setPadding(dp(20), dp(14), dp(20), dp(14))
-            setBackgroundColor(Color.WHITE)
-            elevation = dp(2).toFloat()
+            setBackgroundColor(Color.parseColor("#0D1727"))
+            elevation = dp(6).toFloat()
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -61,9 +61,9 @@ class ManualAttendanceFragment : Fragment() {
             text     = "← Back"
             textSize = 13f
             gravity  = Gravity.CENTER
-            setTextColor(Color.parseColor("#444441"))
+            setTextColor(Color.parseColor("#5DA9FF"))
             setPadding(dp(14), 0, dp(14), 0)
-            setBackgroundResource(com.facegate.R.drawable.icon_action_bg)
+            setBackgroundResource(com.facegate.R.drawable.badge_blue)
             isClickable = true
             isFocusable = true
             layoutParams = LinearLayout.LayoutParams(
@@ -76,7 +76,7 @@ class ManualAttendanceFragment : Fragment() {
             text     = "Manual Attendance"
             textSize = 17f
             typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#1A202C"))
+            setTextColor(Color.WHITE)
         }
 
         topBar.addView(btnBack)
@@ -89,7 +89,7 @@ class ManualAttendanceFragment : Fragment() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
             )
-            setBackgroundColor(Color.WHITE)
+            setBackgroundColor(Color.parseColor("#0D1727"))
         }
         dayTabRow = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -104,7 +104,7 @@ class ManualAttendanceFragment : Fragment() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
             )
-            setBackgroundColor(Color.parseColor("#F8FAFC"))
+            setBackgroundColor(Color.parseColor("#111C30"))
         }
 
         sessionTabRow = LinearLayout(requireContext()).apply {
@@ -120,7 +120,7 @@ class ManualAttendanceFragment : Fragment() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
             )
-            setBackgroundColor(Color.WHITE)
+            setBackgroundColor(Color.parseColor("#0D1727"))
         }
 
         classTabRow = LinearLayout(requireContext()).apply {
@@ -140,7 +140,7 @@ class ManualAttendanceFragment : Fragment() {
 
         val listCard = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.WHITE)
+            setBackgroundResource(com.facegate.R.drawable.card_dark)
             setPadding(0, 0, 0, dp(24))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -153,7 +153,7 @@ class ManualAttendanceFragment : Fragment() {
             textSize   = 14f
             gravity    = Gravity.CENTER
             visibility = View.GONE
-            setTextColor(Color.parseColor("#888780"))
+            setTextColor(Color.parseColor("#90A6BD"))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -269,10 +269,10 @@ class ManualAttendanceFragment : Fragment() {
                        else            android.graphics.Typeface.DEFAULT
             setPadding(dp(14), dp(7), dp(14), dp(7))
             setTextColor(
-                if (isSelected) Color.parseColor("#1D9E75") else Color.parseColor("#888780")
+                if (isSelected) Color.parseColor("#5DA9FF") else Color.parseColor("#90A6BD")
             )
             setBackgroundColor(
-                if (isSelected) Color.parseColor("#E6F7F2") else Color.TRANSPARENT
+                if (isSelected) Color.parseColor("#1A3A5C") else Color.TRANSPARENT
             )
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -296,10 +296,10 @@ class ManualAttendanceFragment : Fragment() {
                 gravity  = Gravity.CENTER
                 setPadding(dp(16), dp(8), dp(16), dp(8))
                 setTextColor(
-                    if (isSelected) Color.parseColor("#1D9E75") else Color.parseColor("#888780")
+                    if (isSelected) Color.parseColor("#5DA9FF") else Color.parseColor("#90A6BD")
                 )
                 setBackgroundColor(
-                    if (isSelected) Color.parseColor("#E6F7F2") else Color.TRANSPARENT
+                    if (isSelected) Color.parseColor("#1A3A5C") else Color.TRANSPARENT
                 )
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -361,13 +361,13 @@ class ManualAttendanceFragment : Fragment() {
                 text     = sws.student.name
                 textSize = 14f
                 typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.parseColor("#1A202C"))
+                setTextColor(Color.WHITE)
             }
 
             val tvId = TextView(requireContext()).apply {
                 text     = sws.student.studentId
                 textSize = 11f
-                setTextColor(Color.parseColor("#888780"))
+                setTextColor(Color.parseColor("#90A6BD"))
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -428,7 +428,7 @@ class ManualAttendanceFragment : Fragment() {
 
             if (index < students.size - 1) {
                 studentListCol.addView(View(requireContext()).apply {
-                    setBackgroundColor(Color.parseColor("#0F000000"))
+                    setBackgroundColor(Color.parseColor("#1E2E44"))
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT, 1
                     ).apply { marginStart = dp(20); marginEnd = dp(20) }

@@ -11,18 +11,16 @@ import java.util.Calendar
 import javax.inject.Inject
 
 data class DashboardStats(
-    val totalStudents       : Int = 0,
-    /** Sessions actually run today */
-    val periodsConducted    : Int = 0,
-    /** Timetable slots scheduled today that haven't been started yet */
-    val periodsRemaining    : Int = 0,
-    val pendingConflicts    : Int = 0,
-    /** Unique students present across all of today's sessions */
-    val uniquePresentToday  : Int = 0,
-    /** Avg attendance pct across today's sessions (unique students / total enrolled) */
-    val attendancePctToday  : Int = 0,
-    /** Total timetable periods for today (conducted + remaining) */
-    val totalPeriodsToday   : Int = 0,
+    val totalStudents      : Int = 0,
+    /** Unique timetable periods conducted today (multiple sessions for the same
+     *  slot still count as ONE period; ad-hoc sessions each count as one). */
+    val periodsConducted   : Int = 0,
+    /** Timetable slots for today that have not been started at all. */
+    val periodsRemaining   : Int = 0,
+    val pendingConflicts   : Int = 0,
+    val uniquePresentToday : Int = 0,
+    val attendancePctToday : Int = 0,
+    val totalPeriodsToday  : Int = 0,
 )
 
 @HiltViewModel
@@ -37,26 +35,32 @@ class AdminDashboardViewModel @Inject constructor(
 
     fun loadStats() {
         viewModelScope.launch {
-            val totalStudents    = repository.getStudents().size
-            val todayStart       = getStartOfDayMillis()
-            val todayEnd         = getEndOfDayMillis()
+            val totalStudents = repository.getStudents().size
+            val todayStart    = getStartOfDayMillis()
+            val todayEnd      = getEndOfDayMillis()
 
-            // Periods conducted = sessions that started today
-            val sessions         = repository.getSessionsForDate(todayStart, todayEnd)
-            val periodsConducted = sessions.size
+            val sessions      = repository.getSessionsForDate(todayStart, todayEnd)
 
-            // Periods remaining = timetable slots today with no session yet
-            val dayOfWeek        = appDayOfWeek(Calendar.getInstance())
-            val timetableToday   = if (dayOfWeek > 0) repository.getTimetableForDay(dayOfWeek)
-                                   else emptyList()
-            val conductedIds     = sessions.mapNotNull { it.timetableId }.toSet()
-            val periodsRemaining = timetableToday.count { it.id !in conductedIds }
-            val totalPeriods     = timetableToday.size.coerceAtLeast(periodsConducted)
+            // ── Period count fix ──────────────────────────────────────────
+            // Multiple sessions sharing the same timetableId are ONE period
+            // (e.g. teacher runs attendance twice for Math 9-A → still 1 period).
+            // Ad-hoc sessions (timetableId == null) each count as their own period.
+            val conductedTimetableIds = sessions.mapNotNull { it.timetableId }.distinct().toSet()
+            val adHocCount            = sessions.count { it.timetableId == null }
+            val periodsConducted      = conductedTimetableIds.size + adHocCount
 
-            // Attendance: unique students marked across all today's sessions
-            val attendance       = repository.getAttendanceForRange(todayStart, todayEnd)
-            val uniquePresent    = attendance.map { it.studentId }.distinct().size
-            val attendancePct    = if (totalStudents > 0)
+            // ── Periods remaining ─────────────────────────────────────────
+            val dayOfWeek       = appDayOfWeek(Calendar.getInstance())
+            val timetableToday  = if (dayOfWeek > 0) repository.getTimetableForDay(dayOfWeek)
+                                  else emptyList()
+            val periodsRemaining = timetableToday.count { it.id !in conductedTimetableIds }
+            // Total = scheduled timetable periods OR conducted (if more ad-hoc than scheduled)
+            val totalPeriods    = timetableToday.size.coerceAtLeast(periodsConducted)
+
+            // ── Attendance ────────────────────────────────────────────────
+            val attendance    = repository.getAttendanceForRange(todayStart, todayEnd)
+            val uniquePresent = attendance.map { it.studentId }.distinct().size
+            val attendancePct = if (totalStudents > 0)
                 ((uniquePresent.toFloat() / totalStudents) * 100).toInt() else 0
 
             val pendingConflicts = repository.getUnresolvedConflictCount()
@@ -73,7 +77,6 @@ class AdminDashboardViewModel @Inject constructor(
         }
     }
 
-    /** Map Calendar.DAY_OF_WEEK to app's 1=Mon…5=Fri (0 = weekend). */
     private fun appDayOfWeek(cal: Calendar): Int = when (cal.get(Calendar.DAY_OF_WEEK)) {
         Calendar.MONDAY    -> 1
         Calendar.TUESDAY   -> 2
