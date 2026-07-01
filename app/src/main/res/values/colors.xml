@@ -69,7 +69,7 @@
 
     <!-- ── Light-on-dark chrome (dark page bg + light top bar / cards / buttons) ── -->
     <color name="surface_topbar">#4A90E2</color>
-    <color name="surface_card">#F2F6FC</color>
+    <color name="surface_card">#B5D4F4</color>
     <color name="surface_card_accent">#E8F1FF</color>
     <color name="border_card">#DCE6F5</color>
     <color name="divider_on_surface">#E6ECF5</color>
