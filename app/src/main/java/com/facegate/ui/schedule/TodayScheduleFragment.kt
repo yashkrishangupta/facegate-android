@@ -134,22 +134,29 @@ class TodayScheduleFragment : Fragment() {
     private fun showUnplannedSessionDialog() {
         val dialogBinding = DialogUnplannedSessionBinding.inflate(LayoutInflater.from(requireContext()))
 
-        AlertDialog.Builder(requireContext())
-            .setTitle("Add Unplanned Session")
+        // NOTE: no setPositiveButton/setNegativeButton here — the dialog layout
+        // already supplies its own styled Cancel/Confirm buttons (btnCancel /
+        // btnConfirm), matching the dialog_student_info.xml pattern used across
+        // the app's other custom dialogs.
+        val dialog = AlertDialog.Builder(requireContext())
             .setView(dialogBinding.root)
-            .setPositiveButton("Confirm") { _, _ ->
-                val subject = dialogBinding.etSubject.text.toString().trim()
-                val batch   = dialogBinding.etBatch.text.toString().trim()
-                val window  = dialogBinding.etWindow.text.toString().toIntOrNull() ?: 10
-                val reason  = dialogBinding.etReason.text.toString().trim()
+            .create()
 
-                viewModel.startUnplannedSession(subject, batch, window, reason) { sessionId, scheduledStartTimeMs ->
-                    // onStarted runs on Main — safe to navigate.
-                    navigateToAttendance(sessionId, subject, batch, window, scheduledStartTimeMs)
-                }
+        dialogBinding.btnCancel.setOnClickListener { dialog.dismiss() }
+        dialogBinding.btnConfirm.setOnClickListener {
+            val subject = dialogBinding.etSubject.text.toString().trim()
+            val batch   = dialogBinding.etBatch.text.toString().trim()
+            val window  = dialogBinding.etWindow.text.toString().toIntOrNull() ?: 10
+            val reason  = dialogBinding.etReason.text.toString().trim()
+
+            dialog.dismiss()
+            viewModel.startUnplannedSession(subject, batch, window, reason) { sessionId, scheduledStartTimeMs ->
+                // onStarted runs on Main — safe to navigate.
+                navigateToAttendance(sessionId, subject, batch, window, scheduledStartTimeMs)
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+        }
+
+        dialog.show()
     }
 
     // ── Navigation ────────────────────────────────────────────────────────────

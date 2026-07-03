@@ -115,13 +115,13 @@ class QualityChecker {
 
         // ── Check 5: Landmark confidence ───────────────────────────────
         val landmarkCount      = face.allLandmarks.size
-        val landmarkConfidence = (landmarkCount.toFloat() / 6f).coerceIn(0f, 1f)
+        val landmarkConfidence = (landmarkCount.toFloat() / PipelineConfig.EXPECTED_LANDMARK_COUNT).coerceIn(0f, 1f)
         if (landmarkConfidence < PipelineConfig.MIN_LANDMARK_CONFIDENCE) {
             failReasons.add(QualityFailReason.LOW_LANDMARK_CONFIDENCE)
         }
 
         // ── Composite quality score (0..1) ─────────────────────────────
-        val blurScore       = (sharpness / (PipelineConfig.MIN_LAPLACIAN_VARIANCE * 3.0).toFloat()).coerceIn(0f, 1f)
+        val blurScore       = (sharpness / (PipelineConfig.MIN_LAPLACIAN_VARIANCE * PipelineConfig.BLUR_SCORE_NORMALIZER_MULTIPLIER).toFloat()).coerceIn(0f, 1f)
         val brightnessScore = when {
             brightness < PipelineConfig.MIN_BRIGHTNESS ->
                 brightness / PipelineConfig.MIN_BRIGHTNESS
@@ -130,10 +130,12 @@ class QualityChecker {
             else -> 1f
         }.coerceIn(0f, 1f)
         val sizeScore      = (faceSizeRatio / PipelineConfig.MIN_FACE_SIZE_RATIO).coerceIn(0f, 1f)
-        val poseScore      = (1f - (abs(yaw) / (PipelineConfig.MAX_YAW_DEGREES * 2f))).coerceIn(0f, 1f)
-        val qualityScore   = (blurScore * 0.30f + brightnessScore * 0.20f +
-                              sizeScore * 0.20f + poseScore * 0.20f +
-                              landmarkConfidence * 0.10f)
+        val poseScore      = (1f - (abs(yaw) / (PipelineConfig.MAX_YAW_DEGREES * PipelineConfig.POSE_SCORE_NORMALIZER_MULTIPLIER))).coerceIn(0f, 1f)
+        val qualityScore   = (blurScore * PipelineConfig.BLUR_SCORE_WEIGHT +
+                              brightnessScore * PipelineConfig.BRIGHTNESS_SCORE_WEIGHT +
+                              sizeScore * PipelineConfig.SIZE_SCORE_WEIGHT +
+                              poseScore * PipelineConfig.POSE_SCORE_WEIGHT +
+                              landmarkConfidence * PipelineConfig.LANDMARK_SCORE_WEIGHT)
 
         return QualityResult(
             passed              = failReasons.isEmpty(),

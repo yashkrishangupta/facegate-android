@@ -6,6 +6,7 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
+    android:background="@color/surface_card"
     android:paddingHorizontal="20dp"
     android:paddingVertical="16dp">
 
@@ -31,7 +32,7 @@
             android:id="@+id/tvName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_on_surface"
             android:textSize="14sp"
             android:textStyle="bold"
             tools:text="Jane Doe"/>
@@ -41,7 +42,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:textColor="#90A6BD"
+            android:textColor="#000000"
             android:textSize="11sp"
             tools:text="STU-0042"/>
 

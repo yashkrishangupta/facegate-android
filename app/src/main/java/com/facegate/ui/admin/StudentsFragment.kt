@@ -128,19 +128,26 @@ class StudentsFragment : Fragment() {
         dialogBinding.etName.setText(student.name)
         dialogBinding.etClass.setText(student.studentClass)
 
-        AlertDialog.Builder(requireContext())
-            .setTitle("Edit Student")
+        // NOTE: no setPositiveButton/setNegativeButton here — the dialog layout
+        // already supplies its own styled Cancel/Save buttons (btnCancel /
+        // btnSave), matching the dialog_student_info.xml pattern used across
+        // the app's other custom dialogs.
+        val dialog = AlertDialog.Builder(requireContext())
             .setView(dialogBinding.root)
-            .setPositiveButton("Save") { _, _ ->
-                val newRollNo = dialogBinding.etRollNo.text.toString().trim()
-                val newName   = dialogBinding.etName.text.toString().trim()
-                val newClass  = dialogBinding.etClass.text.toString().trim()
-                if (newRollNo.isNotEmpty() && newName.isNotEmpty()) {
-                    viewModel.updateStudentRollNo(student.studentId, newRollNo, newName, newClass)
-                }
+            .create()
+
+        dialogBinding.btnCancel.setOnClickListener { dialog.dismiss() }
+        dialogBinding.btnSave.setOnClickListener {
+            val newRollNo = dialogBinding.etRollNo.text.toString().trim()
+            val newName   = dialogBinding.etName.text.toString().trim()
+            val newClass  = dialogBinding.etClass.text.toString().trim()
+            if (newRollNo.isNotEmpty() && newName.isNotEmpty()) {
+                viewModel.updateStudentRollNo(student.studentId, newRollNo, newName, newClass)
+                dialog.dismiss()
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+        }
+
+        dialog.show()
     }
 
     private fun confirmDelete(student: StudentEntity) {

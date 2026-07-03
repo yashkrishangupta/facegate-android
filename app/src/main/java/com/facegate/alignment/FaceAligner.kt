@@ -1,6 +1,7 @@
 package com.facegate.alignment
 
 import android.graphics.Bitmap
+import com.facegate.pipeline.PipelineConfig
 import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceLandmark
 import org.opencv.android.Utils
@@ -76,10 +77,6 @@ private val REFERENCE_LANDMARKS_112 = arrayOf(
  */
 class FaceAligner {
 
-    companion object {
-        const val OUTPUT_SIZE = 112   // MobileFaceNet canonical input dimension
-    }
-
     /**
      * Align the face described by [face] within [sourceBitmap].
      *
@@ -104,7 +101,7 @@ class FaceAligner {
         srcPoints: Array<Point>
     ): AlignmentResult {
         val srcMat  = bitmapToMat(sourceBitmap)
-        val dstMat  = Mat(OUTPUT_SIZE, OUTPUT_SIZE, CvType.CV_8UC3)
+        val dstMat  = Mat(PipelineConfig.MODEL_INPUT_SIZE, PipelineConfig.MODEL_INPUT_SIZE, CvType.CV_8UC3)
 
         // Build source and destination point matrices for getAffineTransform.
         // We use 3 points (left eye, right eye, nose) for the affine estimate —
@@ -126,7 +123,7 @@ class FaceAligner {
             srcMat,
             dstMat,
             affineMatrix,
-            Size(OUTPUT_SIZE.toDouble(), OUTPUT_SIZE.toDouble()),
+            Size(PipelineConfig.MODEL_INPUT_SIZE.toDouble(), PipelineConfig.MODEL_INPUT_SIZE.toDouble()),
             Imgproc.INTER_LINEAR,
             org.opencv.core.Core.BORDER_REFLECT_101
         )
@@ -151,7 +148,7 @@ class FaceAligner {
      */
     private fun alignWithBoundingBox(sourceBitmap: Bitmap, face: Face): AlignmentResult {
         val box     = face.boundingBox
-        val padding = (box.width() * 0.20f).toInt()
+        val padding = (box.width() * PipelineConfig.BOUNDING_BOX_FALLBACK_PADDING).toInt()
 
         val left   = (box.left   - padding).coerceAtLeast(0)
         val top    = (box.top    - padding).coerceAtLeast(0)
@@ -162,7 +159,7 @@ class FaceAligner {
         val cropH = (bottom - top ).coerceAtLeast(1)
 
         val cropped = Bitmap.createBitmap(sourceBitmap, left, top, cropW, cropH)
-        val resized  = Bitmap.createScaledBitmap(cropped, OUTPUT_SIZE, OUTPUT_SIZE, true)
+        val resized  = Bitmap.createScaledBitmap(cropped, PipelineConfig.MODEL_INPUT_SIZE, PipelineConfig.MODEL_INPUT_SIZE, true)
 
         if (cropped !== resized) cropped.recycle()
 

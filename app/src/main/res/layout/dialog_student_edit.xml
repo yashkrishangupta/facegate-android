@@ -1,80 +1,185 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+
+<ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:background="#10141F"
-    android:padding="24dp">
+    android:fillViewport="true"
+    android:background="@drawable/card_dark">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Roll Number"
-        android:textColor="#D7E4F5"
-        android:textStyle="bold"/>
-
-    <EditText
-        android:id="@+id/etRollNo"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="18dp"
-        android:background="@drawable/edittext_dark"
-        android:hint="Roll number"
-        android:imeOptions="actionNext"
-        android:inputType="text"
-        android:paddingHorizontal="18dp"
-        android:textColor="#FFFFFF"
-        android:textColorHint="#708090"/>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Full Name"
-        android:textColor="#D7E4F5"
-        android:textStyle="bold"/>
-
-    <EditText
-        android:id="@+id/etName"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="18dp"
-        android:background="@drawable/edittext_dark"
-        android:hint="Full name"
-        android:imeOptions="actionNext"
-        android:inputType="textPersonName|textCapWords"
-        android:paddingHorizontal="18dp"
-        android:textColor="#FFFFFF"
-        android:textColorHint="#708090"/>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Class"
-        android:textColor="#D7E4F5"
-        android:textStyle="bold"/>
-
-    <EditText
-        android:id="@+id/etClass"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/edittext_dark"
-        android:hint="Class (e.g. 10A)"
-        android:imeOptions="actionDone"
-        android:inputType="text"
-        android:paddingHorizontal="18dp"
-        android:textColor="#FFFFFF"
-        android:textColorHint="#708090"/>
-
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="18dp"
-        android:text="ℹ Face embedding is preserved — attendance history follows the new roll number."
-        android:textColor="#7A8799"
-        android:textSize="11sp"/>
+        android:orientation="vertical"
+        android:padding="24dp">
 
-</LinearLayout>
+        <!-- Avatar -->
+
+        <ImageView
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_gravity="center"
+            android:background="@drawable/badge_blue"
+            android:padding="18dp"
+            android:src="@android:drawable/ic_menu_edit"
+            app:tint="#FFFFFF" />
+
+        <!-- Title -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="18dp"
+            android:text="Edit Student"
+            android:textColor="@color/text_white"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="24dp"
+            android:text="Student Information"
+            android:textColor="@color/text_white_60"
+            android:textSize="13sp" />
+
+        <!-- Roll Number -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Roll Number / ID"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etRollNo"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="18dp"
+            android:background="@drawable/edittext_dark"
+            android:drawableStart="@android:drawable/ic_menu_edit"
+            android:drawablePadding="12dp"
+            android:hint="Roll number"
+            android:imeOptions="actionNext"
+            android:inputType="text"
+            android:paddingHorizontal="18dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#708090" />
+
+        <!-- Full Name -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Full Name"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etName"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="18dp"
+            android:background="@drawable/edittext_dark"
+            android:drawableStart="@android:drawable/ic_menu_myplaces"
+            android:drawablePadding="12dp"
+            android:hint="Full name"
+            android:imeOptions="actionNext"
+            android:inputType="textPersonName|textCapWords"
+            android:paddingHorizontal="18dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#708090" />
+
+        <!-- Class -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Class"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etClass"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/edittext_dark"
+            android:drawableStart="@android:drawable/ic_menu_agenda"
+            android:drawablePadding="12dp"
+            android:hint="Class (e.g. 10A)"
+            android:imeOptions="actionDone"
+            android:inputType="text"
+            android:paddingHorizontal="18dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#708090" />
+
+        <!-- Information -->
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginEnd="8dp"
+                android:src="@android:drawable/ic_dialog_info"
+                app:tint="@color/blue_800" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Face embedding is preserved — attendance history follows the new roll number."
+                android:textColor="#FFFFFF"
+                android:textSize="12sp" />
+
+        </LinearLayout>
+
+        <!-- Buttons -->
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnCancel"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:background="@drawable/button_outline"
+                android:text="Cancel"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF" />
+
+            <Space
+                android:layout_width="12dp"
+                android:layout_height="1dp" />
+
+            <Button
+                android:id="@+id/btnSave"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:background="@drawable/button_primary"
+                android:text="Save"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</ScrollView>

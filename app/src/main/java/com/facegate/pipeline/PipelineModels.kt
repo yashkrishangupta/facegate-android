@@ -17,6 +17,16 @@ object PipelineConfig {
     const val ANALYSIS_FPS       = 10
     const val FRAME_BUFFER_SIZE  = 8
 
+    // CameraX ImageAnalysis target resolution (AttendanceFragment). Smaller
+    // = faster analysis but a smaller effective face size for
+    // MIN_FACE_SIZE_RATIO to work against.
+    const val ANALYSIS_TARGET_WIDTH_PX  = 640
+    const val ANALYSIS_TARGET_HEIGHT_PX = 480
+
+    // Max width frames are downscaled to before running quality checks /
+    // face detection during enrollment capture (AttendancePipeline).
+    const val CAPTURE_MAX_WIDTH_PX = 640
+
     // ── Attendance window ───────────────────────────────────
     const val DEFAULT_WINDOW_MINUTES = 15
 
@@ -29,6 +39,13 @@ object PipelineConfig {
     const val MIN_LAPLACIAN_VARIANCE  = 80.0
     const val MIN_BRIGHTNESS          = 60f
     const val MAX_BRIGHTNESS          = 220f
+
+    // ML Kit's own FaceDetectorOptions.setMinFaceSize() — a detector-level
+    // filter that runs BEFORE QualityChecker ever sees the frame, so it's
+    // intentionally kept stricter than MIN_FACE_SIZE_RATIO above. Faces
+    // smaller than this are dropped by ML Kit itself and never reach
+    // QualityChecker's own (looser) face-size check.
+    const val ML_KIT_MIN_FACE_SIZE = 0.15f
 
     const val ENROLLMENT_POSE_TOLERANCE_MULTIPLIER = 1.5f
 
@@ -46,9 +63,48 @@ object PipelineConfig {
     // rather than be diluted equally with the others.
     const val FRONTAL_SHOT_WEIGHT = 2.0f
 
+    // Number of shots the enrollment flow requires (1 frontal + 4 posed —
+    // must match EnrollmentPose's 5 enum values).
+    const val ENROLLMENT_SHOT_COUNT = 5
+
+    // Fallback crop padding (as a fraction of face-box width) used when ML
+    // Kit doesn't return all 5 landmarks and FaceAligner falls back to a
+    // plain bounding-box crop instead of landmark-based alignment.
+    const val BOUNDING_BOX_FALLBACK_PADDING = 0.20f
+
+    // ── Composite quality score weights (QualityChecker) ────
+    // Must sum to 1.0. Used to rank buffered frames so the pipeline picks
+    // the single best frame before running alignment/embedding.
+    const val BLUR_SCORE_WEIGHT       = 0.30f
+    const val BRIGHTNESS_SCORE_WEIGHT = 0.20f
+    const val SIZE_SCORE_WEIGHT       = 0.20f
+    const val POSE_SCORE_WEIGHT       = 0.20f
+    const val LANDMARK_SCORE_WEIGHT   = 0.10f
+
+    // Blur score = sharpness / (MIN_LAPLACIAN_VARIANCE * this multiplier),
+    // i.e. a frame needs this many times the minimum-acceptable sharpness
+    // to score a full 1.0 on the blur component.
+    const val BLUR_SCORE_NORMALIZER_MULTIPLIER = 3.0f
+
+    // Pose score = 1 - (|yaw| / (MAX_YAW_DEGREES * this multiplier)).
+    const val POSE_SCORE_NORMALIZER_MULTIPLIER = 2f
+
+    // Expected number of ML Kit landmark types (used to turn a raw
+    // landmark count into a 0..1 confidence ratio in QualityChecker).
+    const val EXPECTED_LANDMARK_COUNT = 6f
+
     // ── Similarity thresholds ──────────────────────────────
     const val THRESHOLD_ACCEPT    = 0.60f
     const val THRESHOLD_REJECT    = 0.40f
+
+    // If the top-1 and top-2 match are closer than this margin, flag the
+    // decision Ambiguous even if top-1 clears THRESHOLD_ACCEPT — guards
+    // against confidently misidentifying look-alikes/siblings.
+    const val AMBIGUITY_MARGIN = 0.12f
+
+    // Similarity threshold above which a NEW enrollment is flagged as a
+    // possible duplicate of an already-enrolled student.
+    const val DUPLICATE_RISK_THRESHOLD = 0.85f
 
     // ── Normalization ───────────────────────────────────────
     val MEAN = floatArrayOf(0.5f, 0.5f, 0.5f)

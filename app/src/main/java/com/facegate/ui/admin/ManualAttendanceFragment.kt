@@ -233,7 +233,7 @@ class ManualAttendanceFragment : Fragment() {
 
             if (index < students.size - 1) {
                 binding.studentListCol.addView(View(requireContext()).apply {
-                    setBackgroundColor(Color.parseColor("#1E2E44"))
+                    setBackgroundColor(Color.parseColor("#DCE6F5"))
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT, 1
                     ).apply { marginStart = dp(20); marginEnd = dp(20) }

@@ -27,6 +27,7 @@ import com.facegate.R
 import com.facegate.databinding.FragmentAttendanceBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import com.facegate.pipeline.PipelineConfig
 
 // ATTENDANCE FRAGMENT
 @AndroidEntryPoint
@@ -128,7 +129,7 @@ class AttendanceFragment : Fragment() {
 
             // ── Use case 2: ImageAnalysis (feeds frames to the ML pipeline) ───
             val imageAnalysis = ImageAnalysis.Builder()
-                .setTargetResolution(Size(640, 480))
+                .setTargetResolution(Size(PipelineConfig.ANALYSIS_TARGET_WIDTH_PX, PipelineConfig.ANALYSIS_TARGET_HEIGHT_PX))
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                 .build()
