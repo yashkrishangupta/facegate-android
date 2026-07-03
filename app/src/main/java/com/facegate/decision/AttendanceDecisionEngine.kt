@@ -11,13 +11,6 @@ import com.facegate.pipeline.SimilarityMatch
 class AttendanceDecisionEngine {
 
     /**
-     * Threshold for the "Twin Problem" / Ambiguity check.
-     * If the difference between the top-1 and top-2 match similarity is less than this margin,
-     * the system flags it as ambiguous to avoid misidentification.
-     */
-    private val AMBIGUITY_MARGIN = 0.12f
-
-    /**
      * Evaluates the similarity match result and decides the attendance outcome.
      * 
      * @param match The result of the similarity search.
@@ -59,7 +52,7 @@ class AttendanceDecisionEngine {
         }
         if (second != null) {
             val similarityDifference = top.cosineSimilarity - second.cosineSimilarity
-            if (similarityDifference < AMBIGUITY_MARGIN) {
+            if (similarityDifference < PipelineConfig.AMBIGUITY_MARGIN) {
                 return AttendanceDecision.Ambiguous(
                     topCandidate    = top,
                     secondCandidate = second,

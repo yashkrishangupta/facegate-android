@@ -2,6 +2,7 @@ package com.facegate.similarity
 
 import com.facegate.pipeline.FaceEmbedding
 import com.facegate.pipeline.MatchCandidate
+import com.facegate.pipeline.PipelineConfig
 import com.facegate.pipeline.SimilarityMatch
 
 /**
@@ -68,13 +69,14 @@ class SimilaritySearch {
      * 
      * @param embedding The embedding to check.
      * @param enrolledTemplates Current database of templates.
-     * @param threshold Similarity threshold for considering it a duplicate (default 0.85).
+     * @param threshold Similarity threshold for considering it a duplicate
+     *   (default PipelineConfig.DUPLICATE_RISK_THRESHOLD).
      * @return The existing template if a duplicate risk is found, null otherwise.
      */
     fun findDuplicateRisk(
         embedding: FaceEmbedding,
         enrolledTemplates: List<EnrolledTemplate>,
-        threshold: Float = 0.85f
+        threshold: Float = PipelineConfig.DUPLICATE_RISK_THRESHOLD
     ): EnrolledTemplate? {
         return enrolledTemplates.firstOrNull {
             calculateDotProduct(embedding.vector, it.embedding) >= threshold

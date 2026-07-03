@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="10dp"
-    android:background="@drawable/card_dark"
+    android:background="@color/surface_card"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:padding="16dp">
@@ -32,7 +32,7 @@
             android:id="@+id/tvSubject"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_on_surface"
             android:textSize="14sp"
             android:textStyle="bold"
             tools:text="Mathematics"/>
@@ -41,7 +41,7 @@
             android:id="@+id/tvBatch"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#90A6BD"
+            android:textColor="#000000"
             android:textSize="11sp"
             tools:text="9-A"/>
 
@@ -59,7 +59,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="end"
-            android:textColor="#90A6BD"
+            android:textColor="#000000"
             android:textSize="12sp"
             tools:text="08:00"/>
 
@@ -70,7 +70,7 @@
             android:layout_marginTop="4dp"
             android:paddingHorizontal="6dp"
             android:paddingVertical="4dp"
-            android:textColor="#101828"
+            android:textColor="#000000"
             android:textSize="10sp"
             tools:text="ACTIVE"/>
 

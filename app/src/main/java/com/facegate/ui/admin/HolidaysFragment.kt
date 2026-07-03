@@ -28,7 +28,7 @@ class HolidaysFragment : Fragment() {
     private var _binding: FragmentHolidaysBinding? = null
     private val binding get() = _binding!!
 
-    private val viewModel: HolidaySetupViewModel by viewModels()
+    private val viewModel: HolidaysViewModel by viewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -97,13 +97,15 @@ class HolidaysFragment : Fragment() {
             LayoutInflater.from(requireContext()), binding.listContainer, false
         )
 
-        val textColor = if (isPast) "#7A8799" else "#FFFFFF"
+        // item_holiday_card.xml has a light @color/surface_card background (matching the
+        // other list cards in the app), so its text needs the dark on-surface palette —
+        // not the light/white tones meant for text on the dark page background.
+        val nameColor = if (isPast) "#8A94A3" else "#101828"
+        val dateColor = if (isPast) "#ADB4BF" else "#5B6B84"
         itemBinding.tvHolidayName.text = holiday.name
-        itemBinding.tvHolidayName.setTextColor(Color.parseColor(textColor))
+        itemBinding.tvHolidayName.setTextColor(Color.parseColor(nameColor))
         itemBinding.tvHolidayDate.text = holiday.date
-        itemBinding.tvHolidayDate.setTextColor(
-            Color.parseColor(if (isPast) "#5B6B84" else "#90A6BD")
-        )
+        itemBinding.tvHolidayDate.setTextColor(Color.parseColor(dateColor))
 
         itemBinding.btnDelete.setOnClickListener {
             AlertDialog.Builder(requireContext())
@@ -135,20 +137,40 @@ class HolidaysFragment : Fragment() {
 
     private fun showNameDialog(dateStr: String) {
         val dialogBinding = DialogHolidayNameBinding.inflate(LayoutInflater.from(requireContext()))
-        AlertDialog.Builder(requireContext())
-            .setTitle("Holiday name for $dateStr")
+
+        // Prefilled from the date picker, but left as a normal editable field so the
+        // user can tweak it by hand before saving.
+        dialogBinding.etHolidayDate.setText(dateStr)
+
+        // NOTE: no setPositiveButton/setNegativeButton here — the dialog layout
+        // already supplies its own styled Cancel/Save buttons (btnCancel /
+        // btnSave), matching the dialog_student_info.xml pattern used across
+        // the app's other custom dialogs.
+        val dialog = AlertDialog.Builder(requireContext())
             .setView(dialogBinding.root)
-            .setPositiveButton("Save") { _, _ ->
-                val name = dialogBinding.etHolidayName.text.toString().trim()
-                if (name.isNotEmpty()) {
+            .create()
+
+        dialogBinding.btnCancel.setOnClickListener { dialog.dismiss() }
+        dialogBinding.btnSave.setOnClickListener {
+            val date = dialogBinding.etHolidayDate.text.toString().trim()
+            val name = dialogBinding.etHolidayName.text.toString().trim()
+
+            when {
+                date.isEmpty() || !date.matches(Regex("""\d{4}-\d{2}-\d{2}""")) ->
+                    dialogBinding.etHolidayDate.error = "Use YYYY-MM-DD"
+                name.isEmpty() ->
+                    dialogBinding.etHolidayName.error = "Required"
+                else -> {
                     viewModel.addHoliday(HolidayEntity(
-                        date      = dateStr,
+                        date      = date,
                         name      = name,
                         createdAt = System.currentTimeMillis(),
                     ))
+                    dialog.dismiss()
                 }
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+        }
+
+        dialog.show()
     }
 }

@@ -29,6 +29,7 @@ import com.facegate.ui.enrollment.EnrollmentEvent
 import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import com.facegate.pipeline.PipelineConfig   
 
 
 @AndroidEntryPoint
@@ -44,7 +45,7 @@ class EnrollmentFragment : Fragment() {
     private var imageCapture: ImageCapture? = null
     private lateinit var cameraExecutor: ExecutorService
 
-    private val totalPhotos = 5
+    private val totalPhotos = PipelineConfig.ENROLLMENT_SHOT_COUNT
 
     private val photoDots by lazy {
         listOf(

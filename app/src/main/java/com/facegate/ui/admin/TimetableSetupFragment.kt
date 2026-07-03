@@ -176,23 +176,32 @@ class TimetableSetupFragment : Fragment() {
 
         dialogBinding.etWindow.setText(existing?.windowMinutes?.toString() ?: "10")
 
-        AlertDialog.Builder(requireContext())
-            .setTitle(if (existing == null) "Add Period" else "Edit Period")
+        dialogBinding.tvDialogTitle.text = if (existing == null) "Add Period" else "Edit Period"
+
+        // NOTE: no setPositiveButton/setNegativeButton here — the dialog layout
+        // already supplies its own styled Cancel/Save buttons (btnCancel /
+        // btnSave), matching the dialog_student_info.xml pattern used across
+        // the app's other custom dialogs.
+        val dialog = AlertDialog.Builder(requireContext())
             .setView(dialogBinding.root)
-            .setPositiveButton("Save") { _, _ ->
-                val entry = TimetableEntity(
-                    id              = existing?.id ?: 0,
-                    dayOfWeek       = selectedDay,
-                    periodNumber    = dialogBinding.spinnerPeriod.selectedItemPosition + 1,
-                    subject         = dialogBinding.etSubject.text.toString().trim(),
-                    batch           = dialogBinding.etBatch.text.toString().trim(),
-                    scheduledHour   = selectedHour,
-                    scheduledMinute = selectedMinute,
-                    windowMinutes   = dialogBinding.etWindow.text.toString().toIntOrNull() ?: 10,
-                )
-                viewModel.addOrUpdatePeriod(entry)
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+            .create()
+
+        dialogBinding.btnCancel.setOnClickListener { dialog.dismiss() }
+        dialogBinding.btnSave.setOnClickListener {
+            val entry = TimetableEntity(
+                id              = existing?.id ?: 0,
+                dayOfWeek       = selectedDay,
+                periodNumber    = dialogBinding.spinnerPeriod.selectedItemPosition + 1,
+                subject         = dialogBinding.etSubject.text.toString().trim(),
+                batch           = dialogBinding.etBatch.text.toString().trim(),
+                scheduledHour   = selectedHour,
+                scheduledMinute = selectedMinute,
+                windowMinutes   = dialogBinding.etWindow.text.toString().toIntOrNull() ?: 10,
+            )
+            viewModel.addOrUpdatePeriod(entry)
+            dialog.dismiss()
+        }
+
+        dialog.show()
     }
 }

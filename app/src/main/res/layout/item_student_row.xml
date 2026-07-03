@@ -6,6 +6,7 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
+    android:background="@color/surface_card"
     android:paddingHorizontal="14dp"
     android:paddingVertical="10dp">
 
@@ -41,7 +42,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:textColor="@color/text_on_surface_muted"
+            android:textColor="#000000"
             android:textSize="11sp"
             tools:text="STU-0042  •  Class 10A"/>
 
@@ -56,7 +57,7 @@
         android:focusable="true"
         android:gravity="center"
         android:text="✎"
-        android:textColor="#1D9E75"
+        android:textColor="#037A09"
         android:textSize="16sp"/>
 
     <TextView
@@ -67,7 +68,7 @@
         android:focusable="true"
         android:gravity="center"
         android:text="✕"
-        android:textColor="#D85A30"
+        android:textColor="#E4080E"
         android:textSize="14sp"/>
 
 </LinearLayout>

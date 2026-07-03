@@ -63,7 +63,7 @@ class AttendancePipeline(
     private val alreadyMarkedMap  = mutableMapOf<String, Long>()
 
     // ── Attendance window tracking ───────────────────────────────────────────
-    private var windowMinutes    : Int = 10
+    private var windowMinutes    : Int = PipelineConfig.DEFAULT_WINDOW_MINUTES
     private var sessionStartTime : Long = 0L
 
     // ── In-memory template cache (loaded from DB at session start) ───────────
@@ -241,7 +241,7 @@ class AttendancePipeline(
         shotIndex: Int = 0,
     ): CaptureQualityResult {
         val upright = rotateIfNeeded(bitmap, rotationDegrees)
-        val scaled  = scaleBitmapToMaxWidth(upright, 640)
+        val scaled  = scaleBitmapToMaxWidth(upright, PipelineConfig.CAPTURE_MAX_WIDTH_PX)
 
         val image = InputImage.fromBitmap(scaled, 0)
         val faces = faceDetector.process(image).await()
@@ -374,7 +374,7 @@ class AttendancePipeline(
         rotationDegrees: Int = 0,
     ): EnrollmentResult {
         val uprightPhoto = rotateIfNeeded(photo, rotationDegrees)
-        val scaledPhoto  = scaleBitmapToMaxWidth(uprightPhoto, 640)
+        val scaledPhoto  = scaleBitmapToMaxWidth(uprightPhoto, PipelineConfig.CAPTURE_MAX_WIDTH_PX)
 
         val image = InputImage.fromBitmap(scaledPhoto, 0)
         val faces = faceDetector.process(image).await()
@@ -616,7 +616,7 @@ class AttendancePipeline(
             .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
             .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
             .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
-            .setMinFaceSize(0.15f)
+            .setMinFaceSize(PipelineConfig.ML_KIT_MIN_FACE_SIZE)
             .build()
         return FaceDetection.getClient(options)
     }

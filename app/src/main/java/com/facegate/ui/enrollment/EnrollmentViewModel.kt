@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.facegate.pipeline.PipelineConfig   
 
 sealed class EnrollmentState {
     object Idle          : EnrollmentState()
@@ -71,7 +72,7 @@ class EnrollmentViewModel @Inject constructor(
             when (result) {
                 is CaptureQualityResult.Pass -> {
                     verifiedBitmaps.add(result.bitmap)
-                    if (verifiedBitmaps.size >= 5) {
+                    if (verifiedBitmaps.size >= PipelineConfig.ENROLLMENT_SHOT_COUNT) {
                         // All 5 done — submit using the details collected up front.
                         submitEnrollment()
                     } else {

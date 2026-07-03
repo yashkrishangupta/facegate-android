@@ -1,62 +1,186 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+
+<ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:background="#10141F"
-    android:padding="24dp">
+    android:fillViewport="true"
+    android:background="@drawable/card_dark">
 
-    <EditText
-        android:id="@+id/etSubject"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_marginBottom="14dp"
-        android:background="@drawable/edittext_dark"
-        android:hint="Subject"
-        android:imeOptions="actionNext"
-        android:inputType="text"
-        android:paddingHorizontal="18dp"
-        android:textColor="#FFFFFF"
-        android:textColorHint="#708090"/>
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
 
-    <EditText
-        android:id="@+id/etBatch"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_marginBottom="14dp"
-        android:background="@drawable/edittext_dark"
-        android:hint="Batch"
-        android:imeOptions="actionNext"
-        android:inputType="text"
-        android:paddingHorizontal="18dp"
-        android:textColor="#FFFFFF"
-        android:textColorHint="#708090"/>
+        <!-- Avatar -->
 
-    <EditText
-        android:id="@+id/etWindow"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_marginBottom="14dp"
-        android:background="@drawable/edittext_dark"
-        android:hint="Window (minutes)"
-        android:imeOptions="actionNext"
-        android:inputType="number"
-        android:paddingHorizontal="18dp"
-        android:text="10"
-        android:textColor="#FFFFFF"
-        android:textColorHint="#708090"/>
+        <ImageView
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_gravity="center"
+            android:background="@drawable/badge_blue"
+            android:padding="18dp"
+            android:src="@android:drawable/ic_menu_add"
+            app:tint="#FFFFFF" />
 
-    <EditText
-        android:id="@+id/etReason"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:background="@drawable/edittext_dark"
-        android:hint="Reason (optional)"
-        android:imeOptions="actionDone"
-        android:inputType="text"
-        android:paddingHorizontal="18dp"
-        android:textColor="#FFFFFF"
-        android:textColorHint="#708090"/>
+        <!-- Title -->
 
-</LinearLayout>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="18dp"
+            android:text="Add Unplanned Session"
+            android:textColor="@color/text_white"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="24dp"
+            android:text="Session Details"
+            android:textColor="@color/text_white_60"
+            android:textSize="13sp" />
+
+        <!-- Subject -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Subject"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etSubject"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="18dp"
+            android:background="@drawable/edittext_dark"
+            android:drawableStart="@android:drawable/ic_menu_agenda"
+            android:drawablePadding="12dp"
+            android:hint="Subject"
+            android:imeOptions="actionNext"
+            android:inputType="text"
+            android:paddingHorizontal="18dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#708090" />
+
+        <!-- Batch -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Batch"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etBatch"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="18dp"
+            android:background="@drawable/edittext_dark"
+            android:drawableStart="@android:drawable/ic_menu_myplaces"
+            android:drawablePadding="12dp"
+            android:hint="Batch"
+            android:imeOptions="actionNext"
+            android:inputType="text"
+            android:paddingHorizontal="18dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#708090" />
+
+        <!-- Window -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Window (minutes)"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etWindow"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="18dp"
+            android:background="@drawable/edittext_dark"
+            android:drawableStart="@android:drawable/ic_menu_recent_history"
+            android:drawablePadding="12dp"
+            android:hint="Window (minutes)"
+            android:imeOptions="actionNext"
+            android:inputType="number"
+            android:paddingHorizontal="18dp"
+            android:text="10"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#708090" />
+
+        <!-- Reason -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Reason (optional)"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etReason"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/edittext_dark"
+            android:drawableStart="@android:drawable/ic_menu_edit"
+            android:drawablePadding="12dp"
+            android:hint="Reason (optional)"
+            android:imeOptions="actionDone"
+            android:inputType="text"
+            android:paddingHorizontal="18dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#708090" />
+
+        <!-- Buttons -->
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnCancel"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:background="@drawable/button_outline"
+                android:text="Cancel"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF" />
+
+            <Space
+                android:layout_width="12dp"
+                android:layout_height="1dp" />
+
+            <Button
+                android:id="@+id/btnConfirm"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:background="@drawable/button_primary"
+                android:text="Confirm"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</ScrollView>

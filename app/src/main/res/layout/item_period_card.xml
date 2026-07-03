@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="8dp"
-    android:background="@drawable/card_dark"
+    android:background="@color/surface_card"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:padding="16dp">
@@ -34,7 +34,7 @@
             android:id="@+id/tvSubject"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_on_surface"
             android:textSize="14sp"
             android:textStyle="bold"
             tools:text="Mathematics"/>
@@ -44,7 +44,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:textColor="#90A6BD"
+            android:textColor="#000000"
             android:textSize="12sp"
             tools:text="9-A  •  8:00  •  10min"/>
 
@@ -59,7 +59,7 @@
         android:paddingHorizontal="10dp"
         android:paddingVertical="8dp"
         android:text="Edit"
-        android:textColor="#5DA9FF"
+        android:textColor="#020C18"
         android:textSize="12sp"/>
 
     <TextView
@@ -71,7 +71,7 @@
         android:paddingHorizontal="10dp"
         android:paddingVertical="8dp"
         android:text="Delete"
-        android:textColor="#E24B4A"
+        android:textColor="#F20A06"
         android:textSize="12sp"/>
 
 </LinearLayout>

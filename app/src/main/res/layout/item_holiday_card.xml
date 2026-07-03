@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="8dp"
-    android:background="@drawable/card_dark"
+    android:background="@color/surface_card"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:padding="16dp">
@@ -20,19 +19,19 @@
             android:id="@+id/tvHolidayName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_on_surface"
             android:textSize="14sp"
             android:textStyle="bold"
-            tools:text="Independence Day"/>
+            tools:text="Independence Day" />
 
         <TextView
             android:id="@+id/tvHolidayDate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:textColor="#90A6BD"
+            android:textColor="#000000"
             android:textSize="12sp"
-            tools:text="2026-08-15"/>
+            tools:text="2026-08-15" />
 
     </LinearLayout>
 
@@ -45,7 +44,7 @@
         android:paddingHorizontal="10dp"
         android:paddingVertical="8dp"
         android:text="Delete"
-        android:textColor="#E24B4A"
-        android:textSize="12sp"/>
+        android:textColor="#F00D0A"
+        android:textSize="12sp" />
 
 </LinearLayout>

@@ -105,8 +105,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="@drawable/card_dark"
-                android:paddingBottom="24dp">
+                android:background="@drawable/card_list_surface"
+                android:clipToOutline="true"
+                android:clipChildren="true"
+                android:paddingBottom="18dp">
 
                 <TextView
                     android:id="@+id/tvEmptyMsg"
@@ -115,7 +117,7 @@
                     android:layout_marginTop="48dp"
                     android:gravity="center"
                     android:text="No students found"
-                    android:textColor="#90A6BD"
+                    android:textColor="#FFFFFF"
                     android:textSize="14sp"
                     android:visibility="gone"/>
 
