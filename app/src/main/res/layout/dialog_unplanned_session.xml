@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#10141F"
+    android:padding="24dp">
+
+    <EditText
+        android:id="@+id/etSubject"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginBottom="14dp"
+        android:background="@drawable/edittext_dark"
+        android:hint="Subject"
+        android:imeOptions="actionNext"
+        android:inputType="text"
+        android:paddingHorizontal="18dp"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#708090"/>
+
+    <EditText
+        android:id="@+id/etBatch"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginBottom="14dp"
+        android:background="@drawable/edittext_dark"
+        android:hint="Batch"
+        android:imeOptions="actionNext"
+        android:inputType="text"
+        android:paddingHorizontal="18dp"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#708090"/>
+
+    <EditText
+        android:id="@+id/etWindow"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginBottom="14dp"
+        android:background="@drawable/edittext_dark"
+        android:hint="Window (minutes)"
+        android:imeOptions="actionNext"
+        android:inputType="number"
+        android:paddingHorizontal="18dp"
+        android:text="10"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#708090"/>
+
+    <EditText
+        android:id="@+id/etReason"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@drawable/edittext_dark"
+        android:hint="Reason (optional)"
+        android:imeOptions="actionDone"
+        android:inputType="text"
+        android:paddingHorizontal="18dp"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#708090"/>
+
+</LinearLayout>

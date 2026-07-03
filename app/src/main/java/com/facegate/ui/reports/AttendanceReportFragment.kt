@@ -99,12 +99,7 @@ class AttendanceReportFragment : Fragment() {
                         periodsByDate  = stats.periodsByDate,
                     )
                 } else {
-                    // Clear any lingering month calendar
-                    binding.classBreakdownContainer?.let { c ->
-                        (c.parent as? ViewGroup)
-                            ?.findViewWithTag<View>("monthCalendar")
-                            ?.let { (c.parent as ViewGroup).removeView(it) }
-                    }
+                    binding.monthCalendarCard.visibility = View.GONE
                 }
 
                 buildBatchFilterTabs(stats.batches, stats.selectedBatch)
@@ -133,20 +128,9 @@ class AttendanceReportFragment : Fragment() {
         totalStudents : Int,
         periodsByDate : Map<String, List<PeriodSummary>>,
     ) {
-        val container = binding.classBreakdownContainer?.parent as? ViewGroup ?: return
-
-        container.findViewWithTag<View>("monthCalendar")?.let { container.removeView(it) }
-
-        val calendarCard = androidx.cardview.widget.CardView(requireContext()).apply {
-            tag = "monthCalendar"
-            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).apply { bottomMargin = dpI(16) }
-            setContentPadding(dpI(16), dpI(16), dpI(16), dpI(16))
-            radius        = dpI(16).toFloat()
-            cardElevation = dpI(1).toFloat()
-            setCardBackgroundColor(Color.parseColor("#1A2436"))
-        }
-
-        val inner = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
+        binding.monthCalendarCard.visibility = View.VISIBLE
+        val inner = binding.monthCalendarContent
+        inner.removeAllViews()
 
         // Day-of-week header
         val dayNames = listOf("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")
@@ -276,12 +260,6 @@ class AttendanceReportFragment : Fragment() {
         }
         inner.addView(legendRow)
         inner.addView(hint)
-
-        calendarCard.addView(inner)
-
-        val breakdownCard = binding.classBreakdownContainer?.parent as? View
-        val insertIdx = container.indexOfChild(breakdownCard).coerceAtLeast(0)
-        container.addView(calendarCard, insertIdx)
     }
 
     /**
@@ -323,34 +301,12 @@ class AttendanceReportFragment : Fragment() {
     // ── Batch filter tabs ─────────────────────────────────────────────────────
 
     private fun buildBatchFilterTabs(batches: List<String>, selected: String?) {
-        val container = binding.classBreakdownContainer ?: return
-        val batchRow  = (container.parent as? android.view.ViewGroup)
-            ?.findViewWithTag<android.widget.HorizontalScrollView>("batchFilter")
-            ?: createBatchRow(container)
-
-        val chipRow = batchRow.getChildAt(0) as? android.widget.LinearLayout ?: return
+        val chipRow = binding.batchFilterRow
         chipRow.removeAllViews()
         chipRow.addView(batchChip("All batches", selected == null) { viewModel.filterByBatch(null) })
         batches.forEach { batch ->
             chipRow.addView(batchChip(batch, selected == batch) { viewModel.filterByBatch(batch) })
         }
-    }
-
-    private fun createBatchRow(anchor: android.view.View): android.widget.HorizontalScrollView {
-        val chipRow = android.widget.LinearLayout(requireContext()).apply {
-            orientation = android.widget.LinearLayout.HORIZONTAL
-        }
-        val scroll = android.widget.HorizontalScrollView(requireContext()).apply {
-            tag = "batchFilter"
-            layoutParams = android.widget.LinearLayout.LayoutParams(MATCH, WRAP)
-                .apply { bottomMargin = dpI(12) }
-            addView(chipRow)
-        }
-        (anchor.parent as? android.view.ViewGroup)?.let { parent ->
-            val idx = parent.indexOfChild(anchor)
-            if (idx >= 0) parent.addView(scroll, (idx - 1).coerceAtLeast(0))
-        }
-        return scroll
     }
 
     private fun batchChip(label: String, selected: Boolean, onClick: () -> Unit) =

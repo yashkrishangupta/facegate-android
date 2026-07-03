@@ -30,38 +30,69 @@
             android:gravity="center"
             android:background="@drawable/badge_blue"
             android:clickable="true"
-            android:focusable="true"
-            android:layout_marginEnd="14dp"/>
+            android:focusable="true"/>
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Manual Attendance"
+            android:layout_weight="1"
+            android:text="Manual Attendnace"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="@color/text_on_surface"/>
+            android:textColor="@color/text_on_surface"
+            android:layout_marginStart="14dp"/>
 
     </LinearLayout>
+
+    <!-- DAY FILTER (today + past 6 days) -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#0D1727"
+        android:scrollbars="none">
+        <LinearLayout
+            android:id="@+id/dayTabRow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="4dp"/>
+    </HorizontalScrollView>
+
+    <!-- SESSION FILTER -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#111C30"
+        android:scrollbars="none">
+        <LinearLayout
+            android:id="@+id/sessionTabRow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="8dp"/>
+    </HorizontalScrollView>
 
     <!-- CLASS TABS -->
     <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="#0D1727"
-        android:elevation="2dp">
-
+        android:scrollbars="none">
         <LinearLayout
             android:id="@+id/classTabRow"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:padding="10dp"/>
-
     </HorizontalScrollView>
 
+    <!-- STUDENT LIST -->
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -69,72 +100,32 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- SEARCH -->
             <LinearLayout
+                android:id="@+id/listCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/edittext_dark"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:layout_marginBottom="14dp"
-                android:padding="12dp">
+                android:orientation="vertical"
+                android:background="@drawable/card_dark"
+                android:paddingBottom="24dp">
 
-                <ImageView
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:src="@android:drawable/ic_menu_search"
-                    app:tint="#90A6BD"
-                    android:contentDescription="Search"/>
-
-                <EditText
-                    android:id="@+id/etSearch"
+                <TextView
+                    android:id="@+id/tvEmptyMsg"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:hint="Search student..."
-                    android:textColorHint="#5A7A9A"
-                    android:textColor="#FFFFFF"
-                    android:background="@null"
-                    android:inputType="text"
-                    android:textSize="14sp"/>
-
-            </LinearLayout>
-
-            <!-- STUDENT LIST CARD -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="#1A2436"
-                app:strokeColor="#2F4E73"
-                app:strokeWidth="1dp">
+                    android:layout_marginTop="48dp"
+                    android:gravity="center"
+                    android:text="No students found"
+                    android:textColor="#90A6BD"
+                    android:textSize="14sp"
+                    android:visibility="gone"/>
 
                 <LinearLayout
+                    android:id="@+id/studentListCol"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:orientation="vertical"/>
 
-                    <TextView
-                        android:id="@+id/tvEmptyMsg"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center"
-                        android:padding="48dp"
-                        android:text="No students found"
-                        android:textColor="#90A6BD"
-                        android:textSize="14sp"
-                        android:visibility="gone"/>
-
-                    <LinearLayout
-                        android:id="@+id/studentListCol"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"/>
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
 
         </LinearLayout>
     </ScrollView>

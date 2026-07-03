@@ -325,6 +325,42 @@
 
             </LinearLayout>
 
+            <!-- MONTH CALENDAR HEATMAP (month view only) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/monthCalendarCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="#1A2436"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="1dp"
+                app:contentPadding="16dp">
+
+                <LinearLayout
+                    android:id="@+id/monthCalendarContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"/>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- BATCH FILTER CHIPS -->
+            <HorizontalScrollView
+                android:id="@+id/batchFilterScroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/batchFilterRow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"/>
+
+            </HorizontalScrollView>
+
             <!-- CLASS BREAKDOWN SECTION -->
             <TextView
                 android:layout_width="wrap_content"
@@ -335,8 +371,6 @@
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.04"/>
-
-
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"

@@ -38,10 +38,6 @@
             app:destination="@id/timetableSetupFragment" />
 
         <action
-            android:id="@+id/action_dashboard_to_holidaySetup"
-            app:destination="@id/holidaySetupFragment" />
-
-        <action
             android:id="@+id/action_dashboard_to_changesLog"
             app:destination="@id/changesLogFragment" />
 
@@ -79,9 +75,6 @@
             app:argType="integer"
             android:defaultValue="10" />
 
-        <!-- Epoch ms of the SCHEDULED start time (from TimetableEntity).
-             Window counts from here, not from when the Start button was pressed.
-             0 = unplanned session (falls back to current time). -->
         <argument
             android:name="scheduledStartTimeMs"
             app:argType="long"
@@ -156,28 +149,25 @@
     <fragment
         android:id="@+id/timetableSetupFragment"
         android:name="com.facegate.ui.admin.TimetableSetupFragment"
-        android:label="Timetable" />
+        android:label="Timetable"
+        tools:layout="@layout/fragment_timetable_setup" />
 
     <!-- ========================= Changes Log ========================= -->
 
     <fragment
         android:id="@+id/changesLogFragment"
         android:name="com.facegate.ui.admin.ChangesLogFragment"
-        android:label="Changes Log" />
+        android:label="Changes Log"
+        tools:layout="@layout/fragment_changes_log" />
 
-    <!-- ========================= Holiday Setup ========================= -->
-
-    <fragment
-        android:id="@+id/holidaySetupFragment"
-        android:name="com.facegate.ui.admin.HolidaySetupFragment"
-        android:label="Holiday Setup" />
 
     <!-- ========================= Today's Schedule ========================= -->
 
     <fragment
         android:id="@+id/todayScheduleFragment"
         android:name="com.facegate.ui.schedule.TodayScheduleFragment"
-        android:label="Today's Schedule">
+        android:label="Today's Schedule"
+        tools:layout="@layout/fragment_today_schedule">
 
         <action
             android:id="@+id/action_schedule_to_attendance"

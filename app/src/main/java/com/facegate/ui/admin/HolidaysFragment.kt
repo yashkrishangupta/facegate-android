@@ -3,107 +3,46 @@ package com.facegate.ui.admin
 import android.app.AlertDialog
 import android.app.DatePickerDialog
 import android.graphics.Color
-import android.graphics.Typeface
 import android.os.Bundle
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.*
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import com.facegate.databinding.DialogHolidayNameBinding
+import com.facegate.databinding.FragmentHolidaysBinding
+import com.facegate.databinding.ItemHolidayCardBinding
 import com.facegate.storage.entity.HolidayEntity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @AndroidEntryPoint
 class HolidaysFragment : Fragment() {
 
+    private var _binding: FragmentHolidaysBinding? = null
+    private val binding get() = _binding!!
+
     private val viewModel: HolidaySetupViewModel by viewModels()
-    private lateinit var listContainer: LinearLayout
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View {
-        val root = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#F5F7FA"))
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            )
-        }
-
-        // ── Top bar ────────────────────────────────────────────────────────
-        val topBar = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity     = Gravity.CENTER_VERTICAL
-            setPadding(32, 60, 32, 16)
-        }
-        val btnBack = TextView(requireContext()).apply {
-            text     = "←"
-            textSize = 22f
-            setTextColor(Color.parseColor("#1D9E75"))
-            setOnClickListener { findNavController().navigateUp() }
-        }
-        val tvTitle = TextView(requireContext()).apply {
-            text     = "  Holidays"
-            textSize = 20f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#1A202C"))
-        }
-        topBar.addView(btnBack)
-        topBar.addView(tvTitle)
-        root.addView(topBar)
-
-        val tvSub = TextView(requireContext()).apply {
-            text     = "Attendance is not recorded on holiday dates."
-            textSize = 13f
-            setTextColor(Color.parseColor("#888780"))
-            setPadding(32, 0, 32, 16)
-        }
-        root.addView(tvSub)
-
-        // ── List ───────────────────────────────────────────────────────────
-        val scroll = ScrollView(requireContext()).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f,
-            )
-        }
-        listContainer = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(24, 8, 24, 24)
-        }
-        scroll.addView(listContainer)
-        root.addView(scroll)
-
-        // ── Add Holiday button ─────────────────────────────────────────────
-        val btnAdd = TextView(requireContext()).apply {
-            text     = "+ Add Holiday"
-            textSize = 15f
-            gravity  = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            setBackgroundColor(Color.parseColor("#1D9E75"))
-            setPadding(0, 32, 0, 32)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            )
-            setOnClickListener { showAddHolidayDialog() }
-        }
-        root.addView(btnAdd)
-
-        return root
+        _binding = FragmentHolidaysBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.btnBack.setOnClickListener { findNavController().navigateUp() }
+        binding.btnAddHoliday.setOnClickListener { showAddHolidayDialog() }
         observeHolidays()
     }
 
@@ -112,7 +51,12 @@ class HolidaysFragment : Fragment() {
         viewModel.loadAll()
     }
 
-    // ── Observe holidays ───────────────────────────────────────────────────────
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+    }
+
+    // ── Observe holidays ─────────────────────────────────────────────────────
 
     private fun observeHolidays() {
         lifecycleScope.launch {
@@ -122,23 +66,19 @@ class HolidaysFragment : Fragment() {
         }
     }
 
-    // ── Build list ─────────────────────────────────────────────────────────────
+    // ── Build list ────────────────────────────────────────────────────────────
 
     private fun buildList(holidays: List<HolidayEntity>) {
-        listContainer.removeAllViews()
+        binding.listContainer.removeAllViews()
 
         if (holidays.isEmpty()) {
-            val empty = TextView(requireContext()).apply {
-                text     = "No holidays added yet"
-                textSize = 14f
-                gravity  = Gravity.CENTER
-                setTextColor(Color.parseColor("#888780"))
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                ).apply { topMargin = 64 }
-            }
-            listContainer.addView(empty)
+            val itemBinding = ItemHolidayCardBinding.inflate(
+                LayoutInflater.from(requireContext()), binding.listContainer, false
+            )
+            itemBinding.tvHolidayName.text = "No holidays added yet"
+            itemBinding.tvHolidayDate.visibility = View.GONE
+            itemBinding.btnDelete.visibility = View.GONE
+            binding.listContainer.addView(itemBinding.root)
             return
         }
 
@@ -146,66 +86,38 @@ class HolidaysFragment : Fragment() {
 
         holidays.forEach { holiday ->
             val isPast = holiday.date < today
-            val card   = buildHolidayCard(holiday, isPast)
-            listContainer.addView(card)
+            binding.listContainer.addView(buildHolidayCard(holiday, isPast))
         }
     }
 
-    // ── Holiday card ───────────────────────────────────────────────────────────
+    // ── Holiday card ──────────────────────────────────────────────────────────
 
-    private fun buildHolidayCard(holiday: HolidayEntity, isPast: Boolean): LinearLayout {
-        val card = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity     = Gravity.CENTER_VERTICAL
-            setBackgroundColor(Color.WHITE)
-            setPadding(24, 20, 24, 20)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { bottomMargin = 8 }
+    private fun buildHolidayCard(holiday: HolidayEntity, isPast: Boolean): View {
+        val itemBinding = ItemHolidayCardBinding.inflate(
+            LayoutInflater.from(requireContext()), binding.listContainer, false
+        )
+
+        val textColor = if (isPast) "#7A8799" else "#FFFFFF"
+        itemBinding.tvHolidayName.text = holiday.name
+        itemBinding.tvHolidayName.setTextColor(Color.parseColor(textColor))
+        itemBinding.tvHolidayDate.text = holiday.date
+        itemBinding.tvHolidayDate.setTextColor(
+            Color.parseColor(if (isPast) "#5B6B84" else "#90A6BD")
+        )
+
+        itemBinding.btnDelete.setOnClickListener {
+            AlertDialog.Builder(requireContext())
+                .setTitle("Delete Holiday")
+                .setMessage("Remove ${holiday.name}?")
+                .setPositiveButton("Delete") { _, _ -> viewModel.deleteHoliday(holiday.date) }
+                .setNegativeButton("Cancel", null)
+                .show()
         }
 
-        val textColor = if (isPast) "#AAAAAA" else "#1A202C"
-
-        val info = LinearLayout(requireContext()).apply {
-            orientation  = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-        val tvName = TextView(requireContext()).apply {
-            text     = holiday.name
-            textSize = 14f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor(textColor))
-        }
-        val tvDate = TextView(requireContext()).apply {
-            text     = holiday.date
-            textSize = 12f
-            setTextColor(Color.parseColor(if (isPast) "#CCCCCC" else "#888780"))
-        }
-        info.addView(tvName)
-        info.addView(tvDate)
-
-        val btnDelete = TextView(requireContext()).apply {
-            text     = "Delete"
-            textSize = 12f
-            setTextColor(Color.parseColor("#E53935"))
-            setPadding(16, 8, 8, 8)
-            setOnClickListener {
-                AlertDialog.Builder(requireContext())
-                    .setTitle("Delete Holiday")
-                    .setMessage("Remove ${holiday.name}?")
-                    .setPositiveButton("Delete") { _, _ -> viewModel.deleteHoliday(holiday.date) }
-                    .setNegativeButton("Cancel", null)
-                    .show()
-            }
-        }
-
-        card.addView(info)
-        card.addView(btnDelete)
-        return card
+        return itemBinding.root
     }
 
-    // ── Add holiday dialog ─────────────────────────────────────────────────────
+    // ── Add holiday dialog ───────────────────────────────────────────────────
 
     private fun showAddHolidayDialog() {
         val cal = Calendar.getInstance()
@@ -222,15 +134,12 @@ class HolidaysFragment : Fragment() {
     }
 
     private fun showNameDialog(dateStr: String) {
-        val etName = EditText(requireContext()).apply {
-            hint = "Holiday name"
-            setPadding(48, 32, 48, 16)
-        }
+        val dialogBinding = DialogHolidayNameBinding.inflate(LayoutInflater.from(requireContext()))
         AlertDialog.Builder(requireContext())
             .setTitle("Holiday name for $dateStr")
-            .setView(etName)
+            .setView(dialogBinding.root)
             .setPositiveButton("Save") { _, _ ->
-                val name = etName.text.toString().trim()
+                val name = dialogBinding.etHolidayName.text.toString().trim()
                 if (name.isNotEmpty()) {
                     viewModel.addHoliday(HolidayEntity(
                         date      = dateStr,

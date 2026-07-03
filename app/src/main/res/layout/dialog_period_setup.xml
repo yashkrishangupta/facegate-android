@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fillViewport="true"
+    android:background="#10141F">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Period"
+            android:textColor="#D7E4F5"
+            android:textStyle="bold"
+            android:textSize="13sp"/>
+
+        <Spinner
+            android:id="@+id/spinnerPeriod"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="18dp"
+            android:background="@drawable/edittext_dark"
+            android:padding="12dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Subject"
+            android:textColor="#D7E4F5"
+            android:textStyle="bold"/>
+
+        <EditText
+            android:id="@+id/etSubject"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="18dp"
+            android:background="@drawable/edittext_dark"
+            android:hint="Subject"
+            android:imeOptions="actionNext"
+            android:inputType="text"
+            android:paddingHorizontal="18dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#708090"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Batch"
+            android:textColor="#D7E4F5"
+            android:textStyle="bold"/>
+
+        <EditText
+            android:id="@+id/etBatch"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="18dp"
+            android:background="@drawable/edittext_dark"
+            android:hint="Batch (e.g. 9-A)"
+            android:imeOptions="actionNext"
+            android:inputType="text"
+            android:paddingHorizontal="18dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#708090"/>
+
+        <TextView
+            android:id="@+id/tvTime"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="18dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:paddingVertical="12dp"
+            android:text="Time: 8:00"
+            android:textColor="#5DA9FF"
+            android:textSize="14sp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Window (minutes)"
+            android:textColor="#D7E4F5"
+            android:textStyle="bold"/>
+
+        <EditText
+            android:id="@+id/etWindow"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/edittext_dark"
+            android:hint="Window minutes (default 10)"
+            android:imeOptions="actionDone"
+            android:inputType="number"
+            android:paddingHorizontal="18dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#708090"/>
+
+    </LinearLayout>
+
+</ScrollView>

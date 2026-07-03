@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#10141F"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Holiday Name"
+        android:textColor="#D7E4F5"
+        android:textStyle="bold"/>
+
+    <EditText
+        android:id="@+id/etHolidayName"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/edittext_dark"
+        android:hint="e.g. Independence Day"
+        android:imeOptions="actionDone"
+        android:inputType="text"
+        android:paddingHorizontal="18dp"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#708090"/>
+
+</LinearLayout>

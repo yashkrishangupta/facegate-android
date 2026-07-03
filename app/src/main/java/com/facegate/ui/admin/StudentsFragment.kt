@@ -1,23 +1,20 @@
 package com.facegate.ui.admin
 
 import android.graphics.Color
-import android.graphics.Typeface
 import android.os.Bundle
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.facegate.R
+import com.facegate.databinding.DialogStudentEditBinding
 import com.facegate.databinding.FragmentStudentBinding
+import com.facegate.databinding.ItemEmptyMessageBinding
+import com.facegate.databinding.ItemStudentRowBinding
 import com.facegate.storage.entity.StudentEntity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -81,7 +78,7 @@ class StudentsFragment : Fragment() {
     private fun observeErrors() {
         lifecycleScope.launch {
             viewModel.errorEvents.collect { message ->
-                Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(requireContext(), message, android.widget.Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -93,95 +90,30 @@ class StudentsFragment : Fragment() {
         index   : Int,
         total   : Int,
     ) {
-        val row = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity     = Gravity.CENTER_VERTICAL
-            setPadding(dp(14), dp(10), dp(14), dp(10))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            )
-        }
+        val itemBinding = ItemStudentRowBinding.inflate(
+            LayoutInflater.from(requireContext()), binding.studentListContainer, false
+        )
 
-        // Avatar — initials
         val initials = student.name
             .split(" ")
             .mapNotNull { it.firstOrNull()?.toString() }
             .take(2)
             .joinToString("")
 
-        val avatar = TextView(requireContext()).apply {
-            text      = initials
-            textSize  = 13f
-            typeface  = Typeface.DEFAULT_BOLD
-            gravity   = Gravity.CENTER
-            setTextColor(Color.parseColor("#1D9E75"))
-            setBackgroundResource(R.drawable.chip_active)
-            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginEnd = dp(12) }
-        }
+        itemBinding.tvAvatar.text = initials
+        itemBinding.tvName.text = student.name
+        itemBinding.tvSubInfo.text = "${student.studentId}  •  Class ${student.studentClass}"
+        itemBinding.btnEdit.setOnClickListener { showEditDialog(student) }
+        itemBinding.btnDelete.setOnClickListener { confirmDelete(student) }
 
-        // Info column
-        val infoCol = LinearLayout(requireContext()).apply {
-            orientation  = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-
-        val nameText = TextView(requireContext()).apply {
-            text     = student.name
-            textSize = 14f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#1A202C"))
-        }
-
-        val subText = TextView(requireContext()).apply {
-            text     = "${student.studentId}  •  Class ${student.studentClass}"
-            textSize = 11f
-            setTextColor(Color.parseColor("#888780"))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = dp(4) }
-        }
-
-        infoCol.addView(nameText)
-        infoCol.addView(subText)
-
-        // Edit button
-        val editBtn = TextView(requireContext()).apply {
-            text     = "✎"
-            textSize = 16f
-            gravity  = Gravity.CENTER
-            setTextColor(Color.parseColor("#1D9E75"))
-            layoutParams = LinearLayout.LayoutParams(dp(32), dp(32)).apply { marginEnd = dp(4) }
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { showEditDialog(student) }
-        }
-
-        // Delete button
-        val deleteBtn = TextView(requireContext()).apply {
-            text     = "✕"
-            textSize = 14f
-            gravity  = Gravity.CENTER
-            setTextColor(Color.parseColor("#D85A30"))
-            layoutParams = LinearLayout.LayoutParams(dp(32), dp(32))
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { confirmDelete(student) }
-        }
-
-        row.addView(avatar)
-        row.addView(infoCol)
-        row.addView(editBtn)
-        row.addView(deleteBtn)
-        binding.studentListContainer.addView(row)
+        binding.studentListContainer.addView(itemBinding.root)
 
         // Divider except last
         if (index < total - 1) {
             val divider = View(requireContext()).apply {
                 setBackgroundColor(Color.parseColor("#0F000000"))
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, 1
+                layoutParams = ViewGroup.MarginLayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, 1
                 ).apply { marginStart = dp(14); marginEnd = dp(14) }
             }
             binding.studentListContainer.addView(divider)
@@ -191,64 +123,18 @@ class StudentsFragment : Fragment() {
     // ── Edit dialog ──────────────────────────────────────────────────────────
 
     private fun showEditDialog(student: StudentEntity) {
-        val ctx = requireContext()
-        val padding = (16 * resources.displayMetrics.density).toInt()
+        val dialogBinding = DialogStudentEditBinding.inflate(LayoutInflater.from(requireContext()))
+        dialogBinding.etRollNo.setText(student.studentId)
+        dialogBinding.etName.setText(student.name)
+        dialogBinding.etClass.setText(student.studentClass)
 
-        val container = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(padding * 2, padding, padding * 2, padding)
-        }
-
-        val etRollNo = EditText(ctx).apply {
-            hint = "Roll number"
-            setText(student.studentId)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { bottomMargin = padding }
-        }
-
-        val etName = EditText(ctx).apply {
-            hint = "Full name"
-            setText(student.name)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { bottomMargin = padding }
-        }
-
-        val etClass = EditText(ctx).apply {
-            hint = "Class (e.g. 10A)"
-            setText(student.studentClass)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            )
-        }
-
-        // Informational note so admin knows face data is safe
-        val tvNote = TextView(ctx).apply {
-            text     = "ℹ Face embedding is preserved — attendance history follows the new roll number."
-            textSize = 11f
-            setTextColor(Color.parseColor("#888780"))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = padding }
-        }
-
-        container.addView(etRollNo)
-        container.addView(etName)
-        container.addView(etClass)
-        container.addView(tvNote)
-
-        AlertDialog.Builder(ctx)
+        AlertDialog.Builder(requireContext())
             .setTitle("Edit Student")
-            .setView(container)
+            .setView(dialogBinding.root)
             .setPositiveButton("Save") { _, _ ->
-                val newRollNo = etRollNo.text.toString().trim()
-                val newName   = etName.text.toString().trim()
-                val newClass  = etClass.text.toString().trim()
+                val newRollNo = dialogBinding.etRollNo.text.toString().trim()
+                val newName   = dialogBinding.etName.text.toString().trim()
+                val newClass  = dialogBinding.etClass.text.toString().trim()
                 if (newRollNo.isNotEmpty() && newName.isNotEmpty()) {
                     viewModel.updateStudentRollNo(student.studentId, newRollNo, newName, newClass)
                 }
@@ -274,17 +160,11 @@ class StudentsFragment : Fragment() {
         (value * resources.displayMetrics.density).toInt()
 
     private fun showMessage(msg: String) {
-        val tv = TextView(requireContext()).apply {
-            text      = msg
-            textSize  = 14f
-            gravity   = Gravity.CENTER
-            setTextColor(Color.parseColor("#888780"))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = dp(32); bottomMargin = dp(32) }
-        }
-        binding.studentListContainer.addView(tv)
+        val itemBinding = ItemEmptyMessageBinding.inflate(
+            LayoutInflater.from(requireContext()), binding.studentListContainer, false
+        )
+        itemBinding.tvMessage.text = msg
+        binding.studentListContainer.addView(itemBinding.root)
     }
 
     // ── Click listeners ──────────────────────────────────────────────────────

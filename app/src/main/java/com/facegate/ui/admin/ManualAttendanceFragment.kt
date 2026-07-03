@@ -3,178 +3,48 @@ package com.facegate.ui.admin
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import com.facegate.databinding.FragmentManualAttendanceBinding
+import com.facegate.databinding.ItemFilterTabBinding
+import com.facegate.databinding.ItemManualAttendanceRowBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class ManualAttendanceFragment : Fragment() {
 
-    private val viewModel: ManualAttendanceViewModel by viewModels()
+    private var _binding: FragmentManualAttendanceBinding? = null
+    private val binding get() = _binding!!
 
-    private lateinit var dayTabRow      : LinearLayout
-    private lateinit var classTabRow    : LinearLayout
-    private lateinit var sessionTabRow  : LinearLayout
-    private lateinit var studentListCol : LinearLayout
-    private lateinit var tvEmptyMsg     : TextView
+    private val viewModel: ManualAttendanceViewModel by viewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View {
-        val root = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundResource(com.facegate.R.drawable.bg_main_gradient)
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            )
-        }
-
-        // ── Top bar ──────────────────────────────────────────────────────────
-        val topBar = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity     = Gravity.CENTER_VERTICAL
-            setPadding(dp(20), dp(14), dp(20), dp(14))
-            setBackgroundColor(Color.parseColor("#0D1727"))
-            elevation = dp(6).toFloat()
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            )
-        }
-
-        val btnBack = TextView(requireContext()).apply {
-            text     = "← Back"
-            textSize = 13f
-            gravity  = Gravity.CENTER
-            setTextColor(Color.parseColor("#5DA9FF"))
-            setPadding(dp(14), 0, dp(14), 0)
-            setBackgroundResource(com.facegate.R.drawable.badge_blue)
-            isClickable = true
-            isFocusable = true
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, dp(36)
-            ).apply { marginEnd = dp(14) }
-            setOnClickListener { findNavController().navigateUp() }
-        }
-
-        val tvTitle = TextView(requireContext()).apply {
-            text     = "Manual Attendance"
-            textSize = 17f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE)
-        }
-
-        topBar.addView(btnBack)
-        topBar.addView(tvTitle)
-        root.addView(topBar)
-
-        // ── Day filter row (today + past 6 days — manual edits limited to 1 week) ──
-        val dayScroll = HorizontalScrollView(requireContext()).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            )
-            setBackgroundColor(Color.parseColor("#0D1727"))
-        }
-        dayTabRow = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(16), dp(10), dp(16), dp(4))
-        }
-        dayScroll.addView(dayTabRow)
-        root.addView(dayScroll)
-
-        // ── Session filter row ─────────────────────────────────────────────────
-        val sessionScroll = HorizontalScrollView(requireContext()).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            )
-            setBackgroundColor(Color.parseColor("#111C30"))
-        }
-
-        sessionTabRow = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(16), dp(8), dp(16), dp(8))
-        }
-        sessionScroll.addView(sessionTabRow)
-        root.addView(sessionScroll)
-
-        // ── Class tabs ────────────────────────────────────────────────────────
-        val tabScroll = HorizontalScrollView(requireContext()).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            )
-            setBackgroundColor(Color.parseColor("#0D1727"))
-        }
-
-        classTabRow = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(16), dp(10), dp(16), dp(10))
-        }
-        tabScroll.addView(classTabRow)
-        root.addView(tabScroll)
-
-        // ── Student list ──────────────────────────────────────────────────────
-        val scrollView = ScrollView(requireContext()).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.MATCH_PARENT,
-            )
-        }
-
-        val listCard = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundResource(com.facegate.R.drawable.card_dark)
-            setPadding(0, 0, 0, dp(24))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { setMargins(dp(16), dp(16), dp(16), dp(16)) }
-        }
-
-        tvEmptyMsg = TextView(requireContext()).apply {
-            text       = "No students found"
-            textSize   = 14f
-            gravity    = Gravity.CENTER
-            visibility = View.GONE
-            setTextColor(Color.parseColor("#90A6BD"))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = dp(48) }
-        }
-
-        studentListCol = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-
-        listCard.addView(tvEmptyMsg)
-        listCard.addView(studentListCol)
-        scrollView.addView(listCard)
-        root.addView(scrollView)
-
-        return root
+        _binding = FragmentManualAttendanceBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.btnBack.setOnClickListener { findNavController().navigateUp() }
         observeState()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 
     private fun observeState() {
@@ -182,20 +52,23 @@ class ManualAttendanceFragment : Fragment() {
             viewModel.state.collect { state ->
                 when (state) {
                     is ManualAttendanceState.Loading -> {
-                        dayTabRow.removeAllViews()
-                        classTabRow.removeAllViews()
-                        studentListCol.removeAllViews()
-                        tvEmptyMsg.visibility = View.GONE
+                        binding.dayTabRow.removeAllViews()
+                        binding.sessionTabRow.removeAllViews()
+                        binding.classTabRow.removeAllViews()
+                        binding.studentListCol.removeAllViews()
+                        binding.tvEmptyMsg.visibility = View.GONE
                     }
                     is ManualAttendanceState.Empty -> {
-                        dayTabRow.removeAllViews()
-                        classTabRow.removeAllViews()
-                        studentListCol.removeAllViews()
-                        tvEmptyMsg.text       = "No students enrolled yet.\nGo to Students → Enrol to add students."
-                        tvEmptyMsg.visibility = View.VISIBLE
+                        binding.dayTabRow.removeAllViews()
+                        binding.sessionTabRow.removeAllViews()
+                        binding.classTabRow.removeAllViews()
+                        binding.studentListCol.removeAllViews()
+                        binding.tvEmptyMsg.text =
+                            "No students enrolled yet.\nGo to Students → Enrol to add students."
+                        binding.tvEmptyMsg.visibility = View.VISIBLE
                     }
                     is ManualAttendanceState.Loaded -> {
-                        tvEmptyMsg.visibility = View.GONE
+                        binding.tvEmptyMsg.visibility = View.GONE
                         buildDayTabs(state.days, state.selectedDay)
                         buildSessionTabs(state.sessions, state.selectedSession, state.selectedDay.label)
                         buildClassTabs(state.classes, state.selectedClass)
@@ -209,12 +82,13 @@ class ManualAttendanceFragment : Fragment() {
     // ── Day tabs ───────────────────────────────────────────────────────────────
 
     private fun buildDayTabs(days: List<SelectableDay>, selected: SelectableDay) {
-        dayTabRow.removeAllViews()
+        binding.dayTabRow.removeAllViews()
         days.forEach { day ->
-            dayTabRow.addView(buildTab(
-                label      = day.label,
-                isSelected = day.startOfDay == selected.startOfDay,
-                onClick    = { viewModel.selectDay(day) }
+            binding.dayTabRow.addView(buildTab(
+                container   = binding.dayTabRow,
+                label       = day.label,
+                isSelected  = day.startOfDay == selected.startOfDay,
+                onClick     = { viewModel.selectDay(day) }
             ))
         }
     }
@@ -226,7 +100,7 @@ class ManualAttendanceFragment : Fragment() {
         selected: com.facegate.storage.entity.SessionEntity?,
         dayLabel: String,
     ) {
-        sessionTabRow.removeAllViews()
+        binding.sessionTabRow.removeAllViews()
 
         // Defensive de-dupe: if duplicate session rows exist for the same period
         // (same timetable period + subject/batch, started within a minute of each
@@ -243,16 +117,18 @@ class ManualAttendanceFragment : Fragment() {
 
         // "All (selected day)" tab
         val allTab = buildTab(
+            container  = binding.sessionTabRow,
             label      = "All — $dayLabel",
             isSelected = selected == null,
             onClick    = { viewModel.selectSession(null) }
         )
-        sessionTabRow.addView(allTab)
+        binding.sessionTabRow.addView(allTab)
 
         deduped.forEach { session ->
             val timeFmt = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
             val label   = "${session.subject} · ${session.batch} · ${timeFmt.format(java.util.Date(session.startTime))}"
-            sessionTabRow.addView(buildTab(
+            binding.sessionTabRow.addView(buildTab(
+                container  = binding.sessionTabRow,
                 label      = label,
                 isSelected = session.sessionId == selected?.sessionId,
                 onClick    = { viewModel.selectSession(session) }
@@ -260,174 +136,103 @@ class ManualAttendanceFragment : Fragment() {
         }
     }
 
-    private fun buildTab(label: String, isSelected: Boolean, onClick: () -> Unit) =
-        TextView(requireContext()).apply {
+    private fun buildTab(
+        container: LinearLayout,
+        label: String,
+        isSelected: Boolean,
+        onClick: () -> Unit,
+    ): View {
+        val itemBinding = ItemFilterTabBinding.inflate(LayoutInflater.from(requireContext()), container, false)
+        itemBinding.tvTabLabel.apply {
             text     = label
-            textSize = 11f
-            gravity  = Gravity.CENTER
-            typeface = if (isSelected) android.graphics.Typeface.DEFAULT_BOLD
-                       else            android.graphics.Typeface.DEFAULT
-            setPadding(dp(14), dp(7), dp(14), dp(7))
+            typeface = if (isSelected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             setTextColor(
                 if (isSelected) Color.parseColor("#5DA9FF") else Color.parseColor("#90A6BD")
             )
             setBackgroundColor(
                 if (isSelected) Color.parseColor("#1A3A5C") else Color.TRANSPARENT
             )
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { marginEnd = dp(6) }
-            isClickable = true
-            isFocusable = true
             setOnClickListener { onClick() }
         }
+        return itemBinding.root
+    }
 
     // ── Class tabs ────────────────────────────────────────────────────────────
 
     private fun buildClassTabs(classes: List<String>, selectedClass: String?) {
-        classTabRow.removeAllViews()
+        binding.classTabRow.removeAllViews()
         classes.forEach { cls ->
-            val isSelected = cls == selectedClass
-            val tab = TextView(requireContext()).apply {
-                text     = "Class $cls"
-                textSize = 12f
-                typeface = if (isSelected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-                gravity  = Gravity.CENTER
-                setPadding(dp(16), dp(8), dp(16), dp(8))
-                setTextColor(
-                    if (isSelected) Color.parseColor("#5DA9FF") else Color.parseColor("#90A6BD")
-                )
-                setBackgroundColor(
-                    if (isSelected) Color.parseColor("#1A3A5C") else Color.TRANSPARENT
-                )
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                ).apply { marginEnd = dp(8) }
-                isClickable = true
-                isFocusable = true
-                setOnClickListener { viewModel.selectClass(cls) }
-            }
-            classTabRow.addView(tab)
+            binding.classTabRow.addView(buildTab(
+                container  = binding.classTabRow,
+                label      = "Class $cls",
+                isSelected = cls == selectedClass,
+                onClick    = { viewModel.selectClass(cls) }
+            ))
         }
     }
 
     // ── Student rows ──────────────────────────────────────────────────────────
 
     private fun buildStudentList(students: List<StudentWithStatus>, sessionId: String?) {
-        studentListCol.removeAllViews()
+        binding.studentListCol.removeAllViews()
 
         if (students.isEmpty()) {
-            tvEmptyMsg.text       = "No students in this class."
-            tvEmptyMsg.visibility = View.VISIBLE
+            binding.tvEmptyMsg.text       = "No students in this class."
+            binding.tvEmptyMsg.visibility = View.VISIBLE
             return
         }
 
         students.forEachIndexed { index, sws ->
-            val row = LinearLayout(requireContext()).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity     = Gravity.CENTER_VERTICAL
-                setPadding(dp(20), dp(16), dp(20), dp(16))
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                )
-            }
+            val rowBinding = ItemManualAttendanceRowBinding.inflate(
+                LayoutInflater.from(requireContext()), binding.studentListCol, false
+            )
 
-            // Initials avatar
             val initials = sws.student.name
                 .split(" ")
                 .mapNotNull { it.firstOrNull()?.toString() }
                 .take(2).joinToString("")
 
-            val avatar = TextView(requireContext()).apply {
-                text     = initials
-                textSize = 12f
-                typeface = Typeface.DEFAULT_BOLD
-                gravity  = Gravity.CENTER
-                setTextColor(Color.parseColor("#1D9E75"))
-                setBackgroundResource(com.facegate.R.drawable.chip_active)
-                layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(16) }
-            }
+            rowBinding.tvAvatar.text = initials
+            rowBinding.tvName.text = sws.student.name
+            rowBinding.tvStudentId.text = sws.student.studentId
 
-            // Name + ID column
-            val infoCol = LinearLayout(requireContext()).apply {
-                orientation  = LinearLayout.VERTICAL
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            }
-
-            val tvName = TextView(requireContext()).apply {
-                text     = sws.student.name
-                textSize = 14f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.WHITE)
-            }
-
-            val tvId = TextView(requireContext()).apply {
-                text     = sws.student.studentId
-                textSize = 11f
-                setTextColor(Color.parseColor("#90A6BD"))
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                ).apply { topMargin = dp(2) }
-            }
-
-            infoCol.addView(tvName)
-            infoCol.addView(tvId)
-
-            // ── Toggle button: "✓ Present" (tap to mark absent) or "Mark Present" ──
-            val actionBtn = TextView(requireContext()).apply {
-                gravity     = Gravity.CENTER
-                isClickable = true
-                isFocusable = true
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                )
-                if (sws.markedToday) {
-                    // Already present — show green chip, tap to undo
-                    text     = "✓ Present"
-                    textSize = 12f
-                    typeface = Typeface.DEFAULT_BOLD
-                    setTextColor(Color.parseColor("#1D9E75"))
-                    setPadding(dp(12), dp(8), dp(12), dp(8))
-                    setBackgroundResource(com.facegate.R.drawable.chip_active)
-                    setOnClickListener {
-                        viewModel.toggleAttendance(sws.student.studentId)
-                        Toast.makeText(
-                            requireContext(),
-                            "${sws.student.name} marked absent",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                    }
-                } else {
-                    // Not yet marked — show "Mark Present" button
-                    text     = "Mark Present"
-                    textSize = 11f
-                    typeface = Typeface.DEFAULT_BOLD
-                    setTextColor(Color.WHITE)
-                    setPadding(dp(12), dp(8), dp(12), dp(8))
-                    setBackgroundResource(com.facegate.R.drawable.badge_green)
-                    setOnClickListener {
-                        viewModel.toggleAttendance(sws.student.studentId)
-                        Toast.makeText(
-                            requireContext(),
-                            "${sws.student.name} marked present",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                    }
+            val actionBtn: TextView = rowBinding.btnToggleAttendance
+            if (sws.markedToday) {
+                // Already present — show green chip, tap to undo
+                actionBtn.text     = "✓ Present"
+                actionBtn.textSize = 12f
+                actionBtn.typeface = Typeface.DEFAULT_BOLD
+                actionBtn.setTextColor(Color.parseColor("#1D9E75"))
+                actionBtn.setBackgroundResource(com.facegate.R.drawable.chip_active)
+                actionBtn.setOnClickListener {
+                    viewModel.toggleAttendance(sws.student.studentId)
+                    Toast.makeText(
+                        requireContext(),
+                        "${sws.student.name} marked absent",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            } else {
+                // Not yet marked — show "Mark Present" button
+                actionBtn.text     = "Mark Present"
+                actionBtn.textSize = 11f
+                actionBtn.typeface = Typeface.DEFAULT_BOLD
+                actionBtn.setTextColor(Color.WHITE)
+                actionBtn.setBackgroundResource(com.facegate.R.drawable.badge_green)
+                actionBtn.setOnClickListener {
+                    viewModel.toggleAttendance(sws.student.studentId)
+                    Toast.makeText(
+                        requireContext(),
+                        "${sws.student.name} marked present",
+                        Toast.LENGTH_SHORT,
+                    ).show()
                 }
             }
 
-            row.addView(avatar)
-            row.addView(infoCol)
-            row.addView(actionBtn)
-            studentListCol.addView(row)
+            binding.studentListCol.addView(rowBinding.root)
 
             if (index < students.size - 1) {
-                studentListCol.addView(View(requireContext()).apply {
+                binding.studentListCol.addView(View(requireContext()).apply {
                     setBackgroundColor(Color.parseColor("#1E2E44"))
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT, 1

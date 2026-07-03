@@ -19,25 +19,28 @@
 
         <TextView
             android:id="@+id/btnBack"
-            android:layout_width="36dp"
+            android:layout_width="wrap_content"
             android:layout_height="36dp"
-            android:background="@drawable/logo_circle"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:text="←"
+            android:text="← Back"
             android:textColor="#FFFFFF"
-            android:textSize="22sp"
-            android:textStyle="bold" />
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:gravity="center"
+            android:background="@drawable/badge_blue"
+            android:clickable="true"
+            android:focusable="true"/>
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
+            android:layout_weight="1"
             android:text="Conflict Queue"
-            android:textColor="#1E293B"
-            android:textSize="20sp"
-            android:textStyle="bold" />
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_on_surface"
+            android:layout_marginStart="14dp"/>
 
     </LinearLayout>
 

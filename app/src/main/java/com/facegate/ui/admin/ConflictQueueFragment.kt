@@ -1,19 +1,19 @@
 package com.facegate.ui.admin
 
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import com.facegate.R
 import com.facegate.databinding.FragmentConflictQueueBinding
+import com.facegate.databinding.ItemConflictRowBinding
+import com.facegate.databinding.ItemEmptyMessageBinding
 import com.facegate.storage.entity.ConflictEntity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -94,106 +94,31 @@ class ConflictQueueFragment : Fragment() {
         total: Int,
     ) {
         val container = binding.conflictContainer
+        val itemBinding = ItemConflictRowBinding.inflate(LayoutInflater.from(requireContext()), container, false)
 
-        val rowLayout = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity     = android.view.Gravity.CENTER_VERTICAL
-            setPadding(40, 28, 40, 28)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            )
-        }
-
-        // Avatar — initials from topStudentName
         val initials = conflict.topStudentName
             .split(" ")
-            ?.mapNotNull { it.firstOrNull()?.toString() }
-            ?.take(2)
-            ?.joinToString("") ?: "??"
+            .mapNotNull { it.firstOrNull()?.toString() }
+            .take(2)
+            .joinToString("")
+            .ifEmpty { "??" }
 
-        val avatar = TextView(requireContext()).apply {
-            text     = initials
-            textSize = 13f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            gravity  = android.view.Gravity.CENTER
-            setTextColor(android.graphics.Color.parseColor("#854F0B"))
-            setBackgroundResource(R.drawable.chip_pending)
-            layoutParams = LinearLayout.LayoutParams(80, 80).apply {
-                marginEnd = 28
-            }
-        }
+        itemBinding.tvAvatar.text = initials
+        itemBinding.tvName.text = conflict.topStudentName
+        itemBinding.tvReason.text =
+            "vs ${conflict.secondStudentName} (${String.format("%.2f", conflict.topScore)})"
+        itemBinding.tvDate.text = SimpleDateFormat("hh:mm a, dd MMM", Locale.getDefault())
+            .format(Date(conflict.timestamp))
+        itemBinding.btnResolve.setOnClickListener { showResolveDialog(conflict) }
 
-        // Info column
-        val infoColumn = LinearLayout(requireContext()).apply {
-            orientation  = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-            )
-        }
-
-        val nameText = TextView(requireContext()).apply {
-            text     = conflict.topStudentName
-            textSize = 14f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setTextColor(android.graphics.Color.parseColor("#1A202C"))
-        }
-
-        // Show both candidates if available
-        val reasonText = TextView(requireContext()).apply {
-            val scoreInfo = "vs ${conflict.secondStudentName} (${String.format("%.2f", conflict.topScore)})"
-            text     = scoreInfo
-            textSize = 11f
-            setTextColor(android.graphics.Color.parseColor("#888780"))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = 4 }
-        }
-
-        val dateText = TextView(requireContext()).apply {
-            text = SimpleDateFormat("hh:mm a, dd MMM", Locale.getDefault())
-                .format(Date(conflict.timestamp))
-            textSize = 11f
-            setTextColor(android.graphics.Color.parseColor("#B4B2A9"))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = 4 }
-        }
-
-        infoColumn.addView(nameText)
-        infoColumn.addView(reasonText)
-        infoColumn.addView(dateText)
-
-        // Resolve button
-        val resolveBtn = TextView(requireContext()).apply {
-            text     = "Resolve"
-            textSize = 11f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            gravity  = android.view.Gravity.CENTER
-            setTextColor(android.graphics.Color.WHITE)
-            setBackgroundResource(R.drawable.icon_brand_bg)
-            setPadding(24, 16, 24, 16)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, 80
-            )
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { showResolveDialog(conflict) }
-        }
-
-        rowLayout.addView(avatar)
-        rowLayout.addView(infoColumn)
-        rowLayout.addView(resolveBtn)
-        container.addView(rowLayout)
+        container.addView(itemBinding.root)
 
         // Divider (except last)
         if (index < total - 1) {
             val divider = View(requireContext()).apply {
-                setBackgroundColor(android.graphics.Color.parseColor("#0F000000"))
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, 1
+                setBackgroundColor(Color.parseColor("#0F000000"))
+                layoutParams = ViewGroup.MarginLayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, 1
                 ).apply { marginStart = 40; marginEnd = 40 }
             }
             container.addView(divider)
@@ -240,17 +165,11 @@ class ConflictQueueFragment : Fragment() {
     }
 
     private fun showEmptyState(message: String) {
-        val tv = TextView(requireContext()).apply {
-            text     = message
-            textSize = 14f
-            gravity  = android.view.Gravity.CENTER
-            setTextColor(android.graphics.Color.parseColor("#888780"))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = 80 }
-        }
-        binding.conflictContainer.addView(tv)
+        val itemBinding = ItemEmptyMessageBinding.inflate(
+            LayoutInflater.from(requireContext()), binding.conflictContainer, false
+        )
+        itemBinding.tvMessage.text = message
+        binding.conflictContainer.addView(itemBinding.root)
     }
 
     private fun setupClickListeners() {
