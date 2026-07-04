@@ -21,6 +21,12 @@ data class DashboardStats(
     val uniquePresentToday : Int = 0,
     val attendancePctToday : Int = 0,
     val totalPeriodsToday  : Int = 0,
+    /** Holidays on/after today (used for the Holidays quick-action subtitle). */
+    val upcomingHolidays   : Int = 0,
+    /** Total periods configured across the whole week's timetable. */
+    val timetablePeriods   : Int = 0,
+    /** Total session overrides ever logged (used for the Changes Log subtitle). */
+    val changesLogged      : Int = 0,
 )
 
 @HiltViewModel
@@ -65,6 +71,11 @@ class AdminDashboardViewModel @Inject constructor(
 
             val pendingConflicts = repository.getUnresolvedConflictCount()
 
+            // ── Quick-action tile counts ────────────────────────────────────
+            val upcomingHolidays = repository.getUpcomingHolidays().size
+            val timetablePeriods = repository.getAllTimetable().size
+            val changesLogged    = repository.getAllOverrides().size
+
             _stats.value = DashboardStats(
                 totalStudents      = totalStudents,
                 periodsConducted   = periodsConducted,
@@ -73,6 +84,9 @@ class AdminDashboardViewModel @Inject constructor(
                 uniquePresentToday = uniquePresent,
                 attendancePctToday = attendancePct,
                 totalPeriodsToday  = totalPeriods,
+                upcomingHolidays   = upcomingHolidays,
+                timetablePeriods   = timetablePeriods,
+                changesLogged      = changesLogged,
             )
         }
     }

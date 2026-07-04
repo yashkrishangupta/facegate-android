@@ -675,6 +675,7 @@
                             android:textColor="@color/text_on_surface"
                             android:layout_marginTop="8dp"/>
                         <TextView
+                            android:id="@+id/tvTileHolidaysSub"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Calendar"
@@ -727,6 +728,7 @@
                             android:textColor="@color/text_on_surface"
                             android:layout_marginTop="8dp"/>
                         <TextView
+                            android:id="@+id/tvTileTimetableSub"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Setup"
@@ -779,6 +781,7 @@
                             android:textColor="@color/text_on_surface"
                             android:layout_marginTop="8dp"/>
                         <TextView
+                            android:id="@+id/tvTileChangesLogSub"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="History"
