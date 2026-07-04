@@ -2,6 +2,7 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_main_gradient"
@@ -35,424 +36,175 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center"
-            android:paddingEnd="52dp"
-            android:text="Reports &amp; Analytics"
+            android:layout_marginStart="14dp"
+            android:text="Attendance"
             android:textColor="@color/text_on_surface"
             android:textSize="18sp"
             android:textStyle="bold"/>
 
     </LinearLayout>
 
-    <ScrollView
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp">
 
+        <!-- DATE FILTER: back / forward, tap the label to open a calendar -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:layout_marginBottom="14dp"
+            android:background="@drawable/card_dark"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="6dp">
 
-            <!-- PERIOD TOGGLE TABS -->
-            <LinearLayout
-                android:id="@+id/periodToggleRow"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:background="@drawable/card_dark"
-                android:orientation="horizontal"
-                android:padding="4dp">
-
-                <TextView
-                    android:id="@+id/tabPeriodToday"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="2dp"
-                    android:background="@drawable/badge_blue"
-                    android:gravity="center"
-                    android:text="Today"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:clickable="true"
-                    android:focusable="true"/>
-
-                <TextView
-                    android:id="@+id/tabPeriodMonth"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="2dp"
-                    android:gravity="center"
-                    android:text="This Month"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:clickable="true"
-                    android:focusable="true"/>
-
-            </LinearLayout>
-
-            <!-- MONTH NAV ROW -->
-            <LinearLayout
-                android:id="@+id/monthNavRow"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="14dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:visibility="gone">
-
-                <TextView
-                    android:id="@+id/btnPrevMonth"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:background="@drawable/logo_circle"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:text="◀"
-                    android:textColor="#5DA9FF"
-                    android:textSize="16sp"
-                    android:textStyle="bold"/>
-
-                <TextView
-                    android:id="@+id/tvMonthLabel"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:text="July 2026"
-                    android:textColor="#FFFFFF"
-                    android:textSize="15sp"
-                    android:textStyle="bold"/>
-
-                <TextView
-                    android:id="@+id/btnNextMonth"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:background="@drawable/logo_circle"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center"
-                    android:text="▶"
-                    android:textColor="#5DA9FF"
-                    android:textSize="16sp"
-                    android:textStyle="bold"/>
-
-            </LinearLayout>
-
-            <!-- OVERVIEW TITLE -->
             <TextView
-                android:id="@+id/tvOverviewTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp"
-                android:text="Today's Overview"
+                android:id="@+id/btnPrevDate"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/logo_circle"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="◀"
+                android:textColor="#5DA9FF"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/tvDateLabel"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
                 android:textColor="#FFFFFF"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.04"/>
-
-            <!-- STAT CARDS ROW 1 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="10dp"
-                android:baselineAligned="false">
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/cardAttendance"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="5dp"
-                    app:cardBackgroundColor="@color/surface_card"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="2dp"
-                    app:strokeColor="#1070DC"
-                    app:strokeWidth="1dp">
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:padding="18dp">
-                        <TextView
-                            android:id="@+id/tvMonthlyPct"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="0%"
-                            android:textColor="#1070DC"
-                            android:textSize="28sp"
-                            android:textStyle="bold"/>
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="ATTENDANCE"
-                            android:textColor="@color/text_on_surface"
-                            android:textSize="9sp"
-                            android:textStyle="bold"
-                            android:letterSpacing="0.06"/>
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/cardTopClass"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:layout_marginStart="5dp"
-                    app:cardBackgroundColor="@color/surface_card"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="2dp"
-                    app:strokeColor="#2F4E73"
-                    app:strokeWidth="1dp">
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:padding="18dp">
-                        <TextView
-                            android:id="@+id/tvTopClass"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="—"
-                            android:textColor="#029533"
-                            android:textSize="14sp"
-                            android:gravity="center"
-                            android:textStyle="bold"/>
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="RECORDS"
-                            android:textColor="@color/text_on_surface"
-                            android:textSize="9sp"
-                            android:textStyle="bold"
-                            android:letterSpacing="0.06"/>
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-            </LinearLayout>
-
-            <!-- STAT CARDS ROW 2 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="20dp"
-                android:baselineAligned="false">
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/cardPresent"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="5dp"
-                    app:cardBackgroundColor="@color/surface_card"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="2dp"
-                    app:strokeColor="#2F4E73"
-                    app:strokeWidth="1dp">
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:padding="18dp">
-                        <TextView
-                            android:id="@+id/tvPresentCount"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="0"
-                            android:textColor="#029533"
-                            android:textSize="28sp"
-                            android:textStyle="bold"/>
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="PRESENT"
-                            android:textColor="@color/text_on_surface"
-                            android:textSize="9sp"
-                            android:textStyle="bold"
-                            android:letterSpacing="0.06"/>
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/cardAbsent"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:layout_marginStart="5dp"
-                    app:cardBackgroundColor="@color/surface_card"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="2dp"
-                    app:strokeColor="#2F4E73"
-                    app:strokeWidth="1dp">
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:padding="18dp">
-                        <TextView
-                            android:id="@+id/tvAbsentCount"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="0"
-                            android:textColor="#E01616"
-                            android:textSize="28sp"
-                            android:textStyle="bold"/>
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="ABSENT"
-                            android:textColor="@color/text_on_surface"
-                            android:textSize="9sp"
-                            android:textStyle="bold"
-                            android:letterSpacing="0.06"/>
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-            </LinearLayout>
-
-            <!-- MONTH CALENDAR HEATMAP (month view only) -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/monthCalendarCard"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:visibility="gone"
-                app:cardBackgroundColor="#1A2436"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="1dp"
-                app:contentPadding="16dp">
-
-                <LinearLayout
-                    android:id="@+id/monthCalendarContent"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"/>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- BATCH FILTER CHIPS -->
-            <HorizontalScrollView
-                android:id="@+id/batchFilterScroll"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:scrollbars="none">
-
-                <LinearLayout
-                    android:id="@+id/batchFilterRow"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"/>
-
-            </HorizontalScrollView>
-
-            <!-- CLASS BREAKDOWN SECTION -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp"
-                android:text="Class-wise Breakdown"
-                android:textColor="@color/text_white"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.04"/>
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="20dp"
-                app:cardBackgroundColor="@color/surface_card"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="2dp"
-                app:strokeColor="#2F4E73"
-                app:strokeWidth="1dp">
-                <LinearLayout
-                    android:id="@+id/classBreakdownContainer"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp"/>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- SESSION BREAKDOWN SECTION -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp"
-                android:text="Period Breakdown"
-                android:textColor="@color/text_white"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.04"/>
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="20dp"
-                app:cardBackgroundColor="@color/surface_card"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="2dp"
-                app:strokeColor="#2F4E73"
-                app:strokeWidth="1dp">
-                <LinearLayout
-                    android:id="@+id/sessionBreakdownContainer"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp"/>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- ACTIONS SECTION -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp"
-                android:text="Export"
-                android:textColor="@color/text_white"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.04"/>
-
-            <Button
-                android:id="@+id/btnExportExcel"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginBottom="10dp"
-                android:background="@drawable/card_dark"
-                android:text="Export Attendance to Excel"
-                android:textColor="#029533"
                 android:textSize="14sp"
                 android:textStyle="bold"
-                android:textAllCaps="false"/>
+                tools:text="Friday, 3 July 2026"/>
 
-            <Button
-                android:id="@+id/btnExportPdf"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginBottom="24dp"
-                android:background="@drawable/card_dark"
-                android:text="Export Report to PDF"
-                android:textColor="#E01616"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:textAllCaps="false"/>
+            <TextView
+                android:id="@+id/btnNextDate"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/logo_circle"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="▶"
+                android:textColor="#5DA9FF"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
 
         </LinearLayout>
-    </ScrollView>
+
+        <!-- PERIOD + BATCH SELECTORS, SIDE BY SIDE -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="14dp"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="6dp"
+                    android:layout_marginStart="2dp"
+                    android:text="Period"
+                    android:textColor="#90A6BD"
+                    android:textSize="11sp"
+                    android:textStyle="bold"/>
+
+                <Spinner
+                    android:id="@+id/spinnerPeriod"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:background="@drawable/edittext_dark"
+                    android:paddingHorizontal="12dp"/>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="6dp"
+                    android:layout_marginStart="2dp"
+                    android:text="Batch"
+                    android:textColor="#90A6BD"
+                    android:textSize="11sp"
+                    android:textStyle="bold"/>
+
+                <Spinner
+                    android:id="@+id/spinnerBatch"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:background="@drawable/edittext_dark"
+                    android:paddingHorizontal="12dp"/>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- STATUS MESSAGE (holiday / no schedule / empty roster) -->
+        <TextView
+            android:id="@+id/tvStatusMessage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="48dp"
+            android:gravity="center"
+            android:textColor="#90A6BD"
+            android:textSize="14sp"
+            android:visibility="gone"
+            tools:text="Holiday — Independence Day"/>
+
+        <!-- STUDENT LIST -->
+        <ScrollView
+            android:id="@+id/scrollView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:id="@+id/listCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/card_dark"
+                    android:orientation="vertical"
+                    android:paddingBottom="8dp">
+
+                    <LinearLayout
+                        android:id="@+id/studentListCol"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"/>
+
+                </LinearLayout>
+
+            </LinearLayout>
+        </ScrollView>
+
+    </LinearLayout>
 
 </LinearLayout>

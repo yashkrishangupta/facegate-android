@@ -3,10 +3,8 @@ package com.facegate.ui.reports
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.facegate.storage.TemplateRepository
-import com.facegate.storage.dao.ClassAttendanceSummary
-import com.facegate.storage.dao.DailyAttendanceCount
 import com.facegate.storage.entity.AttendanceEntity
-import com.facegate.storage.entity.SessionEntity
+import com.facegate.storage.entity.StudentEntity
 import com.facegate.storage.entity.TimetableEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,272 +12,261 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
-enum class ReportPeriod { TODAY, MONTH }
-
-/**
- * One logical "period" in the session breakdown.
- * Multiple sessions for the same timetable slot are collapsed into a single
- * PeriodSummary so the admin sees one row per teaching period, not one row
- * per time attendance was taken.
- */
-data class PeriodSummary(
-    val subject      : String,
-    val batch        : String,
-    /** "Period 3", "Ad-hoc", etc. */
-    val periodLabel  : String,
-    val startTime    : Long,
-    val windowMinutes: Int,
-    /** How many separate sessions were started for this slot (>1 = ran twice). */
-    val sessionCount : Int,
-    /** Unique students present across all sessions for this slot. */
-    val uniquePresent: Int,
+/** One period scheduled on the selected date (e.g. "Period 3"). */
+data class PeriodOption(
+    val periodNumber: Int,
+    val label       : String,
 )
 
-data class ReportStats(
-    val period            : ReportPeriod                       = ReportPeriod.TODAY,
-    val totalStudents     : Int                                = 0,
-    val presentCount      : Int                                = 0,
-    val absentCount       : Int                                = 0,
-    val attendancePct     : String                             = "0%",
-    val totalRecordsEver  : Int                                = 0,
-    val classBreakdown    : List<ClassAttendanceSummary>       = emptyList(),
-    /** Grouped periods — one entry per unique teaching slot, sessions merged. */
-    val periodSummaries   : List<PeriodSummary>                = emptyList(),
-    /** keyed by "yyyy-MM-dd" → periods for that day (used by calendar tap). */
-    val periodsByDate     : Map<String, List<PeriodSummary>>   = emptyMap(),
-    val isHoliday         : Boolean                            = false,
-    val holidayName       : String                             = "",
-    val batches           : List<String>                       = emptyList(),
-    val selectedBatch     : String?                            = null,
-    val allPeriodSummaries: List<PeriodSummary>                = emptyList(),
-    val allClassBreakdown : List<ClassAttendanceSummary>       = emptyList(),
-    val monthLabel        : String                             = "",
-    val dailyCounts       : List<DailyAttendanceCount>         = emptyList(),
-    val canGoForward      : Boolean                            = false,
+/** One selectable batch under the selected period. `batch == null` means "All batches". */
+data class BatchOption(
+    val batch: String?,
+    val label: String,
 )
+
+data class RosterEntry(
+    val student: StudentEntity,
+    val marked : Boolean,
+)
+
+sealed class ExplorerState {
+    object Loading : ExplorerState()
+
+    data class Holiday(
+        val dateLabel  : String,
+        val holidayName: String,
+    ) : ExplorerState()
+
+    data class NoSchedule(
+        val dateLabel: String,
+    ) : ExplorerState()
+
+    data class Loaded(
+        val dateLabel     : String,
+        val canGoForward  : Boolean,
+        val periods       : List<PeriodOption>,
+        val selectedPeriod: Int?,
+        val batches       : List<BatchOption>,
+        val selectedBatch : String?,
+        val students      : List<RosterEntry>,
+    ) : ExplorerState()
+}
 
 @HiltViewModel
 class ReportViewModel @Inject constructor(
     private val repository: TemplateRepository,
 ) : ViewModel() {
 
-    private val _stats = MutableStateFlow(ReportStats())
-    val stats: StateFlow<ReportStats> = _stats
+    private val _state = MutableStateFlow<ExplorerState>(ExplorerState.Loading)
+    val state: StateFlow<ExplorerState> = _state
 
-    private var period: ReportPeriod = ReportPeriod.TODAY
+    private var selectedDate    : Long   = startOfDay(System.currentTimeMillis())
+    private var selectedPeriod  : Int?   = null
+    private var selectedBatch   : String? = null   // null = "All batches"
 
-    private var monthOffset: Int = 0
+    // Cached for the currently-loaded date, so selectPeriod()/selectBatch() don't
+    // need to re-hit the DB for the timetable every time.
+    private var timetableForDate: List<TimetableEntity> = emptyList()
 
-    companion object {
-        const val MONTH_HISTORY_LIMIT = 12
+    init { load() }
+
+    fun load() {
+        viewModelScope.launch {
+            _state.value = ExplorerState.Loading
+
+            val dateLabel = dateLabelFmt.format(Date(selectedDate))
+
+            if (repository.isHoliday(dayString(selectedDate))) {
+                val holidayName = repository.getAllHolidays()
+                    .firstOrNull { it.date == dayString(selectedDate) }?.name ?: "Holiday"
+                _state.value = ExplorerState.Holiday(dateLabel, holidayName)
+                return@launch
+            }
+
+            val dow = appDayOfWeek(selectedDate)
+            timetableForDate = if (dow > 0) repository.getTimetableForDay(dow) else emptyList()
+
+            if (timetableForDate.isEmpty()) {
+                _state.value = ExplorerState.NoSchedule(dateLabel)
+                return@launch
+            }
+
+            val periods = timetableForDate
+                .map { it.periodNumber }
+                .distinct()
+                .sorted()
+                .map { PeriodOption(it, "Period $it") }
+
+            if (selectedPeriod == null || periods.none { it.periodNumber == selectedPeriod }) {
+                selectedPeriod = periods.first().periodNumber
+                selectedBatch  = null
+            }
+
+            renderForPeriodAndBatch(dateLabel, periods)
+        }
     }
 
-    init { loadStats() }
+    /** Jump to an arbitrary date (from the calendar picker). */
+    fun selectDate(newDate: Long) {
+        val newStart = startOfDay(newDate)
+        if (newStart == selectedDate) return
+        selectedDate   = newStart
+        selectedPeriod = null
+        selectedBatch  = null
+        load()
+    }
 
-    fun loadStats() {
+    /** Step one day forward/backward. Forward is capped at today. */
+    fun stepDate(delta: Int) {
+        val candidate = selectedDate + delta * DAY_MS
+        if (candidate > startOfDay(System.currentTimeMillis())) return
+        selectDate(candidate)
+    }
+
+    fun selectPeriod(periodNumber: Int) {
+        if (periodNumber == selectedPeriod) return
+        selectedPeriod = periodNumber
+        selectedBatch  = null // reset to "All batches" whenever the period changes
         viewModelScope.launch {
-            when (period) {
-                ReportPeriod.TODAY -> loadToday()
-                ReportPeriod.MONTH -> loadMonth()
+            val dateLabel = dateLabelFmt.format(Date(selectedDate))
+            val periods = timetableForDate
+                .map { it.periodNumber }.distinct().sorted().map { PeriodOption(it, "Period $it") }
+            renderForPeriodAndBatch(dateLabel, periods)
+        }
+    }
+
+    fun selectBatch(batch: String?) {
+        if (batch == selectedBatch) return
+        selectedBatch = batch
+        viewModelScope.launch {
+            val dateLabel = dateLabelFmt.format(Date(selectedDate))
+            val periods = timetableForDate
+                .map { it.periodNumber }.distinct().sorted().map { PeriodOption(it, "Period $it") }
+            renderForPeriodAndBatch(dateLabel, periods)
+        }
+    }
+
+    private suspend fun renderForPeriodAndBatch(dateLabel: String, periods: List<PeriodOption>) {
+        val period = selectedPeriod ?: return
+        val entriesForPeriod = timetableForDate.filter { it.periodNumber == period }
+
+        val batchOptions = listOf(BatchOption(null, "All batches")) +
+            entriesForPeriod.map { it.batch }.distinct().sorted().map { BatchOption(it, it) }
+
+        val relevantEntries = if (selectedBatch == null) entriesForPeriod
+                              else entriesForPeriod.filter { it.batch == selectedBatch }
+
+        val startOfDayMs = selectedDate
+        val endOfDayMs    = selectedDate + DAY_MS - 1
+
+        // One roster entry per student, deduped (a student could theoretically show up
+        // under more than one timetable entry for the period if data is messy).
+        val roster = linkedMapOf<String, RosterEntry>()
+        for (entry in relevantEntries) {
+            val session = repository.findSessionForTimetableOnDate(entry.id, startOfDayMs, endOfDayMs)
+            val students = repository.getStudentsByClass(entry.batch)
+            students.forEach { student ->
+                val marked = if (session != null) {
+                    repository.isStudentMarkedForSession(student.studentId, session.sessionId)
+                } else {
+                    repository.isStudentMarkedOnDate(student.studentId, startOfDayMs, endOfDayMs)
+                }
+                roster[student.studentId] = RosterEntry(student, marked)
             }
         }
-    }
 
-    fun setPeriod(p: ReportPeriod) { period = p; loadStats() }
-
-    fun stepMonth(delta: Int) {
-        val newOffset = (monthOffset + delta).coerceIn(-(MONTH_HISTORY_LIMIT - 1), 0)
-        if (newOffset == monthOffset) return
-        monthOffset = newOffset
-        loadStats()
-    }
-
-    fun filterByBatch(batch: String?) {
-        val current = _stats.value
-        val filtered = if (batch == null) current.allPeriodSummaries
-        else current.allPeriodSummaries.filter {
-            it.batch.equals(batch, ignoreCase = true)
-        }
-        _stats.value = current.copy(
-            selectedBatch    = batch,
-            periodSummaries  = filtered,
-            classBreakdown   = current.allClassBreakdown,
+        _state.value = ExplorerState.Loaded(
+            dateLabel      = dateLabel,
+            canGoForward   = selectedDate < startOfDay(System.currentTimeMillis()),
+            periods        = periods,
+            selectedPeriod = selectedPeriod,
+            batches        = batchOptions,
+            selectedBatch  = selectedBatch,
+            students       = roster.values.toList(),
         )
     }
-
-    // ── Today ─────────────────────────────────────────────────────────────────
-
-    private suspend fun loadToday() {
-        val todayStr = getTodayString()
-        val startMs  = dayStart(Calendar.getInstance())
-        val endMs    = dayEnd(Calendar.getInstance())
-
-        val holiday = repository.isHoliday(todayStr)
-        if (holiday) {
-            val name = repository.getAllHolidays()
-                .firstOrNull { it.date == todayStr }?.name ?: "Holiday"
-            _stats.value = ReportStats(isHoliday = true, holidayName = name, period = ReportPeriod.TODAY)
-            return
-        }
-
-        val totalStudents   = repository.getStudentCount()
-        val attendance      = repository.getAttendanceForRange(startMs, endMs)
-        // Unique students present across all today's sessions
-        val uniquePresent   = attendance.map { it.studentId }.distinct().size
-        val absentToday     = (totalStudents - uniquePresent).coerceAtLeast(0)
-        val totalRecords    = repository.getAllAttendance().size
-        val classBreakdown  = repository.getClassWiseAttendance(startMs, endMs)
-        val sessions        = repository.getSessionsForDate(startMs, endMs)
-        val timetable       = repository.getAllTimetable()
-        val timetableById   = timetable.associateBy { it.id }
-
-        val periodSummaries = buildPeriodSummaries(sessions, attendance, timetableById)
-        val batches         = sessions.map { it.batch }.distinct().sorted()
-        val currentBatch    = _stats.value.selectedBatch
-
-        val pct = pctString(uniquePresent, totalStudents)
-
-        _stats.value = ReportStats(
-            period             = ReportPeriod.TODAY,
-            totalStudents      = totalStudents,
-            presentCount       = uniquePresent,
-            absentCount        = absentToday,
-            attendancePct      = pct,
-            totalRecordsEver   = totalRecords,
-            classBreakdown     = classBreakdown,
-            periodSummaries    = applyBatchFilter(periodSummaries, currentBatch),
-            allPeriodSummaries = periodSummaries,
-            allClassBreakdown  = classBreakdown,
-            batches            = batches,
-            selectedBatch      = currentBatch,
-        )
-    }
-
-    // ── Month ─────────────────────────────────────────────────────────────────
-
-    private suspend fun loadMonth() {
-        val cal = Calendar.getInstance()
-        cal.add(Calendar.MONTH, monthOffset)
-        cal.set(Calendar.DAY_OF_MONTH, 1)
-        val startMs    = dayStart(cal)
-        cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
-        val endMs      = dayEnd(cal)
-
-        val labelFmt   = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
-        val monthLabel = labelFmt.format(cal.time)
-
-        val totalStudents  = repository.getStudentCount()
-        val attendance     = repository.getAttendanceForRange(startMs, endMs)
-        val presentCount   = attendance.map { it.studentId }.distinct().size
-        val classBreakdown = repository.getClassWiseAttendance(startMs, endMs)
-        val sessions       = repository.getSessionsForDate(startMs, endMs)
-        val timetable      = repository.getAllTimetable()
-        val timetableById  = timetable.associateBy { it.id }
-        val dailyCounts    = repository.getDailyCountsInRange(startMs, endMs)
-        val batches        = sessions.map { it.batch }.distinct().sorted()
-        val currentBatch   = _stats.value.selectedBatch
-
-        val periodSummaries = buildPeriodSummaries(sessions, attendance, timetableById)
-
-        // Group periods by date for calendar cell taps
-        val dateFmt      = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val periodsByDate = periodSummaries.groupBy { p ->
-            dateFmt.format(java.util.Date(p.startTime))
-        }
-
-        val sessionDays  = dailyCounts.size.coerceAtLeast(1)
-        val avgDailyPct  = if (totalStudents > 0)
-            ((dailyCounts.sumOf { it.presentCount }.toFloat() / (sessionDays * totalStudents)) * 100).toInt()
-        else 0
-
-        _stats.value = ReportStats(
-            period             = ReportPeriod.MONTH,
-            totalStudents      = totalStudents,
-            presentCount       = presentCount,
-            absentCount        = 0,
-            attendancePct      = "$avgDailyPct%",
-            totalRecordsEver   = attendance.size,
-            classBreakdown     = classBreakdown,
-            periodSummaries    = applyBatchFilter(periodSummaries, currentBatch),
-            allPeriodSummaries = periodSummaries,
-            allClassBreakdown  = classBreakdown,
-            periodsByDate      = periodsByDate,
-            batches            = batches,
-            selectedBatch      = currentBatch,
-            monthLabel         = monthLabel,
-            dailyCounts        = dailyCounts,
-            canGoForward       = monthOffset < 0,
-        )
-    }
-
-    // ── Period grouping ────────────────────────────────────────────────────────
 
     /**
-     * Collapse multiple sessions for the same timetable slot into one row.
-     * Sessions that share a [timetableId] are grouped together; sessions without
-     * one (ad-hoc) are grouped by subject+batch.
-     * Only unique students are counted — a student present in two re-runs of the
-     * same period is still counted once.
+     * Mark/unmark a student for the currently selected date + period.
+     * Resolves the student's own batch (not necessarily the filter selection —
+     * relevant when "All batches" is active) to find their specific session.
      */
-    private fun buildPeriodSummaries(
-        sessions     : List<SessionEntity>,
-        attendance   : List<AttendanceEntity>,
-        timetableById: Map<Int, TimetableEntity>,
-    ): List<PeriodSummary> {
-        // Key: timetableId (as string) or "adhoc::<subject>::<batch>" for unplanned sessions
-        val groups = sessions.groupBy { session ->
-            session.timetableId?.toString()
-                ?: "adhoc::${session.subject}::${session.batch}"
-        }
-        return groups.map { (_, sessionList) ->
-            val pivot      = sessionList.minByOrNull { it.startTime }!!
-            val allPresent = sessionList.flatMap { s ->
-                attendance.filter { it.sessionId == s.sessionId }
-            }.map { it.studentId }.distinct()
-
-            val ttEntry    = pivot.timetableId?.let { timetableById[it] }
-            val periodLabel = when {
-                ttEntry != null -> "Period ${ttEntry.periodNumber}"
-                else            -> "Ad-hoc"
+    fun toggleAttendance(student: StudentEntity) {
+        val period = selectedPeriod ?: return
+        viewModelScope.launch {
+            val entry = timetableForDate.firstOrNull {
+                it.periodNumber == period && it.batch == student.studentClass
+            }
+            val startOfDayMs = selectedDate
+            val endOfDayMs    = selectedDate + DAY_MS - 1
+            val session = entry?.let {
+                repository.findSessionForTimetableOnDate(it.id, startOfDayMs, endOfDayMs)
             }
 
-            PeriodSummary(
-                subject       = pivot.subject,
-                batch         = pivot.batch,
-                periodLabel   = periodLabel,
-                startTime     = pivot.startTime,
-                windowMinutes = pivot.windowMinutes,
-                sessionCount  = sessionList.size,
-                uniquePresent = allPresent.size,
-            )
-        }.sortedBy { it.startTime }
+            if (session != null) {
+                if (repository.isStudentMarkedForSession(student.studentId, session.sessionId)) {
+                    repository.deleteAttendanceForSession(student.studentId, session.sessionId)
+                } else {
+                    repository.addAttendance(
+                        AttendanceEntity(
+                            studentId = student.studentId,
+                            sessionId = session.sessionId,
+                            timeStamp = backdatedStamp(),
+                            synced    = false,
+                        )
+                    )
+                }
+            } else {
+                // No session was ever started for this slot on this date — fall back
+                // to a day-wide mark, same as Manual Attendance does for this case.
+                if (repository.isStudentMarkedOnDate(student.studentId, startOfDayMs, endOfDayMs)) {
+                    repository.removeAttendanceOnDate(student.studentId, startOfDayMs, endOfDayMs)
+                } else {
+                    repository.addAttendance(
+                        AttendanceEntity(
+                            studentId = student.studentId,
+                            timeStamp = backdatedStamp(),
+                            synced    = false,
+                        )
+                    )
+                }
+            }
+            load()
+        }
     }
 
-    private fun applyBatchFilter(
-        summaries : List<PeriodSummary>,
-        batch     : String?,
-    ): List<PeriodSummary> =
-        if (batch == null) summaries
-        else summaries.filter { it.batch.equals(batch, ignoreCase = true) }
+    private fun backdatedStamp(): Long =
+        if (selectedDate == startOfDay(System.currentTimeMillis())) System.currentTimeMillis()
+        else selectedDate + (12 * 60 * 60 * 1000)
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Date helpers ──────────────────────────────────────────────────────────
 
-    private fun getTodayString() =
-        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
-
-    private fun dayStart(cal: Calendar): Long = (cal.clone() as Calendar).apply {
+    private fun startOfDay(ms: Long): Long = Calendar.getInstance().apply {
+        timeInMillis = ms
         set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
         set(Calendar.SECOND, 0);      set(Calendar.MILLISECOND, 0)
     }.timeInMillis
 
-    private fun dayEnd(cal: Calendar): Long = (cal.clone() as Calendar).apply {
-        set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59)
-        set(Calendar.SECOND, 59);      set(Calendar.MILLISECOND, 999)
-    }.timeInMillis
+    private fun dayString(ms: Long): String =
+        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(ms))
 
-    private fun pctString(present: Int, total: Int): String =
-        if (total > 0) "${((present.toFloat() / total) * 100).toInt()}%" else "0%"
+    private fun appDayOfWeek(ms: Long): Int =
+        when (Calendar.getInstance().apply { timeInMillis = ms }.get(Calendar.DAY_OF_WEEK)) {
+            Calendar.MONDAY    -> 1
+            Calendar.TUESDAY   -> 2
+            Calendar.WEDNESDAY -> 3
+            Calendar.THURSDAY  -> 4
+            Calendar.FRIDAY    -> 5
+            else               -> 0
+        }
+
+    private val dateLabelFmt = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault())
+
+    companion object {
+        private const val DAY_MS = 24L * 60 * 60 * 1000
+    }
 }

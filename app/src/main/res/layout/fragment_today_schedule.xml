@@ -16,14 +16,20 @@
         android:background="@color/surface_topbar"
         android:elevation="6dp">
 
-        <ImageButton
+        <TextView
             android:id="@+id/btnBack"
-            android:layout_width="36dp"
+            android:layout_width="wrap_content"
             android:layout_height="36dp"
-            android:background="@drawable/logo_circle"
-            android:src="@android:drawable/ic_menu_revert"
-            app:tint="#FFFFFF"
-            android:contentDescription="Back"/>
+            android:text="← Back"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:gravity="center"
+            android:background="@drawable/badge_blue"
+            android:clickable="true"
+            android:focusable="true"/>
 
         <TextView
             android:layout_width="0dp"

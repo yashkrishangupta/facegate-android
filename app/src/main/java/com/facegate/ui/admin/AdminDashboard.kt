@@ -134,6 +134,11 @@ class AdminDashboard : Fragment() {
         }
 
         // ── Quick-action tile subtitles ────────────────────────────────────
+        binding.tvTileStudentsSubTile.text = when (stats.totalStudents) {
+            0    -> "No students yet"
+            1    -> "1 enrolled"
+            else -> "${stats.totalStudents} enrolled"
+        }
         binding.tvTileManualSub.text = when (stats.uniquePresentToday) {
             0    -> "None marked yet today"
             1    -> "1 student marked today"
@@ -144,6 +149,21 @@ class AdminDashboard : Fragment() {
                 "${stats.attendancePctToday}% avg • ${stats.periodsConducted} period(s)"
             else
                 "No sessions today"
+        binding.tvTileHolidaysSub.text = when (stats.upcomingHolidays) {
+            0    -> "None scheduled"
+            1    -> "1 upcoming"
+            else -> "${stats.upcomingHolidays} upcoming"
+        }
+        binding.tvTileTimetableSub.text = when (stats.timetablePeriods) {
+            0    -> "Not set up"
+            1    -> "1 period set"
+            else -> "${stats.timetablePeriods} periods set"
+        }
+        binding.tvTileChangesLogSub.text = when (stats.changesLogged) {
+            0    -> "No changes yet"
+            1    -> "1 change logged"
+            else -> "${stats.changesLogged} changes logged"
+        }
 
         // ── Conflict banner ────────────────────────────────────────────────
         binding.conflictBanner.visibility =
