@@ -6,7 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "sessions")
 data class SessionEntity(
     @PrimaryKey val sessionId    : String,   // UUID
-    val timetableId  : Int?      = null,     // null = unplanned session
+    val timetableId  : Int?      = null,     // null = extra period (not from timetable)
     val subject      : String,
     val batch        : String,
     val startTime    : Long,

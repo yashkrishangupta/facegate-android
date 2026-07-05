@@ -13,7 +13,7 @@ import javax.inject.Inject
 data class DashboardStats(
     val totalStudents      : Int = 0,
     /** Unique timetable periods conducted today (multiple sessions for the same
-     *  slot still count as ONE period; ad-hoc sessions each count as one). */
+     *  slot still count as ONE period; extra periods each count as one). */
     val periodsConducted   : Int = 0,
     /** Timetable slots for today that have not been started at all. */
     val periodsRemaining   : Int = 0,
@@ -50,17 +50,17 @@ class AdminDashboardViewModel @Inject constructor(
             // ── Period count fix ──────────────────────────────────────────
             // Multiple sessions sharing the same timetableId are ONE period
             // (e.g. teacher runs attendance twice for Math 9-A → still 1 period).
-            // Ad-hoc sessions (timetableId == null) each count as their own period.
+            // Extra periods (timetableId == null) each count as their own period.
             val conductedTimetableIds = sessions.mapNotNull { it.timetableId }.distinct().toSet()
-            val adHocCount            = sessions.count { it.timetableId == null }
-            val periodsConducted      = conductedTimetableIds.size + adHocCount
+            val extraPeriodCount      = sessions.count { it.timetableId == null }
+            val periodsConducted      = conductedTimetableIds.size + extraPeriodCount
 
             // ── Periods remaining ─────────────────────────────────────────
             val dayOfWeek       = appDayOfWeek(Calendar.getInstance())
-            val timetableToday  = if (dayOfWeek > 0) repository.getTimetableForDay(dayOfWeek)
-                                  else emptyList()
+            val isWeeklyOff     = repository.isWeeklyOff(dayOfWeek)
+            val timetableToday  = if (isWeeklyOff) emptyList() else repository.getTimetableForDay(dayOfWeek)
             val periodsRemaining = timetableToday.count { it.id !in conductedTimetableIds }
-            // Total = scheduled timetable periods OR conducted (if more ad-hoc than scheduled)
+            // Total = scheduled timetable periods OR conducted (if more extra periods than scheduled)
             val totalPeriods    = timetableToday.size.coerceAtLeast(periodsConducted)
 
             // ── Attendance ────────────────────────────────────────────────
@@ -97,7 +97,8 @@ class AdminDashboardViewModel @Inject constructor(
         Calendar.WEDNESDAY -> 3
         Calendar.THURSDAY  -> 4
         Calendar.FRIDAY    -> 5
-        else               -> 0
+        Calendar.SATURDAY  -> 6
+        else               -> 7 // Calendar.SUNDAY
     }
 
     private fun getStartOfDayMillis(): Long = Calendar.getInstance().apply {

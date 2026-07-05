@@ -13,10 +13,12 @@ import com.facegate.storage.dao.TimetableDao
 import com.facegate.storage.dao.SessionDao
 import com.facegate.storage.dao.OverrideDao
 import com.facegate.storage.dao.HolidayDao
+import com.facegate.storage.dao.WeeklyOffDao
 import com.facegate.storage.entity.TimetableEntity
 import com.facegate.storage.entity.SessionEntity
 import com.facegate.storage.entity.OverrideEntity
 import com.facegate.storage.entity.HolidayEntity
+import com.facegate.storage.entity.WeeklyOffEntity
 
 class TemplateRepository(
     private val studentDao    : StudentDao,
@@ -27,6 +29,7 @@ class TemplateRepository(
     private val sessionDao    : SessionDao,
     private val overrideDao   : OverrideDao,
     private val holidayDao    : HolidayDao,
+    private val weeklyOffDao  : WeeklyOffDao,
 ) {
 
     // ── Student ───────────────────────────────────────────────────────────────
@@ -196,6 +199,17 @@ class TemplateRepository(
     suspend fun isHoliday(date: String): Boolean = holidayDao.isHoliday(date) > 0
     suspend fun getAllHolidays() = holidayDao.getAll()
     suspend fun getUpcomingHolidays() = holidayDao.getUpcoming(getTodayString())
+
+    // ── Weekly Off ─────────────────────────────────────────────────────────
+    suspend fun setWeeklyOff(dayOfWeek: Int, isOff: Boolean) {
+        if (isOff) {
+            weeklyOffDao.insert(WeeklyOffEntity(dayOfWeek = dayOfWeek, createdAt = System.currentTimeMillis()))
+        } else {
+            weeklyOffDao.delete(dayOfWeek)
+        }
+    }
+    suspend fun isWeeklyOff(dayOfWeek: Int): Boolean = weeklyOffDao.isOff(dayOfWeek) > 0
+    suspend fun getWeeklyOffDays(): List<Int> = weeklyOffDao.getAll().map { it.dayOfWeek }
 
     private fun getTodayString() = java.text.SimpleDateFormat(
         "yyyy-MM-dd", java.util.Locale.getDefault()

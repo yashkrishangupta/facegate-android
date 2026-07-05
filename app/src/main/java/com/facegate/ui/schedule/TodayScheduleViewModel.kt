@@ -17,17 +17,34 @@ import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 
+/**
+ * One row in Today's Schedule — either a regular timetabled period
+ * ([timetableEntry] set) or an Extra Period ([existingSessionId] set, since an
+ * extra period's session is created the moment it's added, not when "Start"
+ * is tapped). Extra periods carry their own [scheduledStartTimeMs] up front
+ * for the same reason.
+ */
 data class ScheduleItem(
-    val entry: TimetableEntity,
-    val status: Status,
-    val sessionId: String? = null,
+    val label               : String,
+    val subject             : String,
+    val batch               : String,
+    val scheduledHour       : Int,
+    val scheduledMinute     : Int,
+    val windowMinutes       : Int,
+    val status              : Status,
+    val timetableEntry      : TimetableEntity? = null,
+    val existingSessionId   : String? = null,
+    val scheduledStartTimeMs: Long? = null,
 ) {
     enum class Status { UPCOMING, ACTIVE, DONE }
 }
 
 sealed class ScheduleState {
     object Loading : ScheduleState()
-    data class Holiday(val name: String) : ScheduleState()
+    /** Extra periods can still be added and re-opened on a holiday, so they're
+     *  carried alongside the banner rather than being hidden by it. */
+    data class Holiday(val name: String, val extraItems: List<ScheduleItem> = emptyList()) : ScheduleState()
+    data class WeeklyOff(val dayName: String, val extraItems: List<ScheduleItem> = emptyList()) : ScheduleState()
     object NoSchedule : ScheduleState()
     data class Loaded(val items: List<ScheduleItem>) : ScheduleState()
 }
@@ -47,6 +64,31 @@ class TodayScheduleViewModel @Inject constructor(
             val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val todayStr = sdf.format(Date())
 
+            val startOfDay = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0);      set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            val endOfDay = startOfDay + (24 * 60 * 60 * 1000) - 1
+
+            val calendar            = Calendar.getInstance()
+            val currentTotalMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
+
+            // Extra periods can be started on ANY day — holiday, weekly off, or a
+            // normal day with no timetable at all — so they're computed up front
+            // and folded into whichever state below applies, instead of only
+            // existing on a "normal" scheduled day. This is also what makes an
+            // extra period re-openable: once created it has a real SessionEntity,
+            // so it shows up here on every subsequent load until its window closes.
+            val extraSessions = try {
+                repository.getSessionsForDate(startOfDay, endOfDay)
+                    .filter { it.timetableId == null }
+                    .sortedBy { it.startTime }
+            } catch (e: Exception) { emptyList() }
+
+            val extraItems = extraSessions.mapIndexed { index, session ->
+                buildExtraScheduleItem(session, index, currentTotalMinutes)
+            }
+
             val isHoliday = try { repository.isHoliday(todayStr) } catch (e: Exception) { false }
             if (isHoliday) {
                 val holidayName = try {
@@ -54,13 +96,12 @@ class TodayScheduleViewModel @Inject constructor(
                 } catch (e: Exception) {
                     "Holiday"
                 }
-                _uiState.value = ScheduleState.Holiday(holidayName)
+                _uiState.value = ScheduleState.Holiday(holidayName, extraItems)
                 return@launch
             }
 
-            // Map Calendar day-of-week constants to 1=Mon…5=Fri as stored in TimetableEntity.
-            // Calendar.MONDAY = 2, TUESDAY = 3, …, FRIDAY = 6 (Java constant values).
-            val calendar = Calendar.getInstance()
+            // Map Calendar day-of-week constants to 1=Mon…7=Sun as stored in TimetableEntity.
+            // Calendar.MONDAY = 2, TUESDAY = 3, …, SUNDAY = 1 (Java constant values).
             val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
             val mappedDay = when (dayOfWeek) {
                 Calendar.MONDAY    -> 1
@@ -68,11 +109,14 @@ class TodayScheduleViewModel @Inject constructor(
                 Calendar.WEDNESDAY -> 3
                 Calendar.THURSDAY  -> 4
                 Calendar.FRIDAY    -> 5
-                else -> {
-                    // Saturday / Sunday → no schedule
-                    _uiState.value = ScheduleState.NoSchedule
-                    return@launch
-                }
+                Calendar.SATURDAY  -> 6
+                else               -> 7 // Calendar.SUNDAY
+            }
+
+            val isWeeklyOff = try { repository.isWeeklyOff(mappedDay) } catch (e: Exception) { false }
+            if (isWeeklyOff) {
+                _uiState.value = ScheduleState.WeeklyOff(dayNameFor(mappedDay), extraItems)
+                return@launch
             }
 
             val timetable = try {
@@ -81,16 +125,12 @@ class TodayScheduleViewModel @Inject constructor(
                 emptyList()
             }
 
-            if (timetable.isEmpty()) {
+            if (timetable.isEmpty() && extraItems.isEmpty()) {
                 _uiState.value = ScheduleState.NoSchedule
                 return@launch
             }
 
-            val currentHour   = calendar.get(Calendar.HOUR_OF_DAY)
-            val currentMinute = calendar.get(Calendar.MINUTE)
-            val currentTotalMinutes = currentHour * 60 + currentMinute
-
-            val items = timetable.map { entry ->
+            val regularItems = timetable.map { entry ->
                 val entryTotalMinutes = entry.scheduledHour * 60 + entry.scheduledMinute
                 val endTotalMinutes   = entryTotalMinutes + entry.windowMinutes
 
@@ -99,11 +139,52 @@ class TodayScheduleViewModel @Inject constructor(
                     currentTotalMinutes in entryTotalMinutes..endTotalMinutes      -> ScheduleItem.Status.ACTIVE
                     else                                                           -> ScheduleItem.Status.UPCOMING
                 }
-                ScheduleItem(entry, status)
+                ScheduleItem(
+                    label           = "P${entry.periodNumber}",
+                    subject         = entry.subject,
+                    batch           = entry.batch,
+                    scheduledHour   = entry.scheduledHour,
+                    scheduledMinute = entry.scheduledMinute,
+                    windowMinutes   = entry.windowMinutes,
+                    status          = status,
+                    timetableEntry  = entry,
+                )
             }
 
-            _uiState.value = ScheduleState.Loaded(items)
+            _uiState.value = ScheduleState.Loaded(regularItems + extraItems)
         }
+    }
+
+    /** index is this extra period's position among today's extra sessions
+     *  (sorted by start time) — used purely for the "Extra Period N" label. */
+    private fun buildExtraScheduleItem(
+        session: SessionEntity,
+        index: Int,
+        currentTotalMinutes: Int,
+    ): ScheduleItem {
+        val sessionCal = Calendar.getInstance().apply { timeInMillis = session.startTime }
+        val hour   = sessionCal.get(Calendar.HOUR_OF_DAY)
+        val minute = sessionCal.get(Calendar.MINUTE)
+        val entryTotalMinutes = hour * 60 + minute
+        val endTotalMinutes    = entryTotalMinutes + session.windowMinutes
+
+        val status = when {
+            currentTotalMinutes > endTotalMinutes                     -> ScheduleItem.Status.DONE
+            currentTotalMinutes in entryTotalMinutes..endTotalMinutes  -> ScheduleItem.Status.ACTIVE
+            else                                                       -> ScheduleItem.Status.UPCOMING
+        }
+
+        return ScheduleItem(
+            label                = "Extra Period ${index + 1}",
+            subject              = session.subject,
+            batch                = session.batch,
+            scheduledHour        = hour,
+            scheduledMinute      = minute,
+            windowMinutes        = session.windowMinutes,
+            status               = status,
+            existingSessionId    = session.sessionId,
+            scheduledStartTimeMs = session.startTime,
+        )
     }
 
     /**
@@ -160,11 +241,14 @@ class TodayScheduleViewModel @Inject constructor(
     }
 
     /**
-     * startUnplannedSession(...)
+     * startExtraPeriod(...)
      * Creates a session with timetableId = null and writes an override record.
+     * The session is created immediately (not lazily on next "Start" tap), which
+     * is what lets it reappear in Today's Schedule as its own row — re-opening
+     * it later just re-enters this same session rather than creating another.
      * onStarted is invoked on the MAIN thread (same reasoning as startSession).
      */
-    fun startUnplannedSession(
+    fun startExtraPeriod(
         subject: String,
         batch: String,
         windowMinutes: Int,
@@ -173,10 +257,10 @@ class TodayScheduleViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             val sessionId = UUID.randomUUID().toString()
-            val scheduledStartTimeMs = System.currentTimeMillis() // unplanned → window starts now
+            val scheduledStartTimeMs = System.currentTimeMillis() // extra period → window starts now
             val session = SessionEntity(
                 sessionId     = sessionId,
-                timetableId   = null,          // unplanned — no timetable row
+                timetableId   = null,          // extra period — no timetable row
                 subject       = subject,
                 batch         = batch,
                 startTime     = scheduledStartTimeMs,
@@ -187,7 +271,7 @@ class TodayScheduleViewModel @Inject constructor(
 
             val override = OverrideEntity(
                 sessionId    = sessionId,
-                fieldChanged = "unplanned",
+                fieldChanged = "extra period",
                 oldValue     = "none",
                 newValue     = "$subject — $batch",
                 changedAt    = System.currentTimeMillis(),
@@ -197,5 +281,17 @@ class TodayScheduleViewModel @Inject constructor(
 
             onStarted(sessionId, scheduledStartTimeMs) // runs on Main — Fragment can navigate safely
         }
+    }
+
+    // ── Day helpers ───────────────────────────────────────────────────────────
+
+    private fun dayNameFor(day: Int): String = when (day) {
+        1 -> "Monday"
+        2 -> "Tuesday"
+        3 -> "Wednesday"
+        4 -> "Thursday"
+        5 -> "Friday"
+        6 -> "Saturday"
+        else -> "Sunday"
     }
 }

@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 data class OverrideEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val sessionId    : String,
-    val fieldChanged : String,   // "subject"|"batch"|"windowMinutes"|"unplanned"
+    val fieldChanged : String,   // "subject"|"batch"|"windowMinutes"|"extra period"
     val oldValue     : String,
     val newValue     : String,
     val changedAt    : Long,
