@@ -2,7 +2,6 @@ package com.facegate.ui.reports
 
 import android.app.DatePickerDialog
 import android.graphics.Color
-import android.graphics.Typeface
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -10,19 +9,22 @@ import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import com.facegate.R
 import com.facegate.databinding.FragmentAttendanceReportBinding
-import com.facegate.databinding.ItemManualAttendanceRowBinding
+import com.facegate.databinding.ItemReportStudentRowBinding
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import dagger.hilt.android.AndroidEntryPoint
 
+/**
+ * Reports is a **read-only** viewer — it never marks or unmarks attendance.
+ * Editing only happens in Manual Attendance (today + past 6 days). This screen
+ * shows the last 30 days for reference; anything older is meant to be pulled
+ * from the website instead of this app.
+ */
 @AndroidEntryPoint
 class AttendanceReportFragment : Fragment() {
 
@@ -90,6 +92,8 @@ class AttendanceReportFragment : Fragment() {
                         binding.tvDateLabel.text = state.dateLabel
                         binding.btnNextDate.alpha     = if (state.canGoForward) 1f else 0.35f
                         binding.btnNextDate.isEnabled = state.canGoForward
+                        binding.btnPrevDate.alpha     = if (state.canGoBack) 1f else 0.35f
+                        binding.btnPrevDate.isEnabled = state.canGoBack
 
                         populatePeriodSpinner(state.periods, state.selectedPeriod)
                         populateBatchSpinner(state.batches, state.selectedBatch)
@@ -151,7 +155,7 @@ class AttendanceReportFragment : Fragment() {
         )
     }
 
-    // ── Student list ──────────────────────────────────────────────────────────
+    // ── Student list (read-only) ────────────────────────────────────────────
 
     private fun buildStudentList(students: List<RosterEntry>) {
         binding.studentListCol.removeAllViews()
@@ -159,7 +163,7 @@ class AttendanceReportFragment : Fragment() {
             binding.studentListCol.addView(buildStudentRow(entry))
             if (index < students.size - 1) {
                 binding.studentListCol.addView(View(requireContext()).apply {
-                    setBackgroundColor(Color.parseColor("#1E2E44"))
+                    setBackgroundColor(Color.parseColor("#DCE6F5"))
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT, 1
                     ).apply { marginStart = dp(20); marginEnd = dp(20) }
@@ -169,7 +173,7 @@ class AttendanceReportFragment : Fragment() {
     }
 
     private fun buildStudentRow(entry: RosterEntry): View {
-        val rowBinding = ItemManualAttendanceRowBinding.inflate(
+        val rowBinding = ItemReportStudentRowBinding.inflate(
             LayoutInflater.from(requireContext()), binding.studentListCol, false
         )
 
@@ -182,27 +186,14 @@ class AttendanceReportFragment : Fragment() {
         rowBinding.tvName.text = entry.student.name
         rowBinding.tvStudentId.text = entry.student.studentId
 
-        val actionBtn: TextView = rowBinding.btnToggleAttendance
         if (entry.marked) {
-            actionBtn.text     = "✓ Present"
-            actionBtn.textSize = 12f
-            actionBtn.typeface = Typeface.DEFAULT_BOLD
-            actionBtn.setTextColor(Color.parseColor("#1D9E75"))
-            actionBtn.setBackgroundResource(R.drawable.chip_active)
+            rowBinding.tvStatusBadge.text = "Present"
+            rowBinding.tvStatusBadge.setTextColor(Color.parseColor("#1D9E75"))
+            rowBinding.tvStatusBadge.setBackgroundResource(com.facegate.R.drawable.chip_active)
         } else {
-            actionBtn.text     = "Mark Present"
-            actionBtn.textSize = 11f
-            actionBtn.typeface = Typeface.DEFAULT_BOLD
-            actionBtn.setTextColor(Color.WHITE)
-            actionBtn.setBackgroundResource(R.drawable.badge_green)
-        }
-        actionBtn.setOnClickListener {
-            viewModel.toggleAttendance(entry.student)
-            Toast.makeText(
-                requireContext(),
-                "${entry.student.name} marked ${if (entry.marked) "absent" else "present"}",
-                Toast.LENGTH_SHORT,
-            ).show()
+            rowBinding.tvStatusBadge.text = "Absent"
+            rowBinding.tvStatusBadge.setTextColor(Color.parseColor("#E24B4A"))
+            rowBinding.tvStatusBadge.setBackgroundResource(com.facegate.R.drawable.chip_pending)
         }
 
         return rowBinding.root
@@ -221,7 +212,7 @@ class AttendanceReportFragment : Fragment() {
 
     private fun showDatePicker() {
         val cal = Calendar.getInstance()
-        DatePickerDialog(
+        val dialog = DatePickerDialog(
             requireContext(),
             { _, year, month, day ->
                 val picked = Calendar.getInstance().apply {
@@ -232,6 +223,12 @@ class AttendanceReportFragment : Fragment() {
             cal.get(Calendar.YEAR),
             cal.get(Calendar.MONTH),
             cal.get(Calendar.DAY_OF_MONTH),
-        ).show()
+        )
+        // Reports only ever shows the last 30 days — keep the picker itself
+        // from offering dates outside that window rather than silently
+        // clamping after the fact.
+        dialog.datePicker.minDate = viewModel.earliestSelectableDate()
+        dialog.datePicker.maxDate = viewModel.latestSelectableDate()
+        dialog.show()
     }
 }

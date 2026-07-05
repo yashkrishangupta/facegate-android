@@ -37,7 +37,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="14dp"
-            android:text="Attendance"
+            android:text="Attendance Report"
             android:textColor="@color/text_on_surface"
             android:textSize="18sp"
             android:textStyle="bold"/>
@@ -186,13 +186,14 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
-                <LinearLayout
-                    android:id="@+id/listCard"
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/card_dark"
-                    android:orientation="vertical"
-                    android:paddingBottom="8dp">
+                    app:cardBackgroundColor="@color/surface_card"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="2dp"
+                    app:strokeColor="@color/border_card"
+                    app:strokeWidth="1dp">
 
                     <LinearLayout
                         android:id="@+id/studentListCol"
@@ -200,7 +201,7 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical"/>
 
-                </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
             </LinearLayout>
         </ScrollView>

@@ -14,6 +14,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.facegate.databinding.FragmentManualAttendanceBinding
+import com.facegate.databinding.ItemEmptyMessageBinding
 import com.facegate.databinding.ItemFilterTabBinding
 import com.facegate.databinding.ItemManualAttendanceRowBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -56,19 +57,15 @@ class ManualAttendanceFragment : Fragment() {
                         binding.sessionTabRow.removeAllViews()
                         binding.classTabRow.removeAllViews()
                         binding.studentListCol.removeAllViews()
-                        binding.tvEmptyMsg.visibility = View.GONE
                     }
                     is ManualAttendanceState.Empty -> {
                         binding.dayTabRow.removeAllViews()
                         binding.sessionTabRow.removeAllViews()
                         binding.classTabRow.removeAllViews()
                         binding.studentListCol.removeAllViews()
-                        binding.tvEmptyMsg.text =
-                            "No students enrolled yet.\nGo to Students → Enrol to add students."
-                        binding.tvEmptyMsg.visibility = View.VISIBLE
+                        showEmptyMessage("No students enrolled yet.\nGo to Students → Enrol to add students.")
                     }
                     is ManualAttendanceState.Loaded -> {
-                        binding.tvEmptyMsg.visibility = View.GONE
                         buildDayTabs(state.days, state.selectedDay)
                         buildSessionTabs(state.sessions, state.selectedSession, state.selectedDay.label)
                         buildClassTabs(state.classes, state.selectedClass)
@@ -173,12 +170,19 @@ class ManualAttendanceFragment : Fragment() {
 
     // ── Student rows ──────────────────────────────────────────────────────────
 
+    private fun showEmptyMessage(msg: String) {
+        val itemBinding = ItemEmptyMessageBinding.inflate(
+            LayoutInflater.from(requireContext()), binding.studentListCol, false
+        )
+        itemBinding.tvMessage.text = msg
+        binding.studentListCol.addView(itemBinding.root)
+    }
+
     private fun buildStudentList(students: List<StudentWithStatus>, sessionId: String?) {
         binding.studentListCol.removeAllViews()
 
         if (students.isEmpty()) {
-            binding.tvEmptyMsg.text       = "No students in this class."
-            binding.tvEmptyMsg.visibility = View.VISIBLE
+            showEmptyMessage("No students in this class.")
             return
         }
 

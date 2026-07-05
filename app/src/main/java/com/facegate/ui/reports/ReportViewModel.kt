@@ -3,7 +3,7 @@ package com.facegate.ui.reports
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.facegate.storage.TemplateRepository
-import com.facegate.storage.entity.AttendanceEntity
+import com.facegate.storage.entity.SessionEntity
 import com.facegate.storage.entity.StudentEntity
 import com.facegate.storage.entity.TimetableEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,7 +16,11 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
-/** One period scheduled on the selected date (e.g. "Period 3"). */
+/**
+ * One period scheduled on the selected date (e.g. "Period 3"), OR the special
+ * ad-hoc group ([ReportViewModel.AD_HOC_PERIOD]) representing unplanned
+ * sessions started that day that don't belong to any timetable slot.
+ */
 data class PeriodOption(
     val periodNumber: Int,
     val label       : String,
@@ -48,6 +52,7 @@ sealed class ExplorerState {
     data class Loaded(
         val dateLabel     : String,
         val canGoForward  : Boolean,
+        val canGoBack     : Boolean,
         val periods       : List<PeriodOption>,
         val selectedPeriod: Int?,
         val batches       : List<BatchOption>,
@@ -56,6 +61,32 @@ sealed class ExplorerState {
     ) : ExplorerState()
 }
 
+/**
+ * One resolved (batch, session) pairing feeding the roster — regardless of
+ * whether it came from a real timetable slot or an ad-hoc session. `session`
+ * is null when a timetable slot exists but nobody ever started it that day.
+ */
+private data class SlotSource(
+    val batch  : String,
+    val session: SessionEntity?,
+)
+
+/**
+ * Reports is a **read-only** viewer over the last [REPORT_WINDOW_DAYS] days.
+ * Marking/unmarking attendance only happens in Manual Attendance, which is
+ * intentionally restricted to a 7-day editable window (today + past 6 days).
+ * Reports never writes to the attendance table — it only ever reads status.
+ *
+ * Why 30 days here vs 7 in Manual Attendance vs a later sync limit of 5 days:
+ * these are three independent windows for three different concerns —
+ *   • 7 days  = how far back a correction can still be made directly
+ *   • 30 days = how far back this app will show a report at all (older
+ *                history is meant to be pulled from the website instead)
+ *   • 5 days  = (future work) how long a record can sit unsynced before the
+ *                background sync job is expected to have pushed it
+ * They're deliberately not the same number, so the gaps between them are
+ * kept as-is rather than collapsed into one shared constant.
+ */
 @HiltViewModel
 class ReportViewModel @Inject constructor(
     private val repository: TemplateRepository,
@@ -64,13 +95,13 @@ class ReportViewModel @Inject constructor(
     private val _state = MutableStateFlow<ExplorerState>(ExplorerState.Loading)
     val state: StateFlow<ExplorerState> = _state
 
-    private var selectedDate    : Long   = startOfDay(System.currentTimeMillis())
-    private var selectedPeriod  : Int?   = null
-    private var selectedBatch   : String? = null   // null = "All batches"
+    private var selectedDate   : Long    = startOfDay(System.currentTimeMillis())
+    private var selectedPeriod : Int?    = null
+    private var selectedBatch  : String? = null   // null = "All batches"
 
-    // Cached for the currently-loaded date, so selectPeriod()/selectBatch() don't
-    // need to re-hit the DB for the timetable every time.
+    // Cached for the currently-loaded date.
     private var timetableForDate: List<TimetableEntity> = emptyList()
+    private var adHocSessions   : List<SessionEntity>   = emptyList()
 
     init { load() }
 
@@ -87,19 +118,20 @@ class ReportViewModel @Inject constructor(
                 return@launch
             }
 
+            val startOfDayMs = selectedDate
+            val endOfDayMs    = selectedDate + DAY_MS - 1
+
             val dow = appDayOfWeek(selectedDate)
             timetableForDate = if (dow > 0) repository.getTimetableForDay(dow) else emptyList()
+            adHocSessions    = repository.getSessionsForDate(startOfDayMs, endOfDayMs)
+                .filter { it.timetableId == null }
 
-            if (timetableForDate.isEmpty()) {
+            if (timetableForDate.isEmpty() && adHocSessions.isEmpty()) {
                 _state.value = ExplorerState.NoSchedule(dateLabel)
                 return@launch
             }
 
-            val periods = timetableForDate
-                .map { it.periodNumber }
-                .distinct()
-                .sorted()
-                .map { PeriodOption(it, "Period $it") }
+            val periods = buildPeriodOptions()
 
             if (selectedPeriod == null || periods.none { it.periodNumber == selectedPeriod }) {
                 selectedPeriod = periods.first().periodNumber
@@ -110,22 +142,45 @@ class ReportViewModel @Inject constructor(
         }
     }
 
-    /** Jump to an arbitrary date (from the calendar picker). */
+    private fun buildPeriodOptions(): List<PeriodOption> {
+        val regular = timetableForDate
+            .map { it.periodNumber }
+            .distinct()
+            .sorted()
+            .map { PeriodOption(it, "Period $it") }
+        return if (adHocSessions.isNotEmpty())
+            regular + PeriodOption(AD_HOC_PERIOD, "Ad-hoc Sessions")
+        else regular
+    }
+
+    /** Jump to an arbitrary date (from the calendar picker). Clamped to the report window. */
     fun selectDate(newDate: Long) {
-        val newStart = startOfDay(newDate)
-        if (newStart == selectedDate) return
-        selectedDate   = newStart
+        val clamped = clampToWindow(startOfDay(newDate))
+        if (clamped == selectedDate) return
+        selectedDate   = clamped
         selectedPeriod = null
         selectedBatch  = null
         load()
     }
 
-    /** Step one day forward/backward. Forward is capped at today. */
+    /** Step one day forward/backward, clamped to [today - (REPORT_WINDOW_DAYS-1), today]. */
     fun stepDate(delta: Int) {
-        val candidate = selectedDate + delta * DAY_MS
-        if (candidate > startOfDay(System.currentTimeMillis())) return
+        val candidate = clampToWindow(selectedDate + delta * DAY_MS)
+        if (candidate == selectedDate) return
         selectDate(candidate)
     }
+
+    private fun clampToWindow(date: Long): Long {
+        val today = startOfDay(System.currentTimeMillis())
+        val earliest = today - (REPORT_WINDOW_DAYS - 1) * DAY_MS
+        return date.coerceIn(earliest, today)
+    }
+
+    /** Earliest selectable date — exposed so the Fragment can bound the DatePickerDialog. */
+    fun earliestSelectableDate(): Long =
+        startOfDay(System.currentTimeMillis()) - (REPORT_WINDOW_DAYS - 1) * DAY_MS
+
+    fun latestSelectableDate(): Long = startOfDay(System.currentTimeMillis())
 
     fun selectPeriod(periodNumber: Int) {
         if (periodNumber == selectedPeriod) return
@@ -133,9 +188,7 @@ class ReportViewModel @Inject constructor(
         selectedBatch  = null // reset to "All batches" whenever the period changes
         viewModelScope.launch {
             val dateLabel = dateLabelFmt.format(Date(selectedDate))
-            val periods = timetableForDate
-                .map { it.periodNumber }.distinct().sorted().map { PeriodOption(it, "Period $it") }
-            renderForPeriodAndBatch(dateLabel, periods)
+            renderForPeriodAndBatch(dateLabel, buildPeriodOptions())
         }
     }
 
@@ -144,34 +197,51 @@ class ReportViewModel @Inject constructor(
         selectedBatch = batch
         viewModelScope.launch {
             val dateLabel = dateLabelFmt.format(Date(selectedDate))
-            val periods = timetableForDate
-                .map { it.periodNumber }.distinct().sorted().map { PeriodOption(it, "Period $it") }
-            renderForPeriodAndBatch(dateLabel, periods)
+            renderForPeriodAndBatch(dateLabel, buildPeriodOptions())
+        }
+    }
+
+    /** Resolve the (batch, session) pairs for the currently selected period. */
+    private suspend fun slotSourcesForSelectedPeriod(): List<SlotSource> {
+        val period = selectedPeriod ?: return emptyList()
+        val startOfDayMs = selectedDate
+        val endOfDayMs    = selectedDate + DAY_MS - 1
+
+        return if (period == AD_HOC_PERIOD) {
+            // Multiple ad-hoc sessions can exist for the same batch on the same day
+            // (e.g. restarted) — keep only the most recent per batch, same rule
+            // used for de-duping timetabled sessions elsewhere in the app.
+            adHocSessions
+                .groupBy { it.batch }
+                .map { (batch, sessions) -> SlotSource(batch, sessions.maxByOrNull { it.startTime }) }
+        } else {
+            timetableForDate
+                .filter { it.periodNumber == period }
+                .map { entry ->
+                    SlotSource(entry.batch, repository.findSessionForTimetableOnDate(entry.id, startOfDayMs, endOfDayMs))
+                }
         }
     }
 
     private suspend fun renderForPeriodAndBatch(dateLabel: String, periods: List<PeriodOption>) {
-        val period = selectedPeriod ?: return
-        val entriesForPeriod = timetableForDate.filter { it.periodNumber == period }
+        if (selectedPeriod == null) return
+        val slotSources = slotSourcesForSelectedPeriod()
 
         val batchOptions = listOf(BatchOption(null, "All batches")) +
-            entriesForPeriod.map { it.batch }.distinct().sorted().map { BatchOption(it, it) }
+                slotSources.map { it.batch }.distinct().sorted().map { BatchOption(it, it) }
 
-        val relevantEntries = if (selectedBatch == null) entriesForPeriod
-                              else entriesForPeriod.filter { it.batch == selectedBatch }
+        val relevant = if (selectedBatch == null) slotSources
+        else slotSources.filter { it.batch == selectedBatch }
 
         val startOfDayMs = selectedDate
         val endOfDayMs    = selectedDate + DAY_MS - 1
 
-        // One roster entry per student, deduped (a student could theoretically show up
-        // under more than one timetable entry for the period if data is messy).
         val roster = linkedMapOf<String, RosterEntry>()
-        for (entry in relevantEntries) {
-            val session = repository.findSessionForTimetableOnDate(entry.id, startOfDayMs, endOfDayMs)
-            val students = repository.getStudentsByClass(entry.batch)
+        for (slot in relevant) {
+            val students = repository.getStudentsByClass(slot.batch)
             students.forEach { student ->
-                val marked = if (session != null) {
-                    repository.isStudentMarkedForSession(student.studentId, session.sessionId)
+                val marked = if (slot.session != null) {
+                    repository.isStudentMarkedForSession(student.studentId, slot.session.sessionId)
                 } else {
                     repository.isStudentMarkedOnDate(student.studentId, startOfDayMs, endOfDayMs)
                 }
@@ -179,9 +249,11 @@ class ReportViewModel @Inject constructor(
             }
         }
 
+        val today = startOfDay(System.currentTimeMillis())
         _state.value = ExplorerState.Loaded(
             dateLabel      = dateLabel,
-            canGoForward   = selectedDate < startOfDay(System.currentTimeMillis()),
+            canGoForward   = selectedDate < today,
+            canGoBack      = selectedDate > today - (REPORT_WINDOW_DAYS - 1) * DAY_MS,
             periods        = periods,
             selectedPeriod = selectedPeriod,
             batches        = batchOptions,
@@ -189,59 +261,6 @@ class ReportViewModel @Inject constructor(
             students       = roster.values.toList(),
         )
     }
-
-    /**
-     * Mark/unmark a student for the currently selected date + period.
-     * Resolves the student's own batch (not necessarily the filter selection —
-     * relevant when "All batches" is active) to find their specific session.
-     */
-    fun toggleAttendance(student: StudentEntity) {
-        val period = selectedPeriod ?: return
-        viewModelScope.launch {
-            val entry = timetableForDate.firstOrNull {
-                it.periodNumber == period && it.batch == student.studentClass
-            }
-            val startOfDayMs = selectedDate
-            val endOfDayMs    = selectedDate + DAY_MS - 1
-            val session = entry?.let {
-                repository.findSessionForTimetableOnDate(it.id, startOfDayMs, endOfDayMs)
-            }
-
-            if (session != null) {
-                if (repository.isStudentMarkedForSession(student.studentId, session.sessionId)) {
-                    repository.deleteAttendanceForSession(student.studentId, session.sessionId)
-                } else {
-                    repository.addAttendance(
-                        AttendanceEntity(
-                            studentId = student.studentId,
-                            sessionId = session.sessionId,
-                            timeStamp = backdatedStamp(),
-                            synced    = false,
-                        )
-                    )
-                }
-            } else {
-                // No session was ever started for this slot on this date — fall back
-                // to a day-wide mark, same as Manual Attendance does for this case.
-                if (repository.isStudentMarkedOnDate(student.studentId, startOfDayMs, endOfDayMs)) {
-                    repository.removeAttendanceOnDate(student.studentId, startOfDayMs, endOfDayMs)
-                } else {
-                    repository.addAttendance(
-                        AttendanceEntity(
-                            studentId = student.studentId,
-                            timeStamp = backdatedStamp(),
-                            synced    = false,
-                        )
-                    )
-                }
-            }
-            load()
-        }
-    }
-
-    private fun backdatedStamp(): Long =
-        if (selectedDate == startOfDay(System.currentTimeMillis())) System.currentTimeMillis()
-        else selectedDate + (12 * 60 * 60 * 1000)
 
     // ── Date helpers ──────────────────────────────────────────────────────────
 
@@ -268,5 +287,13 @@ class ReportViewModel @Inject constructor(
 
     companion object {
         private const val DAY_MS = 24L * 60 * 60 * 1000
+
+        /** How far back Reports will show data at all. Older history is meant
+         *  to be viewed on the website, not in-app. */
+        private const val REPORT_WINDOW_DAYS = 30
+
+        /** Sentinel period number representing the "Ad-hoc Sessions" group,
+         *  since ad-hoc sessions have no real timetable period number. */
+        const val AD_HOC_PERIOD = -1
     }
 }
