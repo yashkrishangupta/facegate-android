@@ -18,8 +18,8 @@ import javax.inject.Inject
 
 /**
  * One period scheduled on the selected date (e.g. "Period 3"), OR the special
- * ad-hoc group ([ReportViewModel.AD_HOC_PERIOD]) representing unplanned
- * sessions started that day that don't belong to any timetable slot.
+ * extra-period group ([ReportViewModel.EXTRA_PERIOD]) representing extra
+ * periods started that day that don't belong to any timetable slot.
  */
 data class PeriodOption(
     val periodNumber: Int,
@@ -45,6 +45,11 @@ sealed class ExplorerState {
         val holidayName: String,
     ) : ExplorerState()
 
+    data class WeeklyOff(
+        val dateLabel: String,
+        val dayName  : String,
+    ) : ExplorerState()
+
     data class NoSchedule(
         val dateLabel: String,
     ) : ExplorerState()
@@ -63,7 +68,7 @@ sealed class ExplorerState {
 
 /**
  * One resolved (batch, session) pairing feeding the roster — regardless of
- * whether it came from a real timetable slot or an ad-hoc session. `session`
+ * whether it came from a real timetable slot or an extra period. `session`
  * is null when a timetable slot exists but nobody ever started it that day.
  */
 private data class SlotSource(
@@ -101,7 +106,7 @@ class ReportViewModel @Inject constructor(
 
     // Cached for the currently-loaded date.
     private var timetableForDate: List<TimetableEntity> = emptyList()
-    private var adHocSessions   : List<SessionEntity>   = emptyList()
+    private var extraPeriodSessions: List<SessionEntity> = emptyList()
 
     init { load() }
 
@@ -118,15 +123,21 @@ class ReportViewModel @Inject constructor(
                 return@launch
             }
 
+            val dow = appDayOfWeek(selectedDate)
+
+            if (repository.isWeeklyOff(dow)) {
+                _state.value = ExplorerState.WeeklyOff(dateLabel, dayNameFor(dow))
+                return@launch
+            }
+
             val startOfDayMs = selectedDate
             val endOfDayMs    = selectedDate + DAY_MS - 1
 
-            val dow = appDayOfWeek(selectedDate)
-            timetableForDate = if (dow > 0) repository.getTimetableForDay(dow) else emptyList()
-            adHocSessions    = repository.getSessionsForDate(startOfDayMs, endOfDayMs)
+            timetableForDate = repository.getTimetableForDay(dow)
+            extraPeriodSessions = repository.getSessionsForDate(startOfDayMs, endOfDayMs)
                 .filter { it.timetableId == null }
 
-            if (timetableForDate.isEmpty() && adHocSessions.isEmpty()) {
+            if (timetableForDate.isEmpty() && extraPeriodSessions.isEmpty()) {
                 _state.value = ExplorerState.NoSchedule(dateLabel)
                 return@launch
             }
@@ -148,8 +159,8 @@ class ReportViewModel @Inject constructor(
             .distinct()
             .sorted()
             .map { PeriodOption(it, "Period $it") }
-        return if (adHocSessions.isNotEmpty())
-            regular + PeriodOption(AD_HOC_PERIOD, "Ad-hoc Sessions")
+        return if (extraPeriodSessions.isNotEmpty())
+            regular + PeriodOption(EXTRA_PERIOD, "Extra Periods")
         else regular
     }
 
@@ -207,11 +218,11 @@ class ReportViewModel @Inject constructor(
         val startOfDayMs = selectedDate
         val endOfDayMs    = selectedDate + DAY_MS - 1
 
-        return if (period == AD_HOC_PERIOD) {
-            // Multiple ad-hoc sessions can exist for the same batch on the same day
+        return if (period == EXTRA_PERIOD) {
+            // Multiple extra-period sessions can exist for the same batch on the same day
             // (e.g. restarted) — keep only the most recent per batch, same rule
             // used for de-duping timetabled sessions elsewhere in the app.
-            adHocSessions
+            extraPeriodSessions
                 .groupBy { it.batch }
                 .map { (batch, sessions) -> SlotSource(batch, sessions.maxByOrNull { it.startTime }) }
         } else {
@@ -280,8 +291,19 @@ class ReportViewModel @Inject constructor(
             Calendar.WEDNESDAY -> 3
             Calendar.THURSDAY  -> 4
             Calendar.FRIDAY    -> 5
-            else               -> 0
+            Calendar.SATURDAY  -> 6
+            else               -> 7 // Calendar.SUNDAY
         }
+
+    private fun dayNameFor(day: Int): String = when (day) {
+        1 -> "Monday"
+        2 -> "Tuesday"
+        3 -> "Wednesday"
+        4 -> "Thursday"
+        5 -> "Friday"
+        6 -> "Saturday"
+        else -> "Sunday"
+    }
 
     private val dateLabelFmt = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault())
 
@@ -292,8 +314,8 @@ class ReportViewModel @Inject constructor(
          *  to be viewed on the website, not in-app. */
         private const val REPORT_WINDOW_DAYS = 30
 
-        /** Sentinel period number representing the "Ad-hoc Sessions" group,
-         *  since ad-hoc sessions have no real timetable period number. */
-        const val AD_HOC_PERIOD = -1
+        /** Sentinel period number representing the "Extra Periods" group,
+         *  since extra periods have no real timetable period number. */
+        const val EXTRA_PERIOD = -1
     }
 }

@@ -10,7 +10,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import com.facegate.databinding.DialogUnplannedSessionBinding
+import com.facegate.databinding.DialogExtraPeriodBinding
 import com.facegate.databinding.FragmentTodayScheduleBinding
 import com.facegate.databinding.ItemScheduleRowBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -49,7 +49,7 @@ class TodayScheduleFragment : Fragment() {
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
 
-        binding.btnAddUnplanned.setOnClickListener { showUnplannedSessionDialog() }
+        binding.btnAddExtraPeriod.setOnClickListener { showExtraPeriodDialog() }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.uiState.collect { state ->
@@ -62,8 +62,26 @@ class TodayScheduleFragment : Fragment() {
                     is ScheduleState.Holiday -> {
                         binding.bannerHoliday.visibility = View.VISIBLE
                         binding.tvHolidayMessage.text    = "${state.name} — No Classes"
-                        binding.tvEmptyState.visibility  = View.GONE
-                        binding.scrollView.visibility    = View.GONE
+                        if (state.extraItems.isEmpty()) {
+                            binding.tvEmptyState.visibility = View.GONE
+                            binding.scrollView.visibility   = View.GONE
+                        } else {
+                            binding.tvEmptyState.visibility = View.GONE
+                            binding.scrollView.visibility   = View.VISIBLE
+                            populateSchedule(state.extraItems)
+                        }
+                    }
+                    is ScheduleState.WeeklyOff -> {
+                        binding.bannerHoliday.visibility = View.VISIBLE
+                        binding.tvHolidayMessage.text    = "${state.dayName} — Weekly Off"
+                        if (state.extraItems.isEmpty()) {
+                            binding.tvEmptyState.visibility = View.GONE
+                            binding.scrollView.visibility   = View.GONE
+                        } else {
+                            binding.tvEmptyState.visibility = View.GONE
+                            binding.scrollView.visibility   = View.VISIBLE
+                            populateSchedule(state.extraItems)
+                        }
                     }
                     is ScheduleState.NoSchedule -> {
                         binding.bannerHoliday.visibility = View.GONE
@@ -90,11 +108,11 @@ class TodayScheduleFragment : Fragment() {
             LayoutInflater.from(requireContext()), binding.periodListContainer, false
         )
 
-        itemBinding.tvPeriod.text = "P${item.entry.periodNumber}"
-        itemBinding.tvSubject.text = item.entry.subject
-        itemBinding.tvBatch.text = item.entry.batch
+        itemBinding.tvPeriod.text = item.label
+        itemBinding.tvSubject.text = item.subject
+        itemBinding.tvBatch.text = item.batch
         itemBinding.tvTime.text =
-            String.format("%02d:%02d", item.entry.scheduledHour, item.entry.scheduledMinute)
+            String.format("%02d:%02d", item.scheduledHour, item.scheduledMinute)
 
         itemBinding.tvStatusChip.text = item.status.name
         itemBinding.tvStatusChip.setBackgroundResource(when (item.status) {
@@ -110,13 +128,27 @@ class TodayScheduleFragment : Fragment() {
         itemBinding.btnStart.visibility =
             if (item.status == ScheduleItem.Status.ACTIVE) View.VISIBLE else View.GONE
         itemBinding.btnStart.setOnClickListener {
-            viewModel.startSession(item.entry) { sessionId, scheduledStartTimeMs ->
+            val entry = item.timetableEntry
+            if (entry != null) {
+                viewModel.startSession(entry) { sessionId, scheduledStartTimeMs ->
+                    navigateToAttendance(
+                        sessionId            = sessionId,
+                        subject              = item.subject,
+                        batch                = item.batch,
+                        windowMinutes         = item.windowMinutes,
+                        scheduledStartTimeMs = scheduledStartTimeMs,
+                    )
+                }
+            } else {
+                // Extra period — its session already exists from when it was
+                // added, so re-entering it just navigates back in rather than
+                // starting a second session for the same row.
                 navigateToAttendance(
-                    sessionId            = sessionId,
-                    subject              = item.entry.subject,
-                    batch                = item.entry.batch,
-                    windowMinutes        = item.entry.windowMinutes,
-                    scheduledStartTimeMs = scheduledStartTimeMs,
+                    sessionId            = item.existingSessionId!!,
+                    subject              = item.subject,
+                    batch                = item.batch,
+                    windowMinutes        = item.windowMinutes,
+                    scheduledStartTimeMs = item.scheduledStartTimeMs ?: 0L,
                 )
             }
         }
@@ -129,10 +161,10 @@ class TodayScheduleFragment : Fragment() {
         items.forEach { binding.periodListContainer.addView(createRowView(it)) }
     }
 
-    // ── Unplanned session dialog ─────────────────────────────────────────────
+    // ── Extra period dialog ─────────────────────────────────────────────────
 
-    private fun showUnplannedSessionDialog() {
-        val dialogBinding = DialogUnplannedSessionBinding.inflate(LayoutInflater.from(requireContext()))
+    private fun showExtraPeriodDialog() {
+        val dialogBinding = DialogExtraPeriodBinding.inflate(LayoutInflater.from(requireContext()))
 
         // NOTE: no setPositiveButton/setNegativeButton here — the dialog layout
         // already supplies its own styled Cancel/Confirm buttons (btnCancel /
@@ -150,7 +182,7 @@ class TodayScheduleFragment : Fragment() {
             val reason  = dialogBinding.etReason.text.toString().trim()
 
             dialog.dismiss()
-            viewModel.startUnplannedSession(subject, batch, window, reason) { sessionId, scheduledStartTimeMs ->
+            viewModel.startExtraPeriod(subject, batch, window, reason) { sessionId, scheduledStartTimeMs ->
                 // onStarted runs on Main — safe to navigate.
                 navigateToAttendance(sessionId, subject, batch, window, scheduledStartTimeMs)
             }

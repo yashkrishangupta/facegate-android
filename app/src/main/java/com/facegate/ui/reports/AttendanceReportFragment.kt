@@ -19,12 +19,6 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import dagger.hilt.android.AndroidEntryPoint
 
-/**
- * Reports is a **read-only** viewer — it never marks or unmarks attendance.
- * Editing only happens in Manual Attendance (today + past 6 days). This screen
- * shows the last 30 days for reference; anything older is meant to be pulled
- * from the website instead of this app.
- */
 @AndroidEntryPoint
 class AttendanceReportFragment : Fragment() {
 
@@ -77,6 +71,14 @@ class AttendanceReportFragment : Fragment() {
                         binding.scrollView.visibility     = View.GONE
                         binding.tvStatusMessage.visibility = View.VISIBLE
                         binding.tvStatusMessage.text = "Holiday — ${state.holidayName}"
+                        clearSpinner(binding.spinnerPeriod)
+                        clearSpinner(binding.spinnerBatch)
+                    }
+                    is ExplorerState.WeeklyOff -> {
+                        binding.tvDateLabel.text = state.dateLabel
+                        binding.scrollView.visibility     = View.GONE
+                        binding.tvStatusMessage.visibility = View.VISIBLE
+                        binding.tvStatusMessage.text = "${state.dayName} — Weekly Off"
                         clearSpinner(binding.spinnerPeriod)
                         clearSpinner(binding.spinnerBatch)
                     }

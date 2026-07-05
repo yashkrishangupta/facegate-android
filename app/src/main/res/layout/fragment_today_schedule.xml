@@ -110,18 +110,18 @@
 
     </ScrollView>
 
-    <!-- ADD UNPLANNED SESSION -->
+    <!-- ADD EXTRA PERIOD -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="16dp">
 
         <Button
-            android:id="@+id/btnAddUnplanned"
+            android:id="@+id/btnAddExtraPeriod"
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:background="@drawable/button_primary"
-            android:text="+ Add Unplanned Session"
+            android:text="+ Add Extra Period"
             android:textColor="#FFFFFF"
             android:textSize="14sp"
             android:textStyle="bold"

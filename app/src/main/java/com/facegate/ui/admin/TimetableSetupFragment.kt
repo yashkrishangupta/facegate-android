@@ -31,7 +31,7 @@ class TimetableSetupFragment : Fragment() {
     private val viewModel: TimetableSetupViewModel by viewModels()
     private var selectedDay = 1  // default Monday
 
-    private val dayNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri")
+    private val dayNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
     private val dayTabButtons = mutableListOf<TextView>()
 
     override fun onCreateView(
@@ -48,10 +48,12 @@ class TimetableSetupFragment : Fragment() {
 
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
         binding.btnAddPeriod.setOnClickListener { showAddPeriodDialog() }
+        binding.btnWeeklyOffToggle.setOnClickListener { confirmToggleWeeklyOff() }
 
         buildDayTabs()
         viewModel.loadSubjectsAndBatches()
         observeEntries()
+        observeWeeklyOff()
     }
 
     override fun onDestroyView() {
@@ -89,6 +91,14 @@ class TimetableSetupFragment : Fragment() {
         }
     }
 
+    private fun observeWeeklyOff() {
+        lifecycleScope.launch {
+            viewModel.weeklyOffDays.collect {
+                refreshPeriodList()
+            }
+        }
+    }
+
     // ── Day tab selection ────────────────────────────────────────────────────
 
     private fun onDaySelected(day: Int) {
@@ -108,6 +118,21 @@ class TimetableSetupFragment : Fragment() {
     // ── Refresh period list ──────────────────────────────────────────────────
 
     private fun refreshPeriodList() {
+        val isOff = viewModel.isWeeklyOff(selectedDay)
+
+        binding.btnWeeklyOffToggle.text = if (isOff) "Remove Weekly Off" else "Mark as Weekly Off"
+
+        if (isOff) {
+            binding.tvWeeklyOffBanner.visibility = View.VISIBLE
+            binding.scrollView.visibility        = View.GONE
+            binding.btnAddPeriod.visibility      = View.GONE
+            return
+        }
+
+        binding.tvWeeklyOffBanner.visibility = View.GONE
+        binding.scrollView.visibility        = View.VISIBLE
+        binding.btnAddPeriod.visibility      = View.VISIBLE
+
         val entries = viewModel.getForDay(selectedDay)
         binding.periodListContainer.removeAllViews()
         binding.periodListContainer.addView(binding.emptyState)
@@ -121,6 +146,27 @@ class TimetableSetupFragment : Fragment() {
         entries.forEach { entry ->
             binding.periodListContainer.addView(buildPeriodCard(entry))
         }
+    }
+
+    // ── Weekly Off toggle ────────────────────────────────────────────────────
+
+    private fun confirmToggleWeeklyOff() {
+        val dayName = dayNames[selectedDay - 1]
+        val isOff = viewModel.isWeeklyOff(selectedDay)
+
+        val message = if (isOff)
+            "Remove weekly off for $dayName? Periods can be scheduled on this day again."
+        else
+            "Mark $dayName as a weekly off? No periods will be scheduled on this day."
+
+        AlertDialog.Builder(requireContext())
+            .setTitle(if (isOff) "Remove Weekly Off" else "Mark as Weekly Off")
+            .setMessage(message)
+            .setPositiveButton(if (isOff) "Remove" else "Mark Off") { _, _ ->
+                viewModel.toggleWeeklyOff(selectedDay)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     // ── Period card ───────────────────────────────────────────────────────────

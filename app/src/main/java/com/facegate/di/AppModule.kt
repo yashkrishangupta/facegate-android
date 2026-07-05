@@ -45,6 +45,7 @@ object AppModule {
         sessionDao    = database.sessionDao(),
         overrideDao   = database.overrideDao(),
         holidayDao    = database.holidayDao(),
+        weeklyOffDao  = database.weeklyOffDao(),
     )
 
     @Provides

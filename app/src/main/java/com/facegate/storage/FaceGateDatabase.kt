@@ -10,6 +10,7 @@ import com.facegate.storage.dao.SessionDao
 import com.facegate.storage.dao.StudentDao
 import com.facegate.storage.dao.SyncLogDao
 import com.facegate.storage.dao.TimetableDao
+import com.facegate.storage.dao.WeeklyOffDao
 import com.facegate.storage.entity.AttendanceEntity
 import com.facegate.storage.entity.ConflictEntity
 import com.facegate.storage.entity.HolidayEntity
@@ -18,6 +19,7 @@ import com.facegate.storage.entity.SessionEntity
 import com.facegate.storage.entity.StudentEntity
 import com.facegate.storage.entity.SyncLogEntity
 import com.facegate.storage.entity.TimetableEntity
+import com.facegate.storage.entity.WeeklyOffEntity
 
 @Database(
     entities = [
@@ -29,8 +31,9 @@ import com.facegate.storage.entity.TimetableEntity
         SessionEntity::class,
         OverrideEntity::class,
         HolidayEntity::class,
+        WeeklyOffEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class FaceGateDatabase : RoomDatabase() {
@@ -42,4 +45,5 @@ abstract class FaceGateDatabase : RoomDatabase() {
     abstract fun sessionDao()    : SessionDao
     abstract fun overrideDao()   : OverrideDao
     abstract fun holidayDao()    : HolidayDao
+    abstract fun weeklyOffDao()  : WeeklyOffDao
 }

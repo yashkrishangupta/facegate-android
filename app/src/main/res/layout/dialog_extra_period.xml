@@ -32,7 +32,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:layout_marginTop="18dp"
-            android:text="Add Unplanned Session"
+            android:text="Add Extra Period"
             android:textColor="@color/text_white"
             android:textSize="22sp"
             android:textStyle="bold" />
