@@ -48,17 +48,16 @@
 
     </LinearLayout>
 
+    <!-- Read-only status — deliberately NOT clickable/focusable, this screen never writes -->
     <TextView
-        android:id="@+id/btnToggleAttendance"
+        android:id="@+id/tvStatusBadge"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:clickable="true"
-        android:focusable="true"
         android:gravity="center"
         android:paddingHorizontal="12dp"
-        android:paddingVertical="8dp"
+        android:paddingVertical="6dp"
         android:textSize="11sp"
         android:textStyle="bold"
-        tools:text="Mark Present"/>
+        tools:text="Present"/>
 
 </LinearLayout>
