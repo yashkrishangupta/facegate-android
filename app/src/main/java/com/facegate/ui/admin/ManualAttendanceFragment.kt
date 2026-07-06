@@ -65,9 +65,16 @@ class ManualAttendanceFragment : Fragment() {
                         binding.studentListCol.removeAllViews()
                         showEmptyMessage("No students enrolled yet.\nGo to Students → Enrol to add students.")
                     }
+                    is ManualAttendanceState.NoPeriodToday -> {
+                        buildDayTabs(state.days, state.selectedDay)
+                        binding.sessionTabRow.removeAllViews()
+                        binding.classTabRow.removeAllViews()
+                        binding.studentListCol.removeAllViews()
+                        showEmptyMessage("No period or class happened on ${state.selectedDay.label}.")
+                    }
                     is ManualAttendanceState.Loaded -> {
                         buildDayTabs(state.days, state.selectedDay)
-                        buildSessionTabs(state.sessions, state.selectedSession, state.selectedDay.label)
+                        buildSessionTabs(state.sessions, state.selectedSession)
                         buildClassTabs(state.classes, state.selectedClass)
                         buildStudentList(state.students, state.selectedSession?.sessionId)
                     }
@@ -95,7 +102,6 @@ class ManualAttendanceFragment : Fragment() {
     private fun buildSessionTabs(
         sessions: List<com.facegate.storage.entity.SessionEntity>,
         selected: com.facegate.storage.entity.SessionEntity?,
-        dayLabel: String,
     ) {
         binding.sessionTabRow.removeAllViews()
 
@@ -111,15 +117,6 @@ class ManualAttendanceFragment : Fragment() {
             .values
             .map { group -> group.maxByOrNull { it.startTime }!! }
             .sortedBy { it.startTime }
-
-        // "All (selected day)" tab
-        val allTab = buildTab(
-            container  = binding.sessionTabRow,
-            label      = "All — $dayLabel",
-            isSelected = selected == null,
-            onClick    = { viewModel.selectSession(null) }
-        )
-        binding.sessionTabRow.addView(allTab)
 
         deduped.forEach { session ->
             val timeFmt = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
