@@ -17,9 +17,10 @@ import java.util.Locale
 import javax.inject.Inject
 
 /**
- * One period scheduled on the selected date (e.g. "Period 3"), OR the special
- * extra-period group ([ReportViewModel.EXTRA_PERIOD]) representing extra
- * periods started that day that don't belong to any timetable slot.
+ * One period scheduled on the selected date (e.g. "Period 3"), OR one of the
+ * distinct extra-period options ([ReportViewModel.EXTRA_PERIOD_BASE] and below)
+ * representing an extra period started that day that doesn't belong to any
+ * timetable slot.
  */
 data class PeriodOption(
     val periodNumber: Int,
@@ -159,10 +160,27 @@ class ReportViewModel @Inject constructor(
             .distinct()
             .sorted()
             .map { PeriodOption(it, "Period $it") }
-        return if (extraPeriodSessions.isNotEmpty())
-            regular + PeriodOption(EXTRA_PERIOD, "Extra Periods")
-        else regular
+
+        // Each distinct SUBJECT among today's extra-period sessions becomes its own
+        // period option (ordered by when it was first started), instead of lumping
+        // every extra period of the day into one "Extra Periods" bucket. Otherwise
+        // two different extra periods run for the same batch on the same day (e.g.
+        // one for Math, one later for Science) would collapse into a single slot
+        // and silently lose one of them.
+        val extraOptions = extraPeriodGroupsOrdered().mapIndexed { index, (subject, _) ->
+            PeriodOption(EXTRA_PERIOD_BASE - index, "Extra: $subject")
+        }
+
+        return regular + extraOptions
     }
+
+    /** Distinct extra-period subjects for the selected date, ordered by the
+     *  earliest start time within each subject group. */
+    private fun extraPeriodGroupsOrdered(): List<Pair<String, List<SessionEntity>>> =
+        extraPeriodSessions
+            .groupBy { it.subject }
+            .toList()
+            .sortedBy { (_, sessions) -> sessions.minOf { it.startTime } }
 
     /** Jump to an arbitrary date (from the calendar picker). Clamped to the report window. */
     fun selectDate(newDate: Long) {
@@ -218,11 +236,18 @@ class ReportViewModel @Inject constructor(
         val startOfDayMs = selectedDate
         val endOfDayMs    = selectedDate + DAY_MS - 1
 
-        return if (period == EXTRA_PERIOD) {
-            // Multiple extra-period sessions can exist for the same batch on the same day
-            // (e.g. restarted) — keep only the most recent per batch, same rule
-            // used for de-duping timetabled sessions elsewhere in the app.
-            extraPeriodSessions
+        return if (period <= EXTRA_PERIOD_BASE) {
+            // Multiple sessions can exist for the same batch within the SAME extra
+            // period/subject on the same day (e.g. restarted) — keep only the most
+            // recent per batch, same rule used for de-duping timetabled sessions
+            // elsewhere in the app. Different subjects are separate period options
+            // (see buildPeriodOptions), so this no longer merges unrelated extra
+            // periods together.
+            val groups = extraPeriodGroupsOrdered()
+            val index  = EXTRA_PERIOD_BASE - period
+            val sessionsForThisExtraPeriod = groups.getOrNull(index)?.second ?: emptyList()
+
+            sessionsForThisExtraPeriod
                 .groupBy { it.batch }
                 .map { (batch, sessions) -> SlotSource(batch, sessions.maxByOrNull { it.startTime }) }
         } else {
@@ -314,8 +339,11 @@ class ReportViewModel @Inject constructor(
          *  to be viewed on the website, not in-app. */
         private const val REPORT_WINDOW_DAYS = 30
 
-        /** Sentinel period number representing the "Extra Periods" group,
-         *  since extra periods have no real timetable period number. */
-        const val EXTRA_PERIOD = -1
+        /** Base sentinel for extra-period options. Each distinct extra-period
+         *  subject on the selected date gets its own option at
+         *  EXTRA_PERIOD_BASE - index (index 0, 1, 2, …), since extra periods
+         *  have no real timetable period number and there can be more than one
+         *  of them on the same day. */
+        const val EXTRA_PERIOD_BASE = -1000
     }
 }

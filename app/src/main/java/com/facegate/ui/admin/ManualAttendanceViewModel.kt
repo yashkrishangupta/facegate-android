@@ -18,8 +18,9 @@ import javax.inject.Inject
 
 data class StudentWithStatus(
     val student       : StudentEntity,
-    /** True if the student is marked present under the current filter
-     *  (session-specific when a session is selected, otherwise day-wide). */
+    /** True if the student is marked present for the currently selected session.
+     *  Falls back to a day-wide check only when no session has been started yet
+     *  for the selected class/day (there's no "All sessions" filter to pick). */
     val markedToday   : Boolean,
 )
 
@@ -33,6 +34,11 @@ data class SelectableDay(
 sealed class ManualAttendanceState {
     object Loading                                                : ManualAttendanceState()
     object Empty                                                  : ManualAttendanceState()
+    /** No period/class happened on the selected day — nothing to correct. */
+    data class NoPeriodToday(
+        val days       : List<SelectableDay>,
+        val selectedDay: SelectableDay,
+    ) : ManualAttendanceState()
     data class Loaded(
         val classes       : List<String>,
         val students      : List<StudentWithStatus>,
@@ -65,46 +71,73 @@ class ManualAttendanceViewModel @Inject constructor(
     fun load() {
         viewModelScope.launch {
             _state.value = ManualAttendanceState.Loading
-            val classes = repository.getAllClasses()
-            if (classes.isEmpty()) {
-                _state.value = ManualAttendanceState.Empty
-                return@launch
-            }
-            if (selectedClass == null) selectedClass = classes.firstOrNull()
-            loadStudentsForClass(classes)
+            refresh()
         }
     }
 
     fun selectClass(className: String) {
         selectedClass   = className
-        selectedSession = null // session list is day-scoped; reset on class change too for clarity
-        viewModelScope.launch { loadStudentsForClass(repository.getAllClasses()) }
+        selectedSession = null // session list is class-scoped; reset on class change too for clarity
+        viewModelScope.launch { refresh() }
     }
 
     fun selectSession(session: SessionEntity?) {
         selectedSession = session
-        viewModelScope.launch { loadStudentsForClass(repository.getAllClasses()) }
+        viewModelScope.launch { refresh() }
     }
 
     /** Switch which day's attendance is being viewed/edited (today or any of the past 6 days). */
     fun selectDay(day: SelectableDay) {
         if (day.startOfDay == selectedDay.startOfDay) return
         selectedDay      = day
-        selectedSession  = null // sessions are day-specific — clear stale selection
-        viewModelScope.launch { loadStudentsForClass(repository.getAllClasses()) }
+        selectedClass    = null // classes are day-scoped (only ones with a period that day) — re-derive
+        selectedSession  = null
+        viewModelScope.launch { refresh() }
     }
 
-    private suspend fun loadStudentsForClass(classes: List<String>) {
-        val cls      = selectedClass ?: return
-        val students = repository.getStudentsByClass(cls)
+    private suspend fun refresh() {
+        val allClasses = repository.getAllClasses()
+        if (allClasses.isEmpty()) {
+            _state.value = ManualAttendanceState.Empty
+            return
+        }
 
         val startOfDay = selectedDay.startOfDay
         val endOfDay   = startOfDay + DAY_MS - 1
-        val sessions   = repository.getSessionsForDate(startOfDay, endOfDay)
+        val sessionsToday = repository.getSessionsForDate(startOfDay, endOfDay)
 
-        // When a session is active, also auto-select it if none chosen yet
-        if (selectedSession == null && sessions.size == 1) {
-            selectedSession = sessions.first()
+        // A class is only offered as a filter option if a period/session actually
+        // happened for it that day — no point letting someone mark attendance for
+        // a class that had no class that day.
+        val classesWithSessions = sessionsToday
+            .map { it.batch }
+            .distinct()
+            .filter { it in allClasses }
+            .sorted()
+
+        if (classesWithSessions.isEmpty()) {
+            _state.value = ManualAttendanceState.NoPeriodToday(
+                days        = selectableDays,
+                selectedDay = selectedDay,
+            )
+            return
+        }
+
+        if (selectedClass == null || selectedClass !in classesWithSessions) {
+            selectedClass   = classesWithSessions.first()
+            selectedSession = null
+        }
+
+        val cls      = selectedClass!!
+        val students = repository.getStudentsByClass(cls)
+        val sessions = sessionsToday.filter { it.batch == cls }
+
+        // With the "All sessions" filter removed, attendance is always tied to a
+        // specific session once one exists for the day — auto-select the most
+        // recently started one if nothing is picked yet, rather than falling
+        // back to a day-wide (session-less) view.
+        if (selectedSession == null && sessions.isNotEmpty()) {
+            selectedSession = sessions.maxByOrNull { it.startTime }
         }
 
         val withStatus = students.map { student ->
@@ -117,7 +150,7 @@ class ManualAttendanceViewModel @Inject constructor(
         }
 
         _state.value = ManualAttendanceState.Loaded(
-            classes         = classes,
+            classes         = classesWithSessions,
             students        = withStatus,
             selectedClass   = selectedClass,
             sessions        = sessions,
@@ -171,7 +204,7 @@ class ManualAttendanceViewModel @Inject constructor(
                     )
                 }
             }
-            loadStudentsForClass(repository.getAllClasses())
+            refresh()
         }
     }
 
