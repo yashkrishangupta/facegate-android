@@ -103,6 +103,33 @@ class StudentsFragment : Fragment() {
         itemBinding.tvAvatar.text = initials
         itemBinding.tvName.text = student.name
         itemBinding.tvSubInfo.text = "${student.studentId}  •  Class ${student.studentClass}"
+
+        if (student.enrollmentStatus == "PENDING") {
+            // Show "Needs Enrollment" badge
+            val badge = android.widget.TextView(requireContext()).apply {
+                text = "NEEDS ENROLLMENT"
+                textSize = 9f
+                setTextColor(Color.WHITE)
+                setTypeface(null, android.graphics.Typeface.BOLD)
+                setPadding(dp(6), dp(1), dp(6), dp(1))
+                setBackgroundResource(R.drawable.badge_blue)
+                backgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#BA7517")) // Amber
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    topMargin = dp(4)
+                }
+            }
+            (itemBinding.tvName.parent as ViewGroup).addView(badge)
+
+            // Make the row clickable to launch enrollment
+            itemBinding.root.setOnClickListener {
+                // TODO: Launch Enrollment Screen
+                android.widget.Toast.makeText(requireContext(), "TODO: Launch enrollment for ${student.name}", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+
         itemBinding.btnEdit.setOnClickListener { showEditDialog(student) }
         itemBinding.btnDelete.setOnClickListener { confirmDelete(student) }
 
