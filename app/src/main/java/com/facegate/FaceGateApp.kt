@@ -2,6 +2,8 @@ package com.facegate
 
 import android.app.Application
 import android.util.Log
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import com.facegate.pipeline.AttendancePipeline
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -11,10 +13,20 @@ import javax.inject.Inject
 
 
 @HiltAndroidApp
-class FaceGateApp : Application() {
+class FaceGateApp : Application(), Configuration.Provider {
 
     @Inject
     lateinit var pipeline: AttendancePipeline
+
+    // Lets WorkManager construct @HiltWorker workers (e.g. AttendanceSyncWorker)
+    // with their Hilt-injected dependencies instead of a no-arg constructor.
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
 
     private val appScope = CoroutineScope(SupervisorJob())
 

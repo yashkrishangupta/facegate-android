@@ -71,6 +71,7 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 
+
     // ML Pipeline
     implementation(libs.mlkit.face.detection)
     implementation(libs.onnxruntime.android)
@@ -93,6 +94,8 @@ dependencies {
 
     // WorkManager
     implementation(libs.work.runtime.ktx)
+    implementation("androidx.hilt:hilt-work:1.2.0")
+    ksp("androidx.hilt:hilt-compiler:1.2.0")
 
     // Coroutines
     implementation(libs.coroutines.android)
