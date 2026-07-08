@@ -5,8 +5,11 @@ import android.os.BatteryManager
 import android.os.Environment
 import android.os.StatFs
 import android.util.Log
+import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import retrofit2.HttpException
 import java.io.IOException
 
@@ -14,32 +17,30 @@ import java.io.IOException
  * WorkManager worker responsible for coordinating synchronization with the backend.
  * Follows a specific sequence of operations: Heartbeat, Sync Data, Upload Attendance.
  */
-class AttendanceSyncWorker(
-    context: Context,
-    workerParams: WorkerParameters
+@HiltWorker
+class AttendanceSyncWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted workerParams: WorkerParameters,
+    private val repository: SyncRepository,
+    private val deviceIdManager: DeviceIdManager
 ) : CoroutineWorker(context, workerParams) {
 
     private companion object {
         const val TAG = "AttendanceSyncWorker"
         
         // Input Data Keys
-        const val KEY_DEVICE_ID = "device_id"
         const val KEY_ROOM_ID = "room_id"
         const val KEY_LAST_SYNC = "last_sync"
     }
 
     override suspend fun doWork(): Result {
-        Log.d(TAG, "Starting synchronization coordination skeleton...")
+        Log.d(TAG, "Starting synchronization coordination...")
 
-        val deviceId = inputData.getString(KEY_DEVICE_ID) ?: "UNKNOWN_DEVICE"
+        val deviceId = deviceIdManager.getDeviceId()
         val roomId = inputData.getString(KEY_ROOM_ID) ?: ""
         val lastSync = inputData.getString(KEY_LAST_SYNC) ?: ""
 
         try {
-            // TODO: Complete SyncRepository integration once WorkManager DI (e.g. HiltWorker) is available.
-            // Currently, repository injection is blocked because the project does not support @HiltWorker.
-            
-            /*
             // 1. Heartbeat
             repository.heartbeat(createHeartbeatRequest(deviceId)).getOrRetry()
 
@@ -66,13 +67,8 @@ class AttendanceSyncWorker(
 
             // 9. Retry Failed Sync
             repository.retrySync().getOrRetry()
-            */
 
-            Log.i(
-                TAG,
-                "AttendanceSyncWorker executed. Synchronization is pending WorkManager dependency injection integration."
-            )
-            return Result.success()
+            Log.i(TAG, "AttendanceSyncWorker executed successfully.")
             return Result.success()
 
         } catch (e: SyncRetryException) {
