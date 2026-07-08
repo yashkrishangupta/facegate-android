@@ -106,7 +106,7 @@ class SyncRepository @Inject constructor(
             Log.e(TAG, "Network error during sync", e)
             Result.failure(e)
         } catch (e: HttpException) {
-            Log.e(TAG, "HTTP error during sync: ${e.code}", e)
+            Log.e(TAG, "HTTP error during sync: ${e.code()}", e)
             Result.failure(e)
         } catch (e: Exception) {
             Log.e(TAG, "Unexpected error during sync", e)

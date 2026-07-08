@@ -123,10 +123,17 @@ class StudentsFragment : Fragment() {
             }
             (itemBinding.tvName.parent as ViewGroup).addView(badge)
 
-            // Make the row clickable to launch enrollment
+            // Make the row clickable to launch enrollment, pre-filled with the
+            // details already synced from the website — skips the "add new
+            // student" dialog and goes straight to the camera capture flow.
             itemBinding.root.setOnClickListener {
-                // TODO: Launch Enrollment Screen
-                android.widget.Toast.makeText(requireContext(), "TODO: Launch enrollment for ${student.name}", android.widget.Toast.LENGTH_SHORT).show()
+                findNavController().navigate(
+                    StudentsFragmentDirections.actionStudentsToEnrollment(
+                        studentId    = student.studentId,
+                        studentName  = student.name,
+                        studentClass = student.studentClass,
+                    )
+                )
             }
         }
 

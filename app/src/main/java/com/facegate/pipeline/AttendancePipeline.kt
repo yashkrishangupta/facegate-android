@@ -111,7 +111,7 @@ class AttendancePipeline(
             alreadyMarkedMap[record.studentId] = record.timeStamp
         }
 
-        val students = repository.getStudents()
+        val students = repository.getEnrolledStudents()
         enrolledTemplates.clear()
         enrolledTemplates.addAll(
             students.mapNotNull { entity ->
@@ -346,12 +346,16 @@ class AttendancePipeline(
         }
 
         // ── Save blended template to DB ───────────────────────────────────────
+        // enrollmentStatus explicitly "DONE" — otherwise it keeps the entity's
+        // default "PENDING" value and getEnrolledStudents() (which filters out
+        // PENDING rows) would never pick this student up for recognition.
         repository.addStudent(
             StudentEntity(
-                studentId    = studentId,
-                name         = studentName,
-                studentClass = studentClass,
-                embedding    = normalised.joinToString(","),
+                studentId        = studentId,
+                name             = studentName,
+                studentClass     = studentClass,
+                embedding        = normalised.joinToString(","),
+                enrollmentStatus = "DONE",
             )
         )
 
@@ -403,10 +407,11 @@ class AttendancePipeline(
 
         repository.addStudent(
             StudentEntity(
-                studentId    = studentId,
-                name         = studentName,
-                studentClass = studentClass,
-                embedding    = embedding.vector.joinToString(","),
+                studentId        = studentId,
+                name             = studentName,
+                studentClass     = studentClass,
+                embedding        = embedding.vector.joinToString(","),
+                enrollmentStatus = "DONE",
             )
         )
 
@@ -460,10 +465,11 @@ class AttendancePipeline(
 
         repository.addStudent(
             StudentEntity(
-                studentId    = studentId,
-                name         = studentName,
-                studentClass = studentClass,
-                embedding    = normalised.joinToString(","),
+                studentId        = studentId,
+                name             = studentName,
+                studentClass     = studentClass,
+                embedding        = normalised.joinToString(","),
+                enrollmentStatus = "DONE",
             )
         )
         enrolledTemplates.add(
@@ -635,7 +641,8 @@ class AttendancePipeline(
     private fun isBufferReady(): Boolean =
         frameBuffer.size >= PipelineConfig.FRAME_BUFFER_SIZE
 
-    private fun parseEmbedding(raw: String): FloatArray? {
+    private fun parseEmbedding(raw: String?): FloatArray? {
+        if (raw.isNullOrBlank()) return null
         return try {
             val parts = raw.split(",")
             if (parts.size != PipelineConfig.EMBEDDING_SIZE) return null

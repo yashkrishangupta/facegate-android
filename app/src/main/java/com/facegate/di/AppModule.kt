@@ -5,16 +5,28 @@ import androidx.room.Room
 import com.facegate.pipeline.AttendancePipeline
 import com.facegate.storage.FaceGateDatabase
 import com.facegate.storage.TemplateRepository
+import com.facegate.sync.SyncApi
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import okhttp3.OkHttpClient
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
+
+    // ⚠️ Placeholder — point this at your actual backend before shipping.
+    private const val SYNC_BASE_URL = "https://your-backend.example.com/"
+
+    // ── Database / storage ──────────────────────────────────────────────────
 
     @Provides
     @Singleton
@@ -54,4 +66,33 @@ object AppModule {
         @ApplicationContext context: Context,
         repository: TemplateRepository,
     ): AttendancePipeline = AttendancePipeline(context, repository)
+
+    // ── Networking / sync ────────────────────────────────────────────────────
+
+    @Provides
+    @Singleton
+    fun provideGson(): Gson = GsonBuilder().create()
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(): OkHttpClient =
+        OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(okHttpClient: OkHttpClient, gson: Gson): Retrofit =
+        Retrofit.Builder()
+            .baseUrl(SYNC_BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
+
+    @Provides
+    @Singleton
+    fun provideSyncApi(retrofit: Retrofit): SyncApi =
+        retrofit.create(SyncApi::class.java)
 }

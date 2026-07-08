@@ -22,6 +22,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import com.facegate.R
 import com.facegate.databinding.FragmentEnrollmentBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -39,6 +40,11 @@ class EnrollmentFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: EnrollmentViewModel by viewModels()
+    private val args by navArgs<EnrollmentFragmentArgs>()
+
+    /** True when we arrived here from the Students list to finish a PENDING enrollment. */
+    private val isCompletingPendingStudent: Boolean
+        get() = args.studentId.isNotBlank()
 
     // ── Camera ───────────────────────────────────────────────────────────────
 
@@ -92,10 +98,18 @@ class EnrollmentFragment : Fragment() {
         observeViewModel()
         updatePhotoUI()
 
-        // Collect student details FIRST. Camera + capture button stay disabled
-        // until the dialog is confirmed (see promptStudentInfo()).
         binding.btnCapture.isClickable = false
-        promptStudentInfo()
+
+        if (isCompletingPendingStudent) {
+            // Details already known from the website sync — go straight to capture.
+            viewModel.setStudentInfo(args.studentName, args.studentId, args.studentClass)
+            infoDialogShown = true
+            startEnrollmentCapture()
+        } else {
+            // Brand-new student — collect details FIRST. Camera + capture button
+            // stay disabled until the dialog is confirmed (see promptStudentInfo()).
+            promptStudentInfo()
+        }
     }
 
     override fun onDestroyView() {
