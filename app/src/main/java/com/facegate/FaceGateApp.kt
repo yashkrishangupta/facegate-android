@@ -18,8 +18,6 @@ class FaceGateApp : Application(), Configuration.Provider {
     @Inject
     lateinit var pipeline: AttendancePipeline
 
-    // Lets WorkManager construct @HiltWorker workers (e.g. AttendanceSyncWorker)
-    // with their Hilt-injected dependencies instead of a no-arg constructor.
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
