@@ -53,6 +53,8 @@ workManager          = "2.9.0"
 coroutinesAndroid    = "1.7.3"
 coroutines           = "1.7.3"
 
+retrofit             = "2.11.0"
+
 
 [libraries]
 # ── Core (both alias styles so both build.gradle.kts variants work) ──
@@ -113,6 +115,8 @@ work-runtime-ktx             = { group = "androidx.work",               name = "
 coroutines-android           = { group = "org.jetbrains.kotlinx",       name = "kotlinx-coroutines-android",       version.ref = "coroutinesAndroid"     }
 coroutines-play-services     = { group = "org.jetbrains.kotlinx",       name = "kotlinx-coroutines-play-services", version.ref = "coroutines"            }
 
+retrofit                     = { module = "com.squareup.retrofit2:retrofit",         version.ref = "retrofit" }
+retrofit-gson                = { module = "com.squareup.retrofit2:converter-gson",   version.ref = "retrofit" }
 
 [plugins]
 android-application          = { id = "com.android.application",        version.ref = "agp"    }

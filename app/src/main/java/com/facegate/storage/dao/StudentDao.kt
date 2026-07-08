@@ -2,17 +2,24 @@ package com.facegate.storage.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.facegate.storage.entity.StudentEntity
 
 @Dao
 interface StudentDao {
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertStudent(student: StudentEntity)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPendingStudent(student: StudentEntity)
 
     @Query("SELECT * FROM students ORDER BY name ASC")
     suspend fun getAllStudents(): List<StudentEntity>
+
+    @Query("SELECT * FROM students WHERE enrollmentStatus != 'PENDING'")
+    suspend fun getAllEnrolledStudents(): List<StudentEntity>
 
     @Query("SELECT * FROM students WHERE studentClass = :studentClass ORDER BY name ASC")
     suspend fun getStudentsByClass(studentClass: String): List<StudentEntity>

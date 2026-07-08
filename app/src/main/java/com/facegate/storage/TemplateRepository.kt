@@ -37,14 +37,22 @@ class TemplateRepository(
     suspend fun addStudent(student: StudentEntity) =
         studentDao.insertStudent(student)
 
+    suspend fun syncPendingStudents(students: List<StudentEntity>) {
+        students.forEach { studentDao.insertPendingStudent(it) }
+    }
+
     suspend fun getStudents(): List<StudentEntity> =
         studentDao.getAllStudents()
+
+    suspend fun getEnrolledStudents(): List<StudentEntity> =
+        studentDao.getAllEnrolledStudents()
 
     suspend fun getStudentsByClass(studentClass: String): List<StudentEntity> =
         studentDao.getStudentsByClass(studentClass)
 
     suspend fun getAllClasses(): List<String> =
         studentDao.getAllClasses()
+
 
     suspend fun getStudentCount(): Int =
         studentDao.getStudentCount()

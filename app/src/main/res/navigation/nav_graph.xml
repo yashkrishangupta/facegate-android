@@ -90,6 +90,25 @@
         android:label="Enroll Student"
         tools:layout="@layout/fragment_enrollment">
 
+        <!-- Left blank for a brand-new student (dialog asks for details).
+             Pre-filled when opened from the Students list for a student
+             who is already synced from the website with PENDING status —
+             in that case the details dialog is skipped entirely. -->
+        <argument
+            android:name="studentId"
+            app:argType="string"
+            android:defaultValue="" />
+
+        <argument
+            android:name="studentName"
+            app:argType="string"
+            android:defaultValue="" />
+
+        <argument
+            android:name="studentClass"
+            app:argType="string"
+            android:defaultValue="" />
+
         <action
             android:id="@+id/action_enrollment_to_dashboard"
             app:destination="@id/adminDashboard"
