@@ -4,71 +4,112 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:gravity="center_vertical"
+    android:orientation="vertical"
     android:background="@color/surface_card"
     android:paddingHorizontal="14dp"
     android:paddingVertical="10dp">
 
-    <TextView
-        android:id="@+id/tvAvatar"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_marginEnd="12dp"
-        android:background="@drawable/chip_active"
-        android:gravity="center"
-        android:textColor="#1D9E75"
-        android:textSize="13sp"
-        android:textStyle="bold"
-        tools:text="JD"/>
-
     <LinearLayout
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
 
         <TextView
-            android:id="@+id/tvName"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="@color/text_on_surface"
-            android:textSize="14sp"
+            android:id="@+id/tvAvatar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/chip_active"
+            android:gravity="center"
+            android:textColor="#1D9E75"
+            android:textSize="13sp"
             android:textStyle="bold"
-            tools:text="Jane Doe"/>
+            tools:text="JD"/>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_on_surface"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                tools:text="Jane Doe"/>
+
+            <TextView
+                android:id="@+id/tvSubInfo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="#000000"
+                android:textSize="11sp"
+                tools:text="STU-0042  •  Class 10A"/>
+
+            <!-- Always-visible enrollment status: "✓ Enrolled" (green) or
+                 "⏳ Needs Enrollment" (amber) — replaces the old badge that
+                 only appeared for pending rows and was easy to miss. -->
+            <TextView
+                android:id="@+id/tvEnrollmentStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                tools:text="✓ ENROLLED"
+                tools:textColor="@color/green_400"/>
+
+        </LinearLayout>
 
         <TextView
-            android:id="@+id/tvSubInfo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textColor="#000000"
-            android:textSize="11sp"
-            tools:text="STU-0042  •  Class 10A"/>
+            android:id="@+id/btnEdit"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginEnd="4dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="✎"
+            android:textColor="#037A09"
+            android:textSize="16sp"/>
+
+        <TextView
+            android:id="@+id/btnDelete"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="✕"
+            android:textColor="#E4080E"
+            android:textSize="14sp"/>
 
     </LinearLayout>
 
+    <!-- Only visible for PENDING students — takes them straight into the
+         enrollment capture flow, pre-filled with this student's details. -->
     <TextView
-        android:id="@+id/btnEdit"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:layout_marginEnd="4dp"
+        android:id="@+id/btnCompleteEnrollment"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/badge_blue"
+        android:backgroundTint="@color/amber_400"
         android:clickable="true"
         android:focusable="true"
         android:gravity="center"
-        android:text="✎"
-        android:textColor="#037A09"
-        android:textSize="16sp"/>
-
-    <TextView
-        android:id="@+id/btnDelete"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:clickable="true"
-        android:focusable="true"
-        android:gravity="center"
-        android:text="✕"
-        android:textColor="#E4080E"
-        android:textSize="14sp"/>
+        android:paddingVertical="8dp"
+        android:text="Complete Enrollment"
+        android:textAllCaps="false"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        tools:visibility="visible"/>
 
 </LinearLayout>
