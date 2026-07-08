@@ -104,29 +104,26 @@ class StudentsFragment : Fragment() {
         itemBinding.tvName.text = student.name
         itemBinding.tvSubInfo.text = "${student.studentId}  •  Class ${student.studentClass}"
 
-        if (student.enrollmentStatus == "PENDING") {
-            // Show "Needs Enrollment" badge
-            val badge = android.widget.TextView(requireContext()).apply {
-                text = "NEEDS ENROLLMENT"
-                textSize = 9f
-                setTextColor(Color.WHITE)
-                setTypeface(null, android.graphics.Typeface.BOLD)
-                setPadding(dp(6), dp(1), dp(6), dp(1))
-                setBackgroundResource(R.drawable.badge_blue)
-                backgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#BA7517")) // Amber
-                layoutParams = android.widget.LinearLayout.LayoutParams(
-                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    topMargin = dp(4)
-                }
-            }
-            (itemBinding.tvName.parent as ViewGroup).addView(badge)
+        val isPending = student.enrollmentStatus == "PENDING"
 
-            // Make the row clickable to launch enrollment, pre-filled with the
-            // details already synced from the website — skips the "add new
-            // student" dialog and goes straight to the camera capture flow.
-            itemBinding.root.setOnClickListener {
+        // Always-visible status — was previously a badge that only appeared
+        // for pending rows, easy to miss. Now every row clearly shows where
+        // it stands.
+        if (isPending) {
+            itemBinding.tvEnrollmentStatus.text = "⏳ NEEDS ENROLLMENT"
+            itemBinding.tvEnrollmentStatus.setTextColor(Color.parseColor("#BA7517")) // Amber
+        } else {
+            itemBinding.tvEnrollmentStatus.text = "✓ ENROLLED"
+            itemBinding.tvEnrollmentStatus.setTextColor(Color.parseColor("#3B6D11")) // Green
+        }
+
+        // Dedicated button (instead of relying on a whole-row tap, which was
+        // easy to miss and clashed with the edit/delete icons) — takes a
+        // pending student straight into the enrollment capture flow,
+        // pre-filled with the details already synced from the website.
+        if (isPending) {
+            itemBinding.btnCompleteEnrollment.visibility = View.VISIBLE
+            itemBinding.btnCompleteEnrollment.setOnClickListener {
                 findNavController().navigate(
                     StudentsFragmentDirections.actionStudentsToEnrollment(
                         studentId    = student.studentId,
@@ -135,6 +132,8 @@ class StudentsFragment : Fragment() {
                     )
                 )
             }
+        } else {
+            itemBinding.btnCompleteEnrollment.visibility = View.GONE
         }
 
         itemBinding.btnEdit.setOnClickListener { showEditDialog(student) }
