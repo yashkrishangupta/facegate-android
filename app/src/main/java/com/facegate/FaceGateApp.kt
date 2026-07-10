@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.facegate.pipeline.AttendancePipeline
+import com.facegate.sync.AttendanceSyncWorker
+import com.facegate.sync.DeviceIdManager
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -20,6 +22,9 @@ class FaceGateApp : Application(), Configuration.Provider {
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
+
+    @Inject
+    lateinit var deviceIdManager: DeviceIdManager
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -44,6 +49,16 @@ class FaceGateApp : Application(), Configuration.Provider {
             } catch (e: Exception) {
                 Log.e("FaceGateApp", "Failed to initialize AttendancePipeline", e)
             }
+        }
+
+        // Covers the "already paired" case — e.g. app process restarted after
+        // being killed. The freshly-paired case is handled by PairingViewModel
+        // calling this same scheduler right after a successful pairing.
+        if (deviceIdManager.isPaired()) {
+            AttendanceSyncWorker.Scheduler.schedulePeriodicSync(
+                context = this,
+                roomId = deviceIdManager.getRoomId() ?: "",
+            )
         }
     }
 }

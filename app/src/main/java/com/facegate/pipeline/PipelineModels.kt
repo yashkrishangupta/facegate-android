@@ -13,6 +13,12 @@ object PipelineConfig {
     const val EMBEDDING_SIZE     = 128          // fixed by MobileFaceNet
     const val MODEL_ASSET_PATH   = "models/mobilefacenet.onnx"
 
+    // Sent as `modelVersion` when uploading an embedding to the backend
+    // (POST /api/v1/face-embeddings) so the server knows which model produced
+    // it. Bump this if mobilefacenet.onnx is ever swapped for a different
+    // model/version — existing embeddings won't be comparable across versions.
+    const val MODEL_VERSION       = "mobilefacenet-v1"
+
     // ── Camera ─────────────────────────────────────────────
     const val ANALYSIS_FPS       = 10
     const val FRAME_BUFFER_SIZE  = 8

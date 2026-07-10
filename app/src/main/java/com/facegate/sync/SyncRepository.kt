@@ -8,7 +8,14 @@ import javax.inject.Singleton
 
 /**
  * Repository responsible for network synchronization operations.
- * This acts as a thin wrapper around [SyncApi] with error handling.
+ * Thin wrapper around [SyncApi] with error handling.
+ *
+ * Collapsed from 11 wrapper methods down to the 5 endpoints that actually
+ * exist on the backend — timetable/students/holidays are not separate
+ * calls, they all come back together from fullSync/incrementalSync.
+ * Face-embedding sync has no backend support yet (tracked in the updated
+ * API_CONTRACT.md under "Known gaps") so there's no wrapper for it here;
+ * add one once that endpoint exists.
  */
 @Singleton
 class SyncRepository @Inject constructor(
@@ -19,86 +26,28 @@ class SyncRepository @Inject constructor(
         const val TAG = "SyncRepository"
     }
 
-    /**
-     * 13.1 Full Synchronization - Downloads all required data for a newly registered device.
-     */
-    suspend fun fullSync(request: FullSyncRequest): Result<FullSyncResponse> {
-        return safeApiCall { api.fullSync(request) }
+    /** First sync after pairing — no `since` cursor yet. */
+    suspend fun fullSync(): Result<FullSyncResponse> {
+        return safeApiCall { api.fullSync() }
     }
 
-    /**
-     * 13.2 Incremental Synchronization - Returns only records modified after the previous synchronization.
-     */
-    suspend fun incrementalSync(lastSync: String): Result<IncrementalSyncResponse> {
-        return safeApiCall { api.incrementalSync(lastSync) }
+    /** Every sync after the first, using the timestamp from the previous one. */
+    suspend fun incrementalSync(since: String?): Result<IncrementalSyncResponse> {
+        return safeApiCall { api.incrementalSync(since) }
     }
 
-    /**
-     * 13.3 Upload Offline Attendance - Uploads attendance records collected while offline.
-     */
     suspend fun uploadAttendance(request: AttendanceUploadRequest): Result<AttendanceUploadResponse> {
         return safeApiCall { api.uploadAttendance(request) }
     }
 
-    /**
-     * 13.4 Synchronize Attendance Sessions - Downloads active attendance sessions assigned to the device.
-     */
-    suspend fun syncAttendanceSessions(roomId: String, lastSync: String? = null): Result<SyncAttendanceSessionsResponse> {
-        return safeApiCall { api.syncAttendanceSessions(roomId, lastSync) }
-    }
-
-    /**
-     * 13.5 Synchronize Students - Downloads students assigned to the device's batches.
-     */
-    suspend fun syncStudents(): Result<SyncStudentsResponse> {
-        return safeApiCall { api.syncStudents() }
-    }
-
-    /**
-     * 13.6 Synchronize Face Embeddings - Downloads updated face embeddings.
-     */
-    suspend fun syncFaceEmbeddings(): Result<SyncFaceEmbeddingsResponse> {
-        return safeApiCall { api.syncFaceEmbeddings() }
-    }
-
-    /**
-     * 13.7 Synchronize Timetable - Downloads timetable updates.
-     */
-    suspend fun syncTimetable(): Result<SyncTimetableResponse> {
-        return safeApiCall { api.syncTimetable() }
-    }
-
-    /**
-     * 13.8 Synchronize Holidays - Downloads updated holidays.
-     */
-    suspend fun syncHolidays(): Result<SyncHolidaysResponse> {
-        return safeApiCall { api.syncHolidays() }
-    }
-
-    /**
-     * 13.9 Heartbeat - Android periodically reports its health to the backend.
-     */
-    suspend fun heartbeat(request: HeartbeatRequest): Result<SyncMessageResponse> {
-        return safeApiCall { api.heartbeat(request) }
-    }
-
-    /**
-     * 13.10 Synchronization Status - Returns synchronization status of the requesting device.
-     */
     suspend fun getSyncStatus(): Result<SyncStatusResponse> {
         return safeApiCall { api.getSyncStatus() }
     }
 
-    /**
-     * 13.11 Retry Failed Synchronization - Retries uploading failed attendance records.
-     */
     suspend fun retrySync(): Result<RetrySyncResponse> {
         return safeApiCall { api.retrySync() }
     }
 
-    /**
-     * Helper function to execute API calls safely and wrap them in [Result].
-     */
     private suspend fun <T> safeApiCall(call: suspend () -> T): Result<T> {
         return try {
             Result.success(call())

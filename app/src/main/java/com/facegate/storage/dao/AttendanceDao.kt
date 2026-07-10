@@ -66,6 +66,15 @@ interface AttendanceDao {
     @Query("DELETE FROM attendance_records WHERE studentId = :studentId")
     suspend fun deleteAllAttendanceForStudent(studentId: String)
 
+    /**
+     * Retention cleanup: deletes attendance records older than [cutoffMillis]
+     * that have already been uploaded (synced = 1). Unsynced records are never
+     * touched here regardless of age — losing data that hasn't reached the
+     * backend yet would be silent data loss, not cleanup.
+     */
+    @Query("DELETE FROM attendance_records WHERE timeStamp < :cutoffMillis AND synced = 1")
+    suspend fun deleteSyncedRecordsOlderThan(cutoffMillis: Long)
+
     @Query("UPDATE attendance_records SET studentId = :newId WHERE studentId = :oldId")
     suspend fun renameStudentId(oldId: String, newId: String)
 

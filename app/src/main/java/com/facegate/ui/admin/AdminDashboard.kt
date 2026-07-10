@@ -12,13 +12,19 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import android.widget.Toast
 import com.facegate.R
 import com.facegate.databinding.FragmentAdminDashboardBinding
+import com.facegate.sync.AttendanceSyncWorker
+import com.facegate.sync.DeviceIdManager
+import com.facegate.sync.SyncRepository
+import com.facegate.storage.TemplateRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class AdminDashboard : Fragment() {
@@ -27,6 +33,15 @@ class AdminDashboard : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: AdminDashboardViewModel by viewModels()
+
+    @Inject
+    lateinit var deviceIdManager: DeviceIdManager
+
+    @Inject
+    lateinit var syncRepository: SyncRepository
+
+    @Inject
+    lateinit var templateRepository: TemplateRepository
 
     private val clockHandler = Handler(Looper.getMainLooper())
     private val clockRunnable = object : Runnable {
@@ -47,9 +62,20 @@ class AdminDashboard : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        // Block everything until the device is paired with the backend — no
+        // stats, no student data, no sync can happen without a valid deviceId
+        // + Device Token. popUpTo/popUpToInclusive on this action (nav_graph.xml)
+        // removes this dashboard from the back stack so Back can't bypass pairing.
+        if (!deviceIdManager.isPaired()) {
+            findNavController().navigate(R.id.action_dashboard_to_pairing)
+            return
+        }
+
         setupClickListeners()
         updateDate()
         clockHandler.post(clockRunnable)
+        refreshSyncStatus()
 
         // ── Lifecycle-aware collection ────────────────────────────────────────
         // repeatOnLifecycle cancels the inner block when the view goes to STOPPED
@@ -215,6 +241,54 @@ class AdminDashboard : Fragment() {
         }
         binding.tileStartAttendance.setOnClickListener {
             findNavController().navigate(R.id.action_dashboard_to_schedule)
+        }
+
+        // Manual sync trigger — item 7 (getSyncStatus) is surfaced here too,
+        // rather than as a permanent auto-refreshing widget, since sync is
+        // designed to fail silently in the background (see AttendanceSyncWorker)
+        // and this is the one place an admin can actually check on it on demand.
+        binding.btnSyncNow.setOnClickListener {
+            val roomId = deviceIdManager.getRoomId() ?: ""
+            AttendanceSyncWorker.Scheduler.runOnce(requireContext(), roomId)
+            Toast.makeText(requireContext(), "Sync started…", Toast.LENGTH_SHORT).show()
+            // Give the one-off worker a moment before re-checking status — this
+            // is a best-effort UX nicety, not a guarantee the sync has finished.
+            binding.tvSyncStatus.postDelayed({ refreshSyncStatus() }, 4000)
+        }
+
+        // Re-pairing entry point (item 5) — e.g. moving this device to a
+        // different room, or recovering from a revoked/expired Device Token.
+        binding.btnDeviceSettings.setOnClickListener {
+            findNavController().navigate(R.id.action_dashboard_to_pairing)
+        }
+    }
+
+    /**
+     * GET /api/v1/sync/status. Best-effort: a failure here just leaves the
+     * status line as-is, consistent with sync being designed to fail
+     * silently elsewhere too.
+     *
+     * The backend's sync status has no "pending uploads" count — that's
+     * purely local information, so it's read from Room directly rather
+     * than expected on the response.
+     */
+    private fun refreshSyncStatus() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = syncRepository.getSyncStatus()
+            if (_binding == null) return@launch // view may be gone by the time this returns
+
+            result.onSuccess { response ->
+                val status = response.data
+                if (status == null) {
+                    binding.tvSyncStatus.text = "Sync status unavailable"
+                    return@onSuccess
+                }
+                val pendingUploads = templateRepository.getUnsyncedAttendance().size
+                binding.tvSyncStatus.text =
+                    "${status.syncStatus} • last sync ${status.lastSync ?: "never"} • $pendingUploads pending"
+            }.onFailure {
+                binding.tvSyncStatus.text = "Sync status unavailable"
+            }
         }
     }
 }

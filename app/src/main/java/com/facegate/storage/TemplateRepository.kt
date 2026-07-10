@@ -41,6 +41,12 @@ class TemplateRepository(
         students.forEach { studentDao.insertPendingStudent(it) }
     }
 
+    suspend fun getStudentsWithUnsyncedEmbedding(): List<StudentEntity> =
+        studentDao.getStudentsWithUnsyncedEmbedding()
+
+    suspend fun markEmbeddingSynced(studentId: String) =
+        studentDao.markEmbeddingSynced(studentId)
+
     suspend fun getStudents(): List<StudentEntity> =
         studentDao.getAllStudents()
 
@@ -100,6 +106,15 @@ class TemplateRepository(
 
     suspend fun markAttendanceSynced(id: Int) =
         attendanceDao.markAsSynced(id)
+
+    /**
+     * Rolling 30-day retention: drops already-synced attendance older than
+     * [cutoffMillis]. Called once per sync cycle from AttendanceSyncWorker so
+     * local storage never grows unbounded — old data is cleared out day by day
+     * as new days age past the 1-month mark, rather than all at once.
+     */
+    suspend fun purgeOldSyncedAttendance(cutoffMillis: Long) =
+        attendanceDao.deleteSyncedRecordsOlderThan(cutoffMillis)
 
     suspend fun getAttendanceForRange(startOfDay: Long, endOfDay: Long): List<AttendanceEntity> =
         attendanceDao.getAttendanceForRange(startOfDay, endOfDay)
@@ -186,6 +201,23 @@ class TemplateRepository(
     suspend fun getAllTimetable() = timetableDao.getAll()
     suspend fun getAllBatches() = timetableDao.getAllBatches()
     suspend fun getAllSubjects() = timetableDao.getAllSubjects()
+
+    /**
+     * Insert-or-update a timetable row coming from the backend, matched by
+     * remoteTimetableId rather than the local autoincrement `id` (which the
+     * server has no concept of). Called once per row on every sync cycle —
+     * without this, each sync would insert a fresh duplicate row instead of
+     * updating the one that already exists locally.
+     */
+    suspend fun upsertSyncedTimetable(entry: TimetableEntity) {
+        val remoteId = entry.remoteTimetableId
+        val existing = remoteId?.let { timetableDao.findByRemoteId(it) }
+        if (existing != null) {
+            timetableDao.update(entry.copy(id = existing.id))
+        } else {
+            timetableDao.insert(entry)
+        }
+    }
 
     // ── Sessions ───────────────────────────────────────────────────────────
     suspend fun insertSession(session: SessionEntity) = sessionDao.insert(session)

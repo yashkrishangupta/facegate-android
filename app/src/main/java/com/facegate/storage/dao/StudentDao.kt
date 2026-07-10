@@ -44,4 +44,10 @@ interface StudentDao {
 
     @Query("UPDATE students SET studentId = :newId, name = :name, studentClass = :studentClass WHERE studentId = :oldId")
     suspend fun updateStudentIdAndInfo(oldId: String, newId: String, name: String, studentClass: String)
+
+    @Query("SELECT * FROM students WHERE enrollmentStatus = 'DONE' AND embeddingSynced = 0 AND embedding IS NOT NULL")
+    suspend fun getStudentsWithUnsyncedEmbedding(): List<StudentEntity>
+
+    @Query("UPDATE students SET embeddingSynced = 1 WHERE studentId = :studentId")
+    suspend fun markEmbeddingSynced(studentId: String)
 }

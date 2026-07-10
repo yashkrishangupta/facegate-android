@@ -526,6 +526,8 @@ class AttendancePipeline(
                         sessionId = this.sessionId, // ADD THIS
                         timeStamp = timestamp,
                         synced    = false,
+                        attendanceStatus = "PRESENT",
+                        confidence = decision.confidence.toDouble(),
                     )
                 )
                 repository.resolveAllConflictsForStudent(decision.studentId)

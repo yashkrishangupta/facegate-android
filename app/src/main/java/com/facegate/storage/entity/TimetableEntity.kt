@@ -15,4 +15,13 @@ data class TimetableEntity(
     val windowMinutes: Int = 10,
     // TODO: A migration is required to add roomNumber to the database.
     val roomNumber: String? = null,
+    // Added for backend sync. The backend's timetable_id is a UUID, which
+    // can't be this entity's @PrimaryKey (existing code depends on `id`
+    // being a local Int — see SessionEntity.timetableId, TimetableDao).
+    // remoteTimetableId is what attendance-sync payloads actually send as
+    // timetable_id; it's null for periods created only on-device that
+    // haven't matched a synced server row yet.
+    val remoteTimetableId: String? = null,
+    val subjectName: String? = null,
+    val facultyName: String? = null,
 )

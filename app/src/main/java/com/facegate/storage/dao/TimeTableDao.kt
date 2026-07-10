@@ -19,4 +19,9 @@ interface TimetableDao {
     suspend fun getAllBatches(): List<String>
     @Query("SELECT DISTINCT subject FROM timetable ORDER BY subject ASC")
     suspend fun getAllSubjects(): List<String>
+    // Added for backend sync — lets upsertSyncedTimetable() find the local
+    // row for a given server timetable_id, so repeated syncs update the
+    // existing row instead of inserting a new one every cycle.
+    @Query("SELECT * FROM timetable WHERE remoteTimetableId = :remoteId LIMIT 1")
+    suspend fun findByRemoteId(remoteId: String): TimetableEntity?
 }

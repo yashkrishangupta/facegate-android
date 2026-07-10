@@ -3,15 +3,11 @@ package com.facegate.sync
 import android.content.Context
 import android.content.SharedPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Manages the unique identifier for this device.
- *
- * This manager generates a UUID on the first launch and persists it locally.
- * The same ID is returned on every future launch unless explicitly cleared.
+ * Manages this device's identity as assigned by the FaceGate backend.
  */
 @Singleton
 class DeviceIdManager @Inject constructor(
@@ -22,28 +18,38 @@ class DeviceIdManager @Inject constructor(
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    /**
-     * Returns the unique device ID.
-     * Generates and persists a new UUID if one does not already exist.
-     */
-    fun getDeviceId(): String {
-        return prefs.getString(KEY_DEVICE_ID, null) ?: run {
-            val newId = UUID.randomUUID().toString()
-            prefs.edit().putString(KEY_DEVICE_ID, newId).apply()
-            newId
-        }
-    }
+    fun getDeviceId(): String? = prefs.getString(KEY_DEVICE_ID, null)
+
+    fun getDeviceToken(): String? = prefs.getString(KEY_DEVICE_TOKEN, null)
+
+    fun isPaired(): Boolean = !getDeviceId().isNullOrBlank() && !getDeviceToken().isNullOrBlank()
 
     /**
-     * Clears the stored device ID.
-     * A new ID will be generated upon the next call to [getDeviceId].
+     * This device's assigned room, looked up from the backend (GET
+     * /api/v1/devices/{deviceId}) right after pairing succeeds — see
+     * PairingViewModel. Not entered manually.
      */
-    fun clearDeviceId() {
-        prefs.edit().remove(KEY_DEVICE_ID).apply()
+    fun getRoomId(): String? = prefs.getString(KEY_ROOM_ID, null)
+
+    fun saveRoomId(roomId: String) {
+        prefs.edit().putString(KEY_ROOM_ID, roomId).apply()
+    }
+
+    fun saveCredentials(deviceId: String, deviceToken: String) {
+        prefs.edit()
+            .putString(KEY_DEVICE_ID, deviceId)
+            .putString(KEY_DEVICE_TOKEN, deviceToken)
+            .apply()
+    }
+
+    fun clearCredentials() {
+        prefs.edit().clear().apply()
     }
 
     companion object {
         private const val PREFS_NAME = "device_prefs"
         private const val KEY_DEVICE_ID = "device_id"
+        private const val KEY_DEVICE_TOKEN = "device_token"
+        private const val KEY_ROOM_ID = "room_id"
     }
 }

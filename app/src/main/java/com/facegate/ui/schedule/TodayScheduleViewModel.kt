@@ -226,6 +226,7 @@ class TodayScheduleViewModel @Inject constructor(
             }
 
             val sessionId = UUID.randomUUID().toString()
+            val sessionDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             val session = SessionEntity(
                 sessionId     = sessionId,
                 timetableId   = entry.id,
@@ -234,6 +235,12 @@ class TodayScheduleViewModel @Inject constructor(
                 startTime     = scheduledStartTimeMs,   // DB stores scheduled time, not "now"
                 windowMinutes = entry.windowMinutes,
                 endedAt       = null,
+                // entry.remoteTimetableId is null for periods that were only
+                // ever created on-device (never matched to a synced server
+                // row) — attendance from those sessions is skipped at sync
+                // time rather than sent with a missing timetable reference.
+                remoteTimetableId = entry.remoteTimetableId,
+                sessionDate       = sessionDate,
             )
             try { repository.insertSession(session) } catch (e: Exception) { /* logged by caller */ }
             onStarted(sessionId, scheduledStartTimeMs) // runs on Main — Fragment can navigate safely

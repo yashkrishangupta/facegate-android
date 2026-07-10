@@ -45,6 +45,28 @@
             android:id="@+id/action_dashboard_to_schedule"
             app:destination="@id/todayScheduleFragment" />
 
+        <action
+            android:id="@+id/action_dashboard_to_pairing"
+            app:destination="@id/pairingFragment"
+            app:popUpTo="@id/adminDashboard"
+            app:popUpToInclusive="true" />
+
+    </fragment>
+
+    <!-- ========================= Device Pairing ========================= -->
+
+    <fragment
+        android:id="@+id/pairingFragment"
+        android:name="com.facegate.ui.sync.PairingFragment"
+        android:label="Device Setup"
+        tools:layout="@layout/fragment_pairing">
+
+        <action
+            android:id="@+id/action_pairing_to_dashboard"
+            app:destination="@id/adminDashboard"
+            app:popUpTo="@id/adminDashboard"
+            app:popUpToInclusive="true" />
+
     </fragment>
 
     <!-- ========================= Attendance ========================= -->

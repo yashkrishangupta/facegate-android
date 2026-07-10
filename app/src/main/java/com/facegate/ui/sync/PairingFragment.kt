@@ -1,119 +1,105 @@
 package com.facegate.ui.sync
 
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.ProgressBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import com.facegate.sync.SyncRepository
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
+import com.facegate.R
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 /**
- * PairingFragment handles the device registration process.
- * It accepts a pairing code from the user and coordinates with [SyncRepository].
+ * One-time device setup screen.
+ *
+ * Pairing is admin-initiated: an admin creates the device record on the
+ * website (picking a room, giving it a name) and hands the installer a
+ * 6-digit pairing code, valid 15 minutes. This screen's only job is to
+ * redeem that code via POST /api/v1/devices/pair, which returns the
+ * permanent device_id + device_token.
+ *
+ * Thin view — all pairing logic lives in the ViewModel (matches the pattern
+ * used by EnrollmentFragment/EnrollmentViewModel elsewhere in this app), so
+ * an in-flight pairing call survives a rotation instead of being cancelled
+ * with the fragment's view.
  */
 @AndroidEntryPoint
 class PairingFragment : Fragment() {
 
-    @Inject
-    lateinit var repository: SyncRepository
+    private val viewModel: PairingViewModel by viewModels()
+
+    private lateinit var etPairingCode: EditText
+    private lateinit var tvFeedback: TextView
+    private lateinit var btnPair: TextView
+    private lateinit var progressBar: ProgressBar
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        // TODO: Inflate fragment_pairing.xml once it exists.
-        // return inflater.inflate(R.layout.fragment_pairing, container, false)
-        
-        // Placeholder view until layout is available in the project
-        return View(requireContext())
+    ): View {
+        return inflater.inflate(R.layout.fragment_pairing, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
-        // TODO: Initialize view references or ViewBinding when fragment_pairing.xml is available.
-        // Example:
-        // val binding = FragmentPairingBinding.bind(view)
-        
-        setupClickListeners()
-    }
 
-    private fun setupClickListeners() {
-        // TODO: Implement button click listener for pairing action.
-        /*
-        binding.btnPair.setOnClickListener {
-            val code = binding.etPairingCode.text.toString().trim()
-            if (validatePairingCode(code)) {
-                startPairing(code)
-            }
+        etPairingCode = view.findViewById(R.id.etPairingCode)
+        tvFeedback = view.findViewById(R.id.tvFeedback)
+        btnPair = view.findViewById(R.id.btnPair)
+        progressBar = view.findViewById(R.id.progressBar)
+
+        btnPair.setOnClickListener {
+            viewModel.pair(pairingCode = etPairingCode.text.toString().trim())
         }
-        */
-    }
 
-    /**
-     * Validates the pairing code input.
-     * Requirements: Not empty and minimum length according to API contract.
-     */
-    private fun validatePairingCode(code: String): Boolean {
-        if (code.isEmpty()) {
-            showFeedback("Pairing code cannot be empty")
-            return false
-        }
-        
-        // TODO: Confirm minimum length in API contract. Assuming 6 as a standard.
-        if (code.length < 6) {
-            showFeedback("Pairing code must be at least 6 characters long")
-            return false
-        }
-        
-        return true
-    }
-
-    /**
-     * Initiates the pairing process.
-     */
-    private fun startPairing(pairingCode: String) {
-        setLoading(true)
-
-        // TODO: Call SyncRepository.registerDevice(pairingCode)
-        // This is currently blocked until the repository supports device registration.
-        
-        /*
         viewLifecycleOwner.lifecycleScope.launch {
-            val result = repository.registerDevice(pairingCode)
-            setLoading(false)
-            if (result.isSuccess) {
-                handleSuccess()
-            } else {
-                showFeedback("Pairing failed: ${result.exceptionOrNull()?.message}")
+            viewModel.pairingState.collect { state -> render(state) }
+        }
+    }
+
+    private fun render(state: PairingState) {
+        when (state) {
+            is PairingState.Idle -> {
+                setLoading(false)
+                hideFeedback()
+            }
+            is PairingState.Loading -> {
+                setLoading(true)
+                hideFeedback()
+            }
+            is PairingState.Success -> {
+                setLoading(false)
+                Toast.makeText(requireContext(), "Device paired successfully!", Toast.LENGTH_SHORT).show()
+                findNavController().navigate(R.id.action_pairing_to_dashboard)
+                viewModel.resetState() // avoid re-navigating if this state is re-collected (e.g. rotation)
+            }
+            is PairingState.Failed -> {
+                setLoading(false)
+                showFeedback("Pairing failed: ${state.reason}")
             }
         }
-        */
-        
-        Log.d(TAG, "Pairing requested with code: $pairingCode")
-        setLoading(false)
     }
 
     private fun setLoading(isLoading: Boolean) {
-        // TODO: Show/hide progress indicator and toggle button state
+        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        btnPair.isEnabled = !isLoading
+        etPairingCode.isEnabled = !isLoading
     }
 
     private fun showFeedback(message: String) {
-        // Using Toast for simple error/success feedback as seen in other fragments
-        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+        tvFeedback.text = message
+        tvFeedback.visibility = View.VISIBLE
     }
 
-    private fun handleSuccess() {
-        // TODO: Persist returned device information and trigger navigation
-        showFeedback("Device paired successfully!")
-    }
-
-    companion object {
-        private const val TAG = "PairingFragment"
+    private fun hideFeedback() {
+        tvFeedback.visibility = View.GONE
     }
 }

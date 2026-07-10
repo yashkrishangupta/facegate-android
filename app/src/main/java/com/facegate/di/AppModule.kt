@@ -5,6 +5,8 @@ import androidx.room.Room
 import com.facegate.pipeline.AttendancePipeline
 import com.facegate.storage.FaceGateDatabase
 import com.facegate.storage.TemplateRepository
+import com.facegate.sync.DeviceApi
+import com.facegate.sync.DeviceAuthInterceptor
 import com.facegate.sync.SyncApi
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -24,7 +26,7 @@ import javax.inject.Singleton
 object AppModule {
 
     // ⚠️ Placeholder — point this at your actual backend before shipping.
-    private const val SYNC_BASE_URL = "https://your-backend.example.com/"
+    private const val SYNC_BASE_URL = "https://facegate-backend-production.up.railway.app"
 
     // ── Database / storage ──────────────────────────────────────────────────
 
@@ -75,8 +77,9 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient =
+    fun provideOkHttpClient(deviceAuthInterceptor: DeviceAuthInterceptor): OkHttpClient =
         OkHttpClient.Builder()
+            .addInterceptor(deviceAuthInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
@@ -95,4 +98,9 @@ object AppModule {
     @Singleton
     fun provideSyncApi(retrofit: Retrofit): SyncApi =
         retrofit.create(SyncApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideDeviceApi(retrofit: Retrofit): DeviceApi =
+        retrofit.create(DeviceApi::class.java)
 }
