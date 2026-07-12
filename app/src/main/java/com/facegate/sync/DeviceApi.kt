@@ -38,4 +38,14 @@ interface DeviceApi {
      */
     @GET("api/v1/devices/{deviceId}")
     suspend fun getDeviceDetails(@Path("deviceId") deviceId: String): DeviceDetailsResponse
+
+    /**
+     * POST /api/v1/devices/change-log — device-authed equivalent of the
+     * website's ADMIN+/JWT-only GET /change-log (that one's read-only anyway).
+     * Not on the backend yet — see API_CONTRACT.md Part 3. Deliberately its
+     * own device-scoped endpoint rather than reusing /change-log, per this
+     * doc's own rule: "two separate credential systems — don't conflate them".
+     */
+    @POST("api/v1/devices/change-log")
+    suspend fun pushChangeLogEvents(@Body request: ChangeLogEventRequest): SyncMessageResponse
 }

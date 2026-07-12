@@ -12,4 +12,8 @@ data class OverrideEntity(
     val newValue     : String,
     val changedAt    : Long,
     val reason       : String = "",
+    // Overrides are this app's local "change log" — plan.md §"change log
+    // should go to website" means pushing these up via
+    // POST /api/v1/devices/change-log. False until that push succeeds.
+    val pushedToChangeLog: Boolean = false,
 )

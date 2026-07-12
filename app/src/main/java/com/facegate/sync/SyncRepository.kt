@@ -48,6 +48,26 @@ class SyncRepository @Inject constructor(
         return safeApiCall { api.retrySync() }
     }
 
+    suspend fun enrollStudent(request: EnrollStudentRequest): Result<EnrollStudentResponse> {
+        return safeApiCall { api.enrollStudent(request) }
+    }
+
+    suspend fun uploadEmbeddings(request: EmbeddingUploadRequest): Result<EmbeddingUploadResponse> {
+        return safeApiCall { api.uploadEmbeddings(request) }
+    }
+
+    suspend fun uploadConflicts(request: ConflictUploadRequest): Result<ConflictUploadResponse> {
+        return safeApiCall { api.uploadConflicts(request) }
+    }
+
+    suspend fun resolveConflict(conflictId: String, request: ConflictResolveRequest): Result<SyncMessageResponse> {
+        return safeApiCall { api.resolveConflict(conflictId, request) }
+    }
+
+    suspend fun getReports(since: String?): Result<ReportsSyncResponse> {
+        return safeApiCall { api.getReports(since) }
+    }
+
     private suspend fun <T> safeApiCall(call: suspend () -> T): Result<T> {
         return try {
             Result.success(call())

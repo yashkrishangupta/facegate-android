@@ -264,30 +264,45 @@ class AdminDashboard : Fragment() {
     }
 
     /**
-     * GET /api/v1/sync/status. Best-effort: a failure here just leaves the
-     * status line as-is, consistent with sync being designed to fail
-     * silently elsewhere too.
-     *
-     * The backend's sync status has no "pending uploads" count — that's
-     * purely local information, so it's read from Room directly rather
-     * than expected on the response.
+     * GET /api/v1/sync/status, plus per-category detail from SyncStateEntity —
+     * that endpoint only ever covered heartbeat/pull/attendance-up; it has no
+     * concept of enrollment/embedding/conflict/change-log pushes, all of
+     * which are best-effort steps in AttendanceSyncWorker with their own
+     * outcomes recorded locally. A failure here just leaves the status line
+     * as-is, consistent with sync being designed to fail silently elsewhere.
      */
     private fun refreshSyncStatus() {
         viewLifecycleOwner.lifecycleScope.launch {
             val result = syncRepository.getSyncStatus()
             if (_binding == null) return@launch // view may be gone by the time this returns
 
+            val pendingUploads = templateRepository.getUnsyncedAttendance().size
+            val pendingConflicts = templateRepository.getUnsyncedConflicts().size
+            val pendingEnrollments = templateRepository.getStudentsWithUnsyncedEmbedding().size
+            val pendingChangeLog = templateRepository.getUnpushedOverrides().size
+            val localStates = templateRepository.getSyncStates()
+            val failedCategories = localStates.filter { it.status == "FAILED" }.map { it.category }
+
             result.onSuccess { response ->
                 val status = response.data
-                if (status == null) {
-                    binding.tvSyncStatus.text = "Sync status unavailable"
-                    return@onSuccess
+                val headline = if (status == null) "Sync status unavailable"
+                    else "${status.syncStatus} • last sync ${status.lastSync ?: "never"}"
+
+                binding.tvSyncStatus.text = buildString {
+                    append(headline)
+                    append(" • $pendingUploads attendance")
+                    if (pendingEnrollments > 0) append(", $pendingEnrollments enrollments")
+                    if (pendingConflicts > 0) append(", $pendingConflicts conflicts")
+                    if (pendingChangeLog > 0) append(", $pendingChangeLog change-log entries")
+                    append(" pending")
+                    if (failedCategories.isNotEmpty()) append(" • failing: ${failedCategories.joinToString()}")
                 }
-                val pendingUploads = templateRepository.getUnsyncedAttendance().size
-                binding.tvSyncStatus.text =
-                    "${status.syncStatus} • last sync ${status.lastSync ?: "never"} • $pendingUploads pending"
             }.onFailure {
-                binding.tvSyncStatus.text = "Sync status unavailable"
+                binding.tvSyncStatus.text = buildString {
+                    append("Sync status unavailable")
+                    append(" • $pendingUploads attendance pending locally")
+                    if (failedCategories.isNotEmpty()) append(" • failing: ${failedCategories.joinToString()}")
+                }
             }
         }
     }

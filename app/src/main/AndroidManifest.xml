@@ -39,6 +39,32 @@
             </intent-filter>
         </activity>
 
+        <!--
+            WorkManager auto-initializes itself via this ContentProvider,
+            BEFORE Application.onCreate() runs — which is also before Hilt
+            has injected FaceGateApp.workerFactory. That race causes
+            WorkManager to silently fall back to a default (non-Hilt)
+            configuration, which is why AttendanceSyncWorker — a
+            constructor-injected @HiltWorker — fails with
+            NoSuchMethodException at runtime even though everything compiles
+            and the Hilt bindings are generated correctly. Removing this
+            entry disables that auto-init; WorkManager then only initializes
+            when FaceGateApp.onCreate() explicitly calls
+            WorkManager.getInstance(context) (via
+            AttendanceSyncWorker.Scheduler.schedulePeriodicSync), which is
+            after super.onCreate() has completed Hilt's injection.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
     </application>
 
 </manifest>

@@ -101,6 +101,11 @@ data class SyncTimetableDto(
     @SerializedName("start_time") val startTime: String,    // "HH:MM:SS"
     @SerializedName("end_time") val endTime: String,
     @SerializedName("attendance_window_minutes") val attendanceWindowMinutes: Int,
+    // API_CONTRACT.md's documented timetable[] shape includes these — the
+    // DTO was previously missing them entirely, silently discarding
+    // whatever the server sent.
+    @SerializedName("effective_from") val effectiveFrom: String? = null,
+    @SerializedName("effective_to") val effectiveTo: String? = null,
     @SerializedName("updated_at") val updatedAt: String?,
 )
 
@@ -115,6 +120,9 @@ data class SyncStudentDto(
     @SerializedName("email") val email: String?,
     @SerializedName("phone") val phone: String?,
     @SerializedName("gender") val gender: String?,
+    @SerializedName("admission_year") val admissionYear: Int? = null,
+    @SerializedName("date_of_birth") val dateOfBirth: String? = null,
+    @SerializedName("profile_photo_url") val profilePhotoUrl: String? = null,
     @SerializedName("student_status") val studentStatus: String?,
     @SerializedName("updated_at") val updatedAt: String?,
 )
@@ -128,10 +136,53 @@ data class SyncHolidayDto(
     @SerializedName("updated_at") val updatedAt: String?,
 )
 
+/**
+ * A conflict row relevant to this device's room, mirrored down so a
+ * website-side resolution (or a conflict an admin raised manually) shows up
+ * here too — not just conflicts this device itself detected.
+ * See ConflictDao (source = "WEBSITE" for these).
+ */
+data class SyncConflictDto(
+    @SerializedName("conflict_id") val conflictId: String,
+    @SerializedName("attendance_id") val attendanceId: String?,
+    @SerializedName("attendance_session_id") val attendanceSessionId: String?,
+    @SerializedName("student_id") val studentId: String?,
+    @SerializedName("device_id") val deviceId: String?,
+    @SerializedName("conflict_type") val conflictType: String,
+    @SerializedName("severity") val severity: String?,
+    @SerializedName("conflict_status") val conflictStatus: String, // PENDING/UNDER_REVIEW/RESOLVED/REJECTED
+    @SerializedName("description") val description: String?,
+    @SerializedName("updated_at") val updatedAt: String?,
+)
+
+/**
+ * An attendance row as it currently stands server-side — the "attendance-down"
+ * half of plan.md §6.2 (not built on the backend yet; this DTO is what that
+ * endpoint/payload needs to return once it exists). attendance_id +
+ * updated_at are what let AttendanceDao.applyServerUpdateIfNewer() do the
+ * "most recent wins" merge instead of blindly overwriting a pending local edit.
+ */
+data class SyncAttendanceDto(
+    @SerializedName("attendance_id") val attendanceId: String,
+    @SerializedName("attendance_session_id") val attendanceSessionId: String,
+    @SerializedName("timetable_id") val timetableId: String?,
+    @SerializedName("session_date") val sessionDate: String?,
+    @SerializedName("student_id") val studentId: String,
+    @SerializedName("attendance_status") val attendanceStatus: String,
+    @SerializedName("attendance_mode") val attendanceMode: String?,
+    @SerializedName("updated_at") val updatedAt: String,
+)
+
 data class FullSyncData(
     val timetable: List<SyncTimetableDto> = emptyList(),
     val students: List<SyncStudentDto> = emptyList(),
     val holidays: List<SyncHolidayDto> = emptyList(),
+    // Not on the backend yet — see API_CONTRACT.md Part 3. Defaulted to
+    // emptyList() so Gson leaves this alone (and merges no-op) until the
+    // backend adds it, rather than every existing full-sync call needing
+    // a matching field.
+    val conflicts: List<SyncConflictDto> = emptyList(),
+    @SerializedName("attendanceUpdates") val attendanceUpdates: List<SyncAttendanceDto> = emptyList(),
     @SerializedName("lastSync") val lastSync: String?,
 )
 
@@ -148,6 +199,8 @@ data class IncrementalSyncData(
     val timetable: List<SyncTimetableDto> = emptyList(),
     val students: List<SyncStudentDto> = emptyList(),
     val holidays: List<SyncHolidayDto> = emptyList(),
+    val conflicts: List<SyncConflictDto> = emptyList(),
+    @SerializedName("attendanceUpdates") val attendanceUpdates: List<SyncAttendanceDto> = emptyList(),
     @SerializedName("lastSync") val lastSync: String?,
 )
 
@@ -155,6 +208,152 @@ data class IncrementalSyncResponse(
     val success: Boolean,
     val message: String?,
     val data: IncrementalSyncData?,
+)
+
+// ── Student enrollment + face-embedding upload (device → server) ───────────
+//
+// Neither endpoint exists on the backend yet — see API_CONTRACT.md Part 3,
+// "New device sync endpoints". Written against what the DATABASE_DESIGN.md
+// `student` / `face_embedding` tables need to receive.
+
+/**
+ * Creates a brand-new student record AND its embedding in one call, for a
+ * student enrolled directly on a device (StudentsFragment/EnrollmentViewModel)
+ * rather than imported via the website first. student_id is generated
+ * client-side (UUID) so the local row and the server row can share the same
+ * id from the start — see TemplateRepository.completeStudentEnrollmentSync.
+ */
+data class EnrollStudentRequest(
+    @SerializedName("student_id") val studentId: String,
+    @SerializedName("batch_code") val batchCode: String?,
+    @SerializedName("registration_number") val registrationNumber: String,
+    @SerializedName("roll_number") val rollNumber: String,
+    @SerializedName("first_name") val firstName: String,
+    @SerializedName("last_name") val lastName: String,
+    // schema.sql: student.gender/admission_year are NOT NULL with no
+    // default — omitting these would fail the insert server-side.
+    @SerializedName("gender") val gender: String,           // CHECK: Male | Female | Other
+    @SerializedName("admission_year") val admissionYear: Int,
+    @SerializedName("date_of_birth") val dateOfBirth: String? = null,   // "yyyy-MM-dd", nullable on the backend
+    @SerializedName("email") val email: String? = null,
+    @SerializedName("phone") val phone: String? = null,
+    @SerializedName("embedding_data") val embeddingData: List<Float>,
+    // schema.sql: face_embedding.embedding_version is VARCHAR(20) DEFAULT
+    // 'v1.0' — a label, not an integer.
+    @SerializedName("embedding_version") val embeddingVersion: String = "v1.0",
+    @SerializedName("model_name") val modelName: String,
+)
+
+data class EnrollStudentData(
+    @SerializedName("student_id") val studentId: String,
+    @SerializedName("embedding_id") val embeddingId: String?,
+)
+
+data class EnrollStudentResponse(
+    val success: Boolean,
+    val message: String?,
+    val data: EnrollStudentData?,
+)
+
+/** Re-enrollment / embedding update for a student the server already has. */
+data class EmbeddingUploadDto(
+    @SerializedName("student_id") val studentId: String,
+    @SerializedName("embedding_data") val embeddingData: List<Float>,
+    @SerializedName("embedding_version") val embeddingVersion: String = "v1.0",
+    @SerializedName("model_name") val modelName: String,
+)
+
+data class EmbeddingUploadRequest(
+    val embeddings: List<EmbeddingUploadDto>,
+)
+
+data class EmbeddingUploadData(
+    @SerializedName("uploadedCount") val uploadedCount: Int,
+    @SerializedName("failedCount") val failedCount: Int,
+)
+
+data class EmbeddingUploadResponse(
+    val success: Boolean,
+    val message: String?,
+    val data: EmbeddingUploadData?,
+)
+
+// ── Conflicts (device → server) ──────────────────────────────────────────
+
+/** A conflict this device's decision engine detected, being pushed up for the first time. */
+data class ConflictUploadDto(
+    @SerializedName("session_id") val sessionId: String,      // local session id; server resolves via timetable_id+session_date like attendance
+    @SerializedName("timetable_id") val timetableId: String?,
+    @SerializedName("session_date") val sessionDate: String?,
+    @SerializedName("student_id") val studentId: String?,      // top candidate, or null if truly unknown
+    @SerializedName("conflict_type") val conflictType: String,
+    @SerializedName("severity") val severity: String = "MEDIUM",
+    @SerializedName("description") val description: String,
+)
+
+data class ConflictUploadRequest(
+    val records: List<ConflictUploadDto>,
+    // Lets the server correlate created rows back to local ids in the response.
+    @SerializedName("client_refs") val clientRefs: List<Int>,
+)
+
+data class ConflictUploadResultDto(
+    @SerializedName("client_ref") val clientRef: Int,
+    @SerializedName("conflict_id") val conflictId: String,
+)
+
+data class ConflictUploadData(
+    val created: List<ConflictUploadResultDto> = emptyList(),
+)
+
+data class ConflictUploadResponse(
+    val success: Boolean,
+    val message: String?,
+    val data: ConflictUploadData?,
+)
+
+data class ConflictResolveRequest(
+    @SerializedName("conflict_status") val conflictStatus: String, // RESOLVED | REJECTED
+)
+
+// ── Change log (device → server) ─────────────────────────────────────────
+//
+// change_log.action is CHECK-constrained to CREATE/UPDATE/DELETE/LOGIN/
+// LOGOUT/SYNC/RESOLVE/EXPORT (see DATABASE_DESIGN.md) — none of which really
+// says "a class's window closed with no session started". Rather than widen
+// that CHECK, events like that go through as action = "UPDATE" on the
+// timetable/session entity, with the human-readable explanation carried in
+// `description` (this DTO's field, not old_values/new_values).
+
+data class ChangeLogEventDto(
+    @SerializedName("entity_name") val entityName: String,   // "timetable_session" | "timetable"
+    @SerializedName("entity_id") val entityId: String?,       // remoteTimetableId when known
+    @SerializedName("action") val action: String,             // one of the CHECK values above
+    @SerializedName("description") val description: String,
+    @SerializedName("occurred_at") val occurredAt: String,    // ISO-8601
+)
+
+data class ChangeLogEventRequest(
+    val events: List<ChangeLogEventDto>,
+)
+
+// ── Reports (server → device, read-only) ─────────────────────────────────
+
+data class ReportSummaryDto(
+    @SerializedName("timetable_id") val timetableId: String,
+    @SerializedName("session_date") val sessionDate: String,
+    @SerializedName("subject_name") val subjectName: String?,
+    @SerializedName("batch_code") val batchCode: String?,
+    @SerializedName("total_students") val totalStudents: Int,
+    @SerializedName("present_students") val presentStudents: Int,
+    @SerializedName("absent_students") val absentStudents: Int,
+    @SerializedName("updated_at") val updatedAt: String?,
+)
+
+data class ReportsSyncResponse(
+    val success: Boolean,
+    val message: String?,
+    val data: List<ReportSummaryDto>?,
 )
 
 // ── Attendance upload ────────────────────────────────────────────────────────
@@ -176,7 +375,14 @@ data class OfflineAttendanceDto(
     @SerializedName("student_id") val studentId: String,
     @SerializedName("status") val status: String,            // "PRESENT" | "ABSENT"
     @SerializedName("attendance_mode") val attendanceMode: String = "FACE_RECOGNITION",
+    // Backend column is `recognition_confidence DECIMAL(5,2) CHECK (0-100)`
+    // — a percentage, NOT the 0.0-1.0 cosine similarity this app computes
+    // internally. Convert at the call site (AttendanceSyncWorker) — never
+    // pass a raw AttendanceEntity.confidence value straight through, or
+    // it silently stores "0.94%" instead of "94%".
     @SerializedName("confidence") val confidence: Double?,
+    // Backend column is `attendance_time TIMESTAMP` — must be ISO-8601, not
+    // a raw epoch-millis string (see AttendanceSyncWorker.toIso8601).
     @SerializedName("timestamp") val timestamp: String,
 )
 

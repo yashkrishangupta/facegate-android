@@ -36,6 +36,10 @@ class DeviceRepository @Inject constructor(
         return safeApiCall { api.getDeviceDetails(deviceId) }
     }
 
+    suspend fun pushChangeLogEvents(request: ChangeLogEventRequest): Result<SyncMessageResponse> {
+        return safeApiCall { api.pushChangeLogEvents(request) }
+    }
+
     private suspend fun <T> safeApiCall(call: suspend () -> T): Result<T> {
         return try {
             Result.success(call())

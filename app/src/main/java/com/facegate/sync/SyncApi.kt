@@ -3,6 +3,8 @@ package com.facegate.sync
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
@@ -41,4 +43,29 @@ interface SyncApi {
     /** POST /api/v1/sync/retry — re-runs an incremental sync server-side. */
     @POST("api/v1/sync/retry")
     suspend fun retrySync(): RetrySyncResponse
+
+    // ── Not on the backend yet — see API_CONTRACT.md Part 3 ─────────────────
+
+    /** POST /api/v1/sync/students/enroll — device-initiated new student + embedding. */
+    @POST("api/v1/sync/students/enroll")
+    suspend fun enrollStudent(@Body request: EnrollStudentRequest): EnrollStudentResponse
+
+    /** POST /api/v1/sync/face-embeddings — re-enrollment for a student the server already has. */
+    @POST("api/v1/sync/face-embeddings")
+    suspend fun uploadEmbeddings(@Body request: EmbeddingUploadRequest): EmbeddingUploadResponse
+
+    /** POST /api/v1/sync/conflicts — push device-detected conflicts up. */
+    @POST("api/v1/sync/conflicts")
+    suspend fun uploadConflicts(@Body request: ConflictUploadRequest): ConflictUploadResponse
+
+    /** PUT /api/v1/sync/conflicts/{conflictId}/resolve — mirrors the website's /conflicts/:id/resolve, device-authed. */
+    @PUT("api/v1/sync/conflicts/{conflictId}/resolve")
+    suspend fun resolveConflict(
+        @Path("conflictId") conflictId: String,
+        @Body request: ConflictResolveRequest,
+    ): SyncMessageResponse
+
+    /** GET /api/v1/sync/reports?since=... — read-only, room-scoped report summaries. */
+    @GET("api/v1/sync/reports")
+    suspend fun getReports(@Query("since") since: String? = null): ReportsSyncResponse
 }

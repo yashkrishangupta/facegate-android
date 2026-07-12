@@ -41,4 +41,34 @@ data class ConflictEntity(
 
     /** False until an admin resolves it in ConflictQueueFragment */
     val resolved: Boolean = false,
+
+    // ── Backend sync (conflicts now flow both ways — see AttendanceSyncWorker) ──
+
+    /** The server's conflict_id once this row has been pushed up, else null. */
+    val remoteConflictId: String? = null,
+
+    /** True once this row's current state (creation or resolution) matches the server. */
+    val synced: Boolean = false,
+
+    /**
+     * "DEVICE" (detected by this app's own decision engine) or "WEBSITE"
+     * (came down from a server sync — e.g. an admin manually flagged one).
+     * Only DEVICE-sourced rows are ever pushed up; WEBSITE-sourced rows are
+     * mirrored down and their resolution is display-only here.
+     */
+    val source: String = "DEVICE",
+
+    /**
+     * Backend conflict_type — CHECK: LOW_CONFIDENCE, DUPLICATE_ATTENDANCE,
+     * SYNC_FAILURE, MANUAL_REVIEW, DEVICE_ERROR, UNKNOWN_FACE. Set explicitly
+     * at each ConflictEntity(...) call site in AttendancePipeline; the default
+     * here is just a safe fallback.
+     */
+    val conflictType: String = "MANUAL_REVIEW",
+
+    // ── Column parity with backend `conflict` ──
+    /** CHECK-style severity (e.g. LOW/MEDIUM/HIGH) — was hardcoded "MEDIUM" only at push time; now a real field so it round-trips both ways. */
+    val severity: String = "MEDIUM",
+    /** conflict.attendance_id, when this conflict is tied to a specific attendance row rather than just a session. */
+    val attendanceId: String? = null,
 )

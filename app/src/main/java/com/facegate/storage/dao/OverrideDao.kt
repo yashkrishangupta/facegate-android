@@ -11,4 +11,10 @@ interface OverrideDao {
     suspend fun getForSession(sessionId: String): List<OverrideEntity>
     @Query("SELECT * FROM timetable_overrides ORDER BY changedAt DESC")
     suspend fun getAll(): List<OverrideEntity>
+
+    @Query("SELECT * FROM timetable_overrides WHERE pushedToChangeLog = 0 ORDER BY changedAt ASC")
+    suspend fun getUnpushed(): List<OverrideEntity>
+
+    @Query("UPDATE timetable_overrides SET pushedToChangeLog = 1 WHERE id = :id")
+    suspend fun markPushed(id: Int)
 }

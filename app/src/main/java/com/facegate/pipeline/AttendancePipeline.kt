@@ -349,7 +349,7 @@ class AttendancePipeline(
         // enrollmentStatus explicitly "DONE" — otherwise it keeps the entity's
         // default "PENDING" value and getEnrolledStudents() (which filters out
         // PENDING rows) would never pick this student up for recognition.
-        repository.addStudent(
+        repository.upsertEnrollment(
             StudentEntity(
                 studentId        = studentId,
                 name             = studentName,
@@ -405,7 +405,7 @@ class AttendancePipeline(
             )
         }
 
-        repository.addStudent(
+        repository.upsertEnrollment(
             StudentEntity(
                 studentId        = studentId,
                 name             = studentName,
@@ -463,7 +463,7 @@ class AttendancePipeline(
             .toFloat().coerceAtLeast(1e-10f)
         val normalised = FloatArray(dim) { averaged[it] / norm }
 
-        repository.addStudent(
+        repository.upsertEnrollment(
             StudentEntity(
                 studentId        = studentId,
                 name             = studentName,
@@ -513,6 +513,7 @@ class AttendancePipeline(
                             sessionId         = sessionId ?: "no_session",
                             timestamp         = timestamp,
                             resolved          = false,
+                            conflictType      = "MANUAL_REVIEW",
                         )
                     )
                     return
@@ -595,6 +596,7 @@ class AttendancePipeline(
                             sessionId         = sessionId ?: "no_session",
                             timestamp         = System.currentTimeMillis(),
                             resolved          = false,
+                            conflictType      = "LOW_CONFIDENCE",
                         )
                     )
                 }

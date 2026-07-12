@@ -104,4 +104,66 @@ interface AttendanceDao {
         ORDER BY dateStr ASC
     """)
     suspend fun getDailyCountsInRange(startMs: Long, endMs: Long): List<DailyAttendanceCount>
+
+    // ── Backend sync ─────────────────────────────────────────────────────────
+
+    @Query("SELECT * FROM attendance_records WHERE studentId = :studentId AND sessionId = :sessionId LIMIT 1")
+    suspend fun findByStudentAndSession(studentId: String, sessionId: String): AttendanceEntity?
+
+    @Query("SELECT * FROM attendance_records WHERE remoteAttendanceId = :remoteId LIMIT 1")
+    suspend fun findByRemoteId(remoteId: String): AttendanceEntity?
+
+    @Query("UPDATE attendance_records SET synced = 1, remoteAttendanceId = :remoteId WHERE id = :id")
+    suspend fun markSyncedWithRemoteId(id: Int, remoteId: String)
+
+    /**
+     * Turns an already-synced PRESENT row into an ABSENT correction that will
+     * be re-pushed, instead of a silent local hard-delete. Used when an admin
+     * toggles off a record on ManualAttendance that the server already has —
+     * a plain DELETE here would never reach the website (see
+     * ManualAttendanceViewModel.toggleAttendance).
+     */
+    @Query("""
+        UPDATE attendance_records
+        SET attendanceStatus = 'ABSENT', synced = 0, attendanceMode = 'MANUAL'
+        WHERE studentId = :studentId AND sessionId = :sessionId
+    """)
+    suspend fun markCorrectedAbsent(studentId: String, sessionId: String)
+
+    /**
+     * Applies an attendance-down row from the server, honoring "most recent
+     * timestamp wins regardless of source" (plan.md §6.2). Only overwrites
+     * the local row if either there's no local row yet for this
+     * remoteAttendanceId, or the local row is already synced (i.e. not a
+     * pending local edit) and the server's timestamp is >= what we have.
+     * A pending local edit (synced = 0) always wins until it's pushed —
+     * otherwise a device-side correction could be silently clobbered by a
+     * stale poll before its own upload goes out.
+     */
+    @Query("""
+        UPDATE attendance_records
+        SET attendanceStatus = :status, attendanceMode = :mode, synced = 1, serverUpdatedAt = :serverUpdatedAt
+        WHERE remoteAttendanceId = :remoteId AND synced = 1
+          AND (serverUpdatedAt IS NULL OR serverUpdatedAt <= :serverUpdatedAt)
+    """)
+    suspend fun applyServerUpdateIfNewer(
+        remoteId: String,
+        status: String,
+        mode: String,
+        serverUpdatedAt: Long,
+    )
+
+    @Query("""
+        UPDATE attendance_records
+        SET attendanceStatus = :status, attendanceMode = :mode, remoteAttendanceId = :remoteId, serverUpdatedAt = :serverUpdatedAt, synced = 1
+        WHERE id = :id AND synced = 1
+          AND (serverUpdatedAt IS NULL OR serverUpdatedAt <= :serverUpdatedAt)
+    """)
+    suspend fun backfillAndApplyServerUpdate(
+        id: Int,
+        remoteId: String,
+        status: String,
+        mode: String,
+        serverUpdatedAt: Long,
+    )
 }

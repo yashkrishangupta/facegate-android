@@ -22,4 +22,14 @@ interface SessionDao {
         ORDER BY startTime DESC LIMIT 1
     """)
     suspend fun findSessionForTimetableOnDate(timetableId: Int?, startOfDay: Long, endOfDay: Long): SessionEntity?
+
+    /**
+     * Matches a session by the server's timetable_id + session_date, the same
+     * pair the backend itself uses to resolve attendance_session (see
+     * OfflineAttendanceDto). Used to backfill remoteAttendanceId on a local
+     * row during attendance-down sync, when that row predates ever knowing
+     * the server's attendance_id (see AttendanceSyncWorker.mergeAttendanceDown).
+     */
+    @Query("SELECT * FROM sessions WHERE remoteTimetableId = :remoteTimetableId AND sessionDate = :sessionDate LIMIT 1")
+    suspend fun findByRemoteTimetableAndDate(remoteTimetableId: String, sessionDate: String): SessionEntity?
 }

@@ -40,8 +40,11 @@ object AppModule {
             FaceGateDatabase::class.java,
             "facegate_database",
         )
-            // No real data yet — safe to wipe on schema change.
-            // Switch to .addMigrations(...) before production.
+            // Real device data (enrolled embeddings, attendance) now exists —
+            // try the explicit migration first; destructive fallback only
+            // covers a schema jump this migration doesn't (e.g. skipping
+            // versions), not the normal upgrade path.
+            .addMigrations(com.facegate.storage.MIGRATION_4_5)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -60,6 +63,7 @@ object AppModule {
         overrideDao   = database.overrideDao(),
         holidayDao    = database.holidayDao(),
         weeklyOffDao  = database.weeklyOffDao(),
+        syncStateDao  = database.syncStateDao(),
     )
 
     @Provides

@@ -173,8 +173,16 @@ class ManualAttendanceViewModel @Inject constructor(
 
             if (session != null) {
                 // Session-scoped toggle
-                if (repository.isStudentMarkedForSession(studentId, session.sessionId)) {
-                    repository.deleteAttendanceForSession(studentId, session.sessionId)
+                val existing = repository.findAttendance(studentId, session.sessionId)
+                if (existing != null) {
+                    if (existing.synced) {
+                        // Already reached the server — a local hard-delete here
+                        // would never be reflected on the website. Push an
+                        // ABSENT correction instead (see AttendanceDao.markCorrectedAbsent).
+                        repository.correctSyncedAttendanceToAbsent(studentId, session.sessionId)
+                    } else {
+                        repository.deleteAttendanceForSession(studentId, session.sessionId)
+                    }
                 } else {
                     repository.addAttendance(
                         AttendanceEntity(
@@ -186,6 +194,7 @@ class ManualAttendanceViewModel @Inject constructor(
                             timeStamp = if (selectedDay.isToday) System.currentTimeMillis()
                                         else startOfDay + (12 * 60 * 60 * 1000),
                             synced    = false,
+                            attendanceMode = "MANUAL",
                         )
                     )
                 }
@@ -200,6 +209,7 @@ class ManualAttendanceViewModel @Inject constructor(
                             timeStamp = if (selectedDay.isToday) System.currentTimeMillis()
                                         else startOfDay + (12 * 60 * 60 * 1000),
                             synced    = false,
+                            attendanceMode = "MANUAL",
                         )
                     )
                 }

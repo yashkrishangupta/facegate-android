@@ -20,6 +20,24 @@ interface ConflictDao {
     @Query("UPDATE conflict_queue SET resolved = 1 WHERE id = :id")
     suspend fun markResolved(id: Int)
 
+    /**
+     * Marks a conflict resolved locally. If the server already knows about
+     * this row (remoteConflictId set), also flips synced back to 0 so
+     * AttendanceSyncWorker.pushPendingConflicts() picks it up and pushes the
+     * resolution via PUT /sync/conflicts/{id}/resolve — otherwise the
+     * resolution would only ever exist locally. A row that's never been
+     * pushed yet (remoteConflictId null) doesn't need that: its eventual
+     * create push is what carries the resolved state, once that create path
+     * is extended to include it (see AttendanceSyncWorker.pushPendingConflicts
+     * doc comment for that known gap).
+     */
+    @Query("""
+        UPDATE conflict_queue
+        SET resolved = 1, synced = CASE WHEN remoteConflictId IS NOT NULL THEN 0 ELSE synced END
+        WHERE id = :id
+    """)
+    suspend fun markResolvedAndRequeue(id: Int)
+
     @Query("SELECT COUNT(*) FROM conflict_queue WHERE resolved = 0")
     suspend fun getUnresolvedCount(): Int
 
@@ -89,4 +107,26 @@ interface ConflictDao {
     /** Hard-delete ALL conflict rows involving a student (called when student is removed). */
     @Query("DELETE FROM conflict_queue WHERE topStudentId = :studentId OR secondStudentId = :studentId")
     suspend fun deleteAllConflictsForStudent(studentId: String)
+
+    // ── Backend sync (conflicts flow both ways) ──────────────────────────────
+
+    @Query("SELECT * FROM conflict_queue WHERE id = :id LIMIT 1")
+    suspend fun getById(id: Int): ConflictEntity?
+
+    @Query("SELECT * FROM conflict_queue WHERE remoteConflictId = :remoteId LIMIT 1")
+    suspend fun findByRemoteId(remoteId: String): ConflictEntity?
+
+    /** Device-sourced rows the server doesn't know about (new) or whose resolution hasn't been pushed yet. */
+    @Query("SELECT * FROM conflict_queue WHERE synced = 0 AND source = 'DEVICE'")
+    suspend fun getUnsyncedConflicts(): List<ConflictEntity>
+
+    @Query("UPDATE conflict_queue SET synced = 1, remoteConflictId = :remoteId WHERE id = :id")
+    suspend fun markConflictPushed(id: Int, remoteId: String)
+
+    @Query("UPDATE conflict_queue SET synced = 1 WHERE id = :id")
+    suspend fun markConflictSynced(id: Int)
+
+    /** Mirror a website-side resolution down onto a conflict this device already knows about. */
+    @Query("UPDATE conflict_queue SET resolved = 1, synced = 1 WHERE remoteConflictId = :remoteId")
+    suspend fun resolveByRemoteId(remoteId: String)
 }

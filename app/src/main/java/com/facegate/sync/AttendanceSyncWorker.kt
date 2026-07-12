@@ -16,25 +16,43 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.facegate.storage.TemplateRepository
 import com.facegate.storage.entity.HolidayEntity
+import com.facegate.storage.entity.OverrideEntity
 import com.facegate.storage.entity.StudentEntity
+import com.facegate.storage.entity.SyncStateEntity
 import com.facegate.storage.entity.TimetableEntity
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import retrofit2.HttpException
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 /**
  * WorkManager worker responsible for coordinating synchronization with the
- * backend: heartbeat, pull (students/timetable/holidays together, one
- * call), push unsynced attendance.
+ * backend. Ordered in three tiers:
  *
- * Previously this called 9 separate steps against endpoints that mostly
- * don't exist on the backend (see the updated API_CONTRACT.md, "Known
- * gaps" — there is no /sync/students, /sync/timetable, /sync/holidays,
- * /sync/face-embeddings, /sync/attendance-sessions, or /sync/heartbeat).
- * Collapsed to what's actually there: heartbeat, one combined sync call,
- * one attendance push, retry.
+ *  1. Identity/pull — device-check (room reassignment), heartbeat, and the
+ *     combined timetable+students+holidays+conflicts+attendance-down pull.
+ *     A failure here retries the whole worker (Result.retry()), same as
+ *     before, since everything downstream depends on it.
+ *
+ *  2. Core push — unsynced attendance. Also retries the whole worker on
+ *     failure, since this is the one thing that must never silently stop
+ *     going up.
+ *
+ *  3. Best-effort extras — student enrollment/embedding upload, conflict
+ *     push, change-log push. Each is wrapped independently: a failure in
+ *     one (e.g. because the backend doesn't have that endpoint yet — see
+ *     API_CONTRACT.md Part 3) is recorded to SyncStateEntity and logged,
+ *     but does not fail the whole sync cycle or block the others.
+ *
+ * Every step — including tier 1/2 — records its outcome to SyncStateEntity
+ * so AdminDashboard can show real per-category status instead of just the
+ * single GET /sync/status line.
  */
 @HiltWorker
 class AttendanceSyncWorker @AssistedInject constructor(
@@ -65,6 +83,12 @@ class AttendanceSyncWorker @AssistedInject constructor(
             "monday" to 1, "tuesday" to 2, "wednesday" to 3,
             "thursday" to 4, "friday" to 5, "saturday" to 6,
         )
+
+        // How much grace beyond a period's own attendance_window_minutes
+        // before we consider it "missed" rather than "still could start
+        // late". Keeps a session that starts a couple minutes late from
+        // being wrongly flagged every single cycle.
+        val MISSED_SESSION_GRACE_MINUTES = 5
     }
 
     object Scheduler {
@@ -113,72 +137,51 @@ class AttendanceSyncWorker @AssistedInject constructor(
         }
 
         try {
+            // 0. Room consistency check. A device's room is only ever learned
+            // from pairing or from this call — never entered manually (see
+            // DeviceIdManager.getRoomId doc, TimetableEntity.roomId doc). If
+            // an admin reassigned this device to a different room on the
+            // website, this is what catches it, rather than the device
+            // silently continuing to sync the old room's data forever.
+            checkDeviceRoomConsistency()
+
             // 1. Heartbeat — device identity comes from the x-api-key header
             // (DeviceAuthInterceptor), not the request body.
+            recordAttempt(SyncStateEntity.Category.HEARTBEAT)
             deviceRepository.heartbeat(
                 HeartbeatRequest(
                     batteryLevel = getBatteryLevel(),
                     networkStatus = "ONLINE", // WorkManager constraints ensure connectivity
                     storageAvailableMb = getAvailableStorageMb(),
                 )
-            ).getOrRetry()
+            ).getOrRetry().also { recordSuccess(SyncStateEntity.Category.HEARTBEAT) }
 
-            // 2. Pull timetable + students + holidays in one call, merge into
-            // local Room entities.
+            // 2. Pull timetable + students + holidays + conflicts +
+            // attendance-down in one call, merge into local Room entities.
+            recordAttempt(SyncStateEntity.Category.PULL)
             val syncData = syncRepository.incrementalSync(since = null).getOrRetry()
 
             syncData.data?.timetable?.forEach { dto -> mergeTimetable(dto) }
             syncData.data?.students?.forEach { dto -> mergeStudent(dto) }
             syncData.data?.holidays?.forEach { dto -> mergeHoliday(dto) }
+            syncData.data?.conflicts?.forEach { dto -> templateRepository.upsertServerConflict(dto) }
+            syncData.data?.attendanceUpdates?.forEach { dto -> mergeAttendanceDown(dto) }
+            recordSuccess(SyncStateEntity.Category.PULL)
 
-            // 3. Push unsynced attendance. Records whose session is missing
-            // remoteTimetableId/sessionDate (e.g. an ad-hoc "extra period"
-            // with no matching server timetable row — see SessionEntity)
-            // can't be attached to anything on the backend and are skipped,
-            // not silently dropped: they stay unsynced and get logged every
-            // cycle until that gap is addressed.
-            val unsynced = templateRepository.getUnsyncedAttendance()
-            if (unsynced.isNotEmpty()) {
-
-                val uploadable = mutableListOf<Pair<Int, OfflineAttendanceDto>>()
-                var skipped = 0
-
-                for (record in unsynced) {
-                    val session = record.sessionId?.let { templateRepository.getSessionById(it) }
-                    val timetableId = session?.remoteTimetableId
-                    val sessionDate = session?.sessionDate
-
-                    if (session == null || timetableId.isNullOrBlank() || sessionDate.isNullOrBlank()) {
-                        skipped++
-                        continue
-                    }
-
-                    uploadable += record.id to OfflineAttendanceDto(
-                        sessionId = record.sessionId,
-                        timetableId = timetableId,
-                        sessionDate = sessionDate,
-                        studentId = record.studentId,
-                        status = record.attendanceStatus,
-                        confidence = record.confidence,
-                        timestamp = record.timeStamp.toString(),
-                    )
-                }
-
-                if (skipped > 0) {
-                    Log.w(TAG, "$skipped attendance record(s) skipped — session missing server timetable reference.")
-                }
-
-                if (uploadable.isNotEmpty()) {
-                    syncRepository.uploadAttendance(
-                        AttendanceUploadRequest(records = uploadable.map { it.second })
-                    ).getOrRetry()
-
-                    uploadable.forEach { (id, _) -> templateRepository.markAttendanceSynced(id) }
-                }
-            }
+            // 3. Push unsynced attendance — core path, unchanged.
+            pushUnsyncedAttendance()
 
             val cutoffMillis = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(RETENTION_DAYS)
             templateRepository.purgeOldSyncedAttendance(cutoffMillis)
+
+            // ── Best-effort extras — each independently caught so one gap
+            // (most likely: the backend endpoint doesn't exist yet, see
+            // API_CONTRACT.md Part 3) never blocks the others or the core
+            // sync above.
+            runCatchingStep(SyncStateEntity.Category.ENROLLMENT_UP) { pushPendingEnrollments() }
+            runCatchingStep(SyncStateEntity.Category.EMBEDDING_UP) { pushPendingEmbeddings() }
+            runCatchingStep(SyncStateEntity.Category.CONFLICTS_UP) { pushPendingConflicts() }
+            runCatchingStep(SyncStateEntity.Category.CHANGE_LOG_UP) { detectMissedSessions(); pushChangeLogEvents() }
 
             Log.i(TAG, "AttendanceSyncWorker executed successfully.")
             return Result.success()
@@ -192,9 +195,54 @@ class AttendanceSyncWorker @AssistedInject constructor(
         }
     }
 
+    // ── 0. Room consistency ──────────────────────────────────────────────────
+
+    private suspend fun checkDeviceRoomConsistency() {
+        recordAttempt(SyncStateEntity.Category.DEVICE_CHECK)
+        val deviceId = deviceIdManager.getDeviceId() ?: return
+        val localRoomId = deviceIdManager.getRoomId()
+
+        val result = deviceRepository.getDeviceDetails(deviceId)
+        val serverRoomId = result.getOrNull()?.data?.roomId
+        if (serverRoomId == null) {
+            // Best-effort — a failed lookup here shouldn't block the rest of
+            // sync, it just means we couldn't double check the room this cycle.
+            recordFailure(SyncStateEntity.Category.DEVICE_CHECK, "Could not verify room assignment")
+            return
+        }
+
+        if (serverRoomId != localRoomId) {
+            Log.w(TAG, "Room reassignment detected: was $localRoomId, server says $serverRoomId. Updating and forcing full resync.")
+            deviceIdManager.saveRoomId(serverRoomId)
+            // Old room's timetable/students are now stale — a fresh full
+            // sync replaces them rather than leaving last room's data mixed
+            // in with the new room's incoming rows.
+            syncRepository.fullSync().onSuccess { response ->
+                response.data?.timetable?.forEach { dto -> mergeTimetable(dto) }
+                response.data?.students?.forEach { dto -> mergeStudent(dto) }
+                response.data?.holidays?.forEach { dto -> mergeHoliday(dto) }
+            }
+            recordSuccess(SyncStateEntity.Category.DEVICE_CHECK, "Room updated to $serverRoomId")
+        } else {
+            recordSuccess(SyncStateEntity.Category.DEVICE_CHECK)
+        }
+    }
+
+    // ── 2. Merge helpers (pull) ──────────────────────────────────────────────
+
     private suspend fun mergeTimetable(dto: SyncTimetableDto) {
         val dayInt = DAY_NAME_TO_INT[dto.dayOfWeek.lowercase()] ?: return
         val (hour, minute) = parseTime(dto.startTime) ?: return
+        val endParsed = parseTime(dto.endTime)
+
+        // Defensive consistency check — the server is supposed to filter
+        // sync by this device's own room already, so this should never
+        // actually fire. If it does, it's a real signal something's stale
+        // (e.g. a reassignment mid-cycle) rather than a silent data mismatch.
+        val expectedRoom = deviceIdManager.getRoomId()
+        if (expectedRoom != null && dto.roomId != expectedRoom) {
+            Log.w(TAG, "Timetable row ${dto.timetableId} has room ${dto.roomId}, expected $expectedRoom — syncing anyway, but this shouldn't happen.")
+        }
 
         templateRepository.upsertSyncedTimetable(
             TimetableEntity(
@@ -208,6 +256,15 @@ class AttendanceSyncWorker @AssistedInject constructor(
                 remoteTimetableId = dto.timetableId,
                 subjectName = dto.subjectName,
                 facultyName = dto.facultyName,
+                roomId = dto.roomId,
+                batchId = dto.batchId,
+                facultyId = dto.facultyId,
+                subjectId = dto.subjectId,
+                endHour = endParsed?.first,
+                endMinute = endParsed?.second,
+                effectiveFrom = dto.effectiveFrom,
+                effectiveTo = dto.effectiveTo,
+                serverUpdatedAt = dto.updatedAt,
             )
         )
     }
@@ -215,37 +272,422 @@ class AttendanceSyncWorker @AssistedInject constructor(
     private suspend fun mergeStudent(dto: SyncStudentDto) {
         // insertPendingStudent() uses OnConflictStrategy.IGNORE, so a student
         // already enrolled locally (with a captured embedding) is never
-        // clobbered by a repeat sync — see StudentDao.
+        // clobbered by a repeat sync — see StudentDao. That means a status
+        // change (e.g. ACTIVE -> DROPPED) for an already-enrolled student
+        // won't land via this path; syncPendingStudents applies it as a
+        // separate explicit update below so recognition filtering (see
+        // StudentDao.getAllEnrolledStudents) stays correct regardless.
         templateRepository.syncPendingStudents(
             listOf(
                 StudentEntity(
-                    studentId = dto.studentId,   // server's real UUID — was
-                                                  // dto.rollNumber before, which
-                                                  // made this entity's PK the
-                                                  // wrong value entirely.
+                    studentId = dto.studentId,   // server's real UUID
                     name = "${dto.firstName} ${dto.lastName}".trim(),
                     studentClass = dto.batchCode ?: dto.batchId,
                     embedding = null,
                     enrollmentStatus = "PENDING",
                     rollNumber = dto.rollNumber,
                     batchCode = dto.batchCode,
+                    isLocalOnly = false,   // came from the server — never a candidate for the enroll-create endpoint
+                    registrationNumber = dto.registrationNumber,
+                    email = dto.email,
+                    phone = dto.phone,
+                    gender = dto.gender,
+                    studentStatus = dto.studentStatus ?: "ACTIVE",
+                    batchId = dto.batchId,
+                    serverUpdatedAt = dto.updatedAt,
+                    admissionYear = dto.admissionYear,
+                    dateOfBirth = dto.dateOfBirth,
+                    profilePhotoUrl = dto.profilePhotoUrl,
                 )
             )
         )
+        templateRepository.updateStudentStatus(dto.studentId, dto.studentStatus ?: "ACTIVE")
     }
 
     private suspend fun mergeHoliday(dto: SyncHolidayDto) {
-        // HolidayEntity only tracks date + name locally today — holiday_type
-        // and description from the server are dropped here. Add columns if
-        // the on-device UI ever needs to show them.
         templateRepository.insertHoliday(
             HolidayEntity(
                 date = dto.holidayDate,
                 name = dto.holidayName,
                 createdAt = System.currentTimeMillis(),
+                remoteHolidayId = dto.holidayId,
+                holidayType = dto.holidayType,
+                isRecurring = dto.isRecurring ?: false,
+                serverUpdatedAt = dto.updatedAt,
             )
         )
     }
+
+    /** Attendance-down: applies a website-side correction locally, most-recent-wins. */
+    private suspend fun mergeAttendanceDown(dto: SyncAttendanceDto) {
+        val serverUpdatedAtMs = parseIsoToMillis(dto.updatedAt) ?: return
+        val existing = templateRepository.findAttendanceByRemoteId(dto.attendanceId)
+        if (existing != null) {
+            templateRepository.applyServerAttendanceUpdate(dto, serverUpdatedAtMs)
+        } else {
+            templateRepository.reconcileServerAttendanceUpdate(dto, serverUpdatedAtMs)
+        }
+    }
+
+    // ── 3. Core push (attendance up) ─────────────────────────────────────────
+
+    private suspend fun pushUnsyncedAttendance() {
+        recordAttempt(SyncStateEntity.Category.ATTENDANCE_UP)
+        // Records whose session is missing remoteTimetableId/sessionDate
+        // (e.g. an ad-hoc "extra period" with no matching server timetable
+        // row — see SessionEntity) can't be attached to anything on the
+        // backend and are skipped, not silently dropped: they stay unsynced
+        // and get logged every cycle until that gap is addressed.
+        val unsynced = templateRepository.getUnsyncedAttendance()
+        if (unsynced.isEmpty()) {
+            recordSuccess(SyncStateEntity.Category.ATTENDANCE_UP, pendingCount = 0)
+            return
+        }
+
+        val uploadable = mutableListOf<Pair<Int, OfflineAttendanceDto>>()
+        var skipped = 0
+
+        for (record in unsynced) {
+            val session = record.sessionId?.let { templateRepository.getSessionById(it) }
+            val timetableId = session?.remoteTimetableId
+            val sessionDate = session?.sessionDate
+
+            if (session == null || timetableId.isNullOrBlank() || sessionDate.isNullOrBlank()) {
+                skipped++
+                continue
+            }
+
+            uploadable += record.id to OfflineAttendanceDto(
+                sessionId = record.sessionId,
+                timetableId = timetableId,
+                sessionDate = sessionDate,
+                studentId = record.studentId,
+                status = record.attendanceStatus,
+                attendanceMode = record.attendanceMode,
+                // schema.sql: recognition_confidence is DECIMAL(5,2) CHECK
+                // (0-100) — a percentage. record.confidence is this app's
+                // internal 0.0-1.0 cosine similarity; sending it unconverted
+                // silently stores "0.94%" instead of "94%" (it still passes
+                // the CHECK, since 0.94 is between 0 and 100, so this was
+                // never going to show up as an upload failure — just wrong
+                // numbers on the website's Reports/Conflicts pages).
+                confidence = record.confidence?.let { (it * 100).coerceIn(0.0, 100.0) },
+                // schema.sql: attendance_time is TIMESTAMP — must be
+                // ISO-8601. record.timeStamp is epoch millis; sending
+                // `.toString()` of that (e.g. "1752247523000") is not a
+                // valid timestamp and is the most likely reason attendance
+                // uploads were failing outright rather than just having
+                // wrong confidence values.
+                timestamp = toIso8601(record.timeStamp),
+            )
+        }
+
+        if (skipped > 0) {
+            Log.w(TAG, "$skipped attendance record(s) skipped — session missing server timetable reference.")
+        }
+
+        if (uploadable.isNotEmpty()) {
+            syncRepository.uploadAttendance(
+                AttendanceUploadRequest(records = uploadable.map { it.second })
+            ).getOrRetry()
+
+            uploadable.forEach { (id, _) -> templateRepository.markAttendanceSynced(id) }
+        }
+        recordSuccess(SyncStateEntity.Category.ATTENDANCE_UP, pendingCount = skipped)
+    }
+
+    // ── 3a. Enrollment / embedding push (best-effort) ────────────────────────
+
+    private suspend fun pushPendingEnrollments() {
+        val pending = templateRepository.getStudentsWithUnsyncedEmbedding().filter { it.isLocalOnly }
+        for (student in pending) {
+            val embeddingFloats = student.embedding
+                ?.split(",")
+                ?.mapNotNull { it.trim().toFloatOrNull() }
+                ?: continue
+            if (embeddingFloats.isEmpty()) continue
+
+            // schema.sql: student.gender and admission_year are NOT NULL
+            // with no default — sending a request without them would just
+            // fail server-side. The on-device enrollment UI doesn't collect
+            // either yet (see EnrollmentFragment), so this deliberately
+            // skips rather than sends a request guaranteed to be rejected;
+            // it'll retry every cycle until that UI gap is closed.
+            val gender = student.gender
+            val admissionYear = student.admissionYear
+            if (gender.isNullOrBlank() || admissionYear == null) {
+                Log.w(TAG, "Skipping enrollment upload for ${student.studentId} — gender/admission_year not captured yet (required by student table).")
+                continue
+            }
+
+            val (first, last) = splitName(student.name)
+            val serverStudentId = UUID.randomUUID().toString()
+            val modelName = student.embeddingModelName ?: "facegate-mobile"
+
+            val result = syncRepository.enrollStudent(
+                EnrollStudentRequest(
+                    studentId = serverStudentId,
+                    batchCode = student.batchCode ?: student.studentClass,
+                    registrationNumber = student.registrationNumber.ifBlank { student.rollNumber.ifBlank { student.studentId } },
+                    rollNumber = student.rollNumber.ifBlank { student.studentId },
+                    firstName = first,
+                    lastName = last,
+                    gender = gender,
+                    admissionYear = admissionYear,
+                    dateOfBirth = student.dateOfBirth,
+                    email = student.email,
+                    phone = student.phone,
+                    embeddingData = embeddingFloats,
+                    embeddingVersion = student.embeddingVersion,
+                    modelName = modelName,
+                )
+            )
+
+            result.onSuccess { response ->
+                val returnedId = response.data?.studentId ?: serverStudentId
+                templateRepository.completeStudentEnrollmentSync(student.studentId, returnedId)
+                templateRepository.updateEmbeddingMetadata(returnedId, response.data?.embeddingId, modelName, student.embeddingVersion)
+            }.onFailure { e ->
+                Log.w(TAG, "Enrollment upload failed for ${student.studentId}: ${e.message}")
+            }
+        }
+    }
+
+    private suspend fun pushPendingEmbeddings() {
+        // Students whose embedding changed (re-enrollment) but who the
+        // server already knows about — isLocalOnly = false, so these never
+        // overlap with pushPendingEnrollments() above.
+        val pending = templateRepository.getStudentsWithUnsyncedEmbedding().filterNot { it.isLocalOnly }
+        if (pending.isEmpty()) return
+
+        val dtos = pending.mapNotNull { student ->
+            val embeddingFloats = student.embedding?.split(",")?.mapNotNull { it.trim().toFloatOrNull() }
+            if (embeddingFloats.isNullOrEmpty()) null
+            else EmbeddingUploadDto(
+                studentId = student.studentId,
+                embeddingData = embeddingFloats,
+                embeddingVersion = student.embeddingVersion,
+                modelName = student.embeddingModelName ?: "facegate-mobile",
+            )
+        }
+        if (dtos.isEmpty()) return
+
+        syncRepository.uploadEmbeddings(EmbeddingUploadRequest(embeddings = dtos)).onSuccess {
+            pending.forEach {
+                templateRepository.markEmbeddingSyncedOnly(it.studentId)
+                templateRepository.updateEmbeddingMetadata(it.studentId, null, it.embeddingModelName ?: "facegate-mobile", it.embeddingVersion)
+            }
+        }.onFailure { e ->
+            Log.w(TAG, "Embedding upload failed: ${e.message}")
+        }
+    }
+
+    // ── 3b. Conflict push (best-effort) ──────────────────────────────────────
+
+    private suspend fun pushPendingConflicts() {
+        val unsynced = templateRepository.getUnsyncedConflicts()
+        if (unsynced.isEmpty()) return
+
+        // Conflicts already carrying a remoteConflictId are resolutions
+        // being pushed (this device resolved something it created earlier);
+        // everything else is a brand-new conflict this device just detected.
+        val (toResolve, toCreate) = unsynced.partition { it.remoteConflictId != null }
+
+        for (conflict in toResolve) {
+            val remoteId = conflict.remoteConflictId ?: continue
+            val status = if (conflict.resolved) "RESOLVED" else "REJECTED"
+            syncRepository.resolveConflict(remoteId, ConflictResolveRequest(conflictStatus = status))
+                .onSuccess { templateRepository.markConflictSynced(conflict.id) }
+                .onFailure { e -> Log.w(TAG, "Conflict resolve push failed for ${conflict.id}: ${e.message}") }
+        }
+
+        if (toCreate.isNotEmpty()) {
+            // schema.sql: conflict.attendance_session_id is UUID NOT NULL —
+            // same resolution requirement as attendance (timetable_id +
+            // session_date). A conflict recorded outside any tracked
+            // session (AttendancePipeline's "no_session" fallback) can't
+            // satisfy that and must be skipped, not sent with nulls.
+            val resolvable = mutableListOf<Pair<com.facegate.storage.entity.ConflictEntity, com.facegate.storage.entity.SessionEntity>>()
+            var unresolvableCount = 0
+            for (conflict in toCreate) {
+                val session = templateRepository.getSessionById(conflict.sessionId)
+                val timetableId = session?.remoteTimetableId
+                val sessionDate = session?.sessionDate
+                if (session == null || timetableId.isNullOrBlank() || sessionDate.isNullOrBlank()) {
+                    unresolvableCount++
+                } else {
+                    resolvable += conflict to session
+                }
+            }
+            if (unresolvableCount > 0) {
+                Log.w(TAG, "$unresolvableCount conflict(s) skipped — no resolvable session (attendance_session_id is required).")
+            }
+
+            if (resolvable.isNotEmpty()) {
+                val records = resolvable.map { (conflict, session) ->
+                    ConflictUploadDto(
+                        sessionId = conflict.sessionId,
+                        timetableId = session.remoteTimetableId,
+                        sessionDate = session.sessionDate,
+                        studentId = conflict.topStudentId.takeIf { it.isNotBlank() && it != "unknown" },
+                        conflictType = conflict.conflictType,
+                        severity = conflict.severity,
+                        description = conflict.reason,
+                    )
+                }
+                syncRepository.uploadConflicts(
+                    ConflictUploadRequest(records = records, clientRefs = resolvable.map { it.first.id })
+                ).onSuccess { response ->
+                    response.data?.created?.forEach { result ->
+                        templateRepository.markConflictPushed(result.clientRef, result.conflictId)
+                    }
+                }.onFailure { e ->
+                    Log.w(TAG, "Conflict upload failed: ${e.message}")
+                }
+            }
+        }
+    }
+
+    // ── 3c. Missed-session detection + change-log push (best-effort) ────────
+
+    /**
+     * Flags today's scheduled periods whose attendance window has already
+     * closed with no session ever started on this device — plan.md's
+     * "change log ... if teacher not start class". Writes a local
+     * OverrideEntity (this app's existing change-log concept — see
+     * ChangesLogViewModel) which pushChangeLogEvents() then ships up.
+     */
+    private suspend fun detectMissedSessions() {
+        val now = Calendar.getInstance()
+        val today = now.get(Calendar.DAY_OF_WEEK).let {
+            // Calendar.SUNDAY=1..SATURDAY=7 → this app's 1=Mon..6=Sat, 7=Sun
+            if (it == Calendar.SUNDAY) 7 else it - 1
+        }
+        if (today == 7 || templateRepository.isWeeklyOff(today)) return
+
+        val todayString = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        if (templateRepository.isHoliday(todayString)) return
+
+        val startOfDay = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val endOfDay = startOfDay + TimeUnit.DAYS.toMillis(1) - 1
+
+        val periods = templateRepository.getTimetableForDay(today).filter { it.remoteTimetableId != null }
+        val sessionsToday = templateRepository.getSessionsForDate(startOfDay, endOfDay)
+        val startedTimetableIds = sessionsToday.mapNotNull { it.timetableId }.toSet()
+
+        for (period in periods) {
+            if (period.id in startedTimetableIds) continue
+
+            val scheduled = Calendar.getInstance().apply {
+                timeInMillis = startOfDay
+                set(Calendar.HOUR_OF_DAY, period.scheduledHour)
+                set(Calendar.MINUTE, period.scheduledMinute)
+            }
+            val windowClosedAt = scheduled.timeInMillis +
+                TimeUnit.MINUTES.toMillis((period.windowMinutes + MISSED_SESSION_GRACE_MINUTES).toLong())
+
+            if (System.currentTimeMillis() <= windowClosedAt) continue // window hasn't closed yet, not "missed"
+
+            // Avoid re-logging the same missed period every hourly cycle —
+            // one override per (day, timetable row) is enough signal.
+            val alreadyLogged = templateRepository.getOverridesForSession("missed:${period.id}:$todayString")
+            if (alreadyLogged.isNotEmpty()) continue
+
+            templateRepository.insertOverride(
+                OverrideEntity(
+                    sessionId = "missed:${period.id}:$todayString",
+                    fieldChanged = "session not started",
+                    oldValue = "scheduled ${period.scheduledHour}:${"%02d".format(period.scheduledMinute)}",
+                    newValue = "no session started",
+                    changedAt = System.currentTimeMillis(),
+                    reason = "${period.subjectName ?: period.subject} (${period.batch}) — attendance window closed with no session started",
+                )
+            )
+        }
+    }
+
+    private suspend fun pushChangeLogEvents() {
+        val unpushed = templateRepository.getUnpushedOverrides()
+        if (unpushed.isEmpty()) return
+
+        val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+        val events = unpushed.map { override ->
+            ChangeLogEventDto(
+                entityName = if (override.fieldChanged == "session not started") "timetable_session" else "timetable",
+                entityId = override.sessionId,
+                action = "UPDATE",
+                description = "${override.fieldChanged}: ${override.oldValue} → ${override.newValue}" +
+                    if (override.reason.isNotBlank()) " (${override.reason})" else "",
+                occurredAt = isoFormat.format(Date(override.changedAt)),
+            )
+        }
+
+        deviceRepository.pushChangeLogEvents(ChangeLogEventRequest(events = events)).onSuccess {
+            unpushed.forEach { templateRepository.markOverridePushed(it.id) }
+        }.onFailure { e ->
+            Log.w(TAG, "Change log push failed: ${e.message}")
+        }
+    }
+
+    // ── Sync status bookkeeping ──────────────────────────────────────────────
+
+    private suspend fun recordAttempt(category: String) {
+        val previous = templateRepository.getSyncStates().find { it.category == category }
+        templateRepository.recordSyncState(
+            SyncStateEntity(
+                category = category,
+                lastAttemptAt = System.currentTimeMillis(),
+                lastSuccessAt = previous?.lastSuccessAt,
+                status = "IN_PROGRESS",
+                pendingCount = previous?.pendingCount ?: 0,
+            )
+        )
+    }
+
+    private suspend fun recordSuccess(category: String, message: String? = null, pendingCount: Int = 0) {
+        val now = System.currentTimeMillis()
+        templateRepository.recordSyncState(
+            SyncStateEntity(
+                category = category,
+                lastAttemptAt = now,
+                lastSuccessAt = now,
+                status = "OK",
+                message = message,
+                pendingCount = pendingCount,
+            )
+        )
+    }
+
+    private suspend fun recordFailure(category: String, message: String?) {
+        val previous = templateRepository.getSyncStates().find { it.category == category }
+        templateRepository.recordSyncState(
+            SyncStateEntity(
+                category = category,
+                lastAttemptAt = System.currentTimeMillis(),
+                lastSuccessAt = previous?.lastSuccessAt,
+                status = "FAILED",
+                message = message,
+                pendingCount = previous?.pendingCount ?: 0,
+            )
+        )
+    }
+
+    /** Runs a best-effort sync step: records attempt/success/failure without throwing into the outer catch. */
+    private suspend fun runCatchingStep(category: String, block: suspend () -> Unit) {
+        recordAttempt(category)
+        try {
+            block()
+            recordSuccess(category)
+        } catch (e: Exception) {
+            Log.w(TAG, "Sync step '$category' failed (non-fatal): ${e.message}")
+            recordFailure(category, e.message)
+        }
+    }
+
+    // ── Small helpers ─────────────────────────────────────────────────────────
 
     private fun parseTime(value: String): Pair<Int, Int>? {
         val parts = value.split(":")
@@ -253,6 +695,28 @@ class AttendanceSyncWorker @AssistedInject constructor(
         val hour = parts[0].toIntOrNull() ?: return null
         val minute = parts[1].toIntOrNull() ?: return null
         return hour to minute
+    }
+
+    private fun toIso8601(epochMillis: Long): String {
+        val fmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
+        fmt.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        return fmt.format(Date(epochMillis))
+    }
+
+    private fun parseIsoToMillis(iso: String?): Long? {
+        if (iso.isNullOrBlank()) return null
+        return try {
+            val fmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+            fmt.timeZone = java.util.TimeZone.getTimeZone("UTC")
+            fmt.parse(iso.replace("Z", "").substringBefore("."))?.time
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun splitName(fullName: String): Pair<String, String> {
+        val parts = fullName.trim().split(" ", limit = 2)
+        return if (parts.size == 2) parts[0] to parts[1] else (parts.getOrElse(0) { "" } to "")
     }
 
     /**

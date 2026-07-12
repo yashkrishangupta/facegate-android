@@ -96,10 +96,20 @@ private data class SlotSource(
 @HiltViewModel
 class ReportViewModel @Inject constructor(
     private val repository: TemplateRepository,
+    private val syncRepository: com.facegate.sync.SyncRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ExplorerState>(ExplorerState.Loading)
     val state: StateFlow<ExplorerState> = _state
+
+    // Set after a successful refreshFromServer() call — lets the Reports UI
+    // show "server says 28/30 present" alongside the locally-computed roster,
+    // so a website-side manual correction is visible here even before
+    // attendance-down sync (plan.md §6.2) exists to merge it into the local
+    // roster automatically. Null until refreshFromServer() is called, and
+    // cleared again once the selected date/period/batch changes.
+    private val _serverSummary = MutableStateFlow<com.facegate.sync.ReportSummaryDto?>(null)
+    val serverSummary: StateFlow<com.facegate.sync.ReportSummaryDto?> = _serverSummary
 
     private var selectedDate   : Long    = startOfDay(System.currentTimeMillis())
     private var selectedPeriod : Int?    = null
@@ -110,6 +120,33 @@ class ReportViewModel @Inject constructor(
     private var extraPeriodSessions: List<SessionEntity> = emptyList()
 
     init { load() }
+
+    /**
+     * Pulls this room's report summaries from the server (GET
+     * /api/v1/sync/reports — not built on the backend yet, see
+     * API_CONTRACT.md Part 3) and matches the one for the currently-selected
+     * period/batch, so a manual correction made on the website (Reports
+     * page) is visible here even though it hasn't flowed down into the
+     * local attendance table yet. Best-effort — a failure just leaves
+     * serverSummary as it was.
+     */
+    fun refreshFromServer() {
+        viewModelScope.launch {
+            val period = selectedTimetableEntry() ?: return@launch
+            val remoteId = period.remoteTimetableId ?: return@launch
+            val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(selectedDate))
+
+            syncRepository.getReports(since = null).onSuccess { response ->
+                _serverSummary.value = response.data?.firstOrNull {
+                    it.timetableId == remoteId && it.sessionDate == dateStr &&
+                        (selectedBatch == null || it.batchCode == selectedBatch)
+                }
+            }
+        }
+    }
+
+    private fun selectedTimetableEntry(): TimetableEntity? =
+        timetableForDate.firstOrNull { it.periodNumber == selectedPeriod }
 
     fun load() {
         viewModelScope.launch {
@@ -189,6 +226,7 @@ class ReportViewModel @Inject constructor(
         selectedDate   = clamped
         selectedPeriod = null
         selectedBatch  = null
+        _serverSummary.value = null
         load()
     }
 
@@ -215,6 +253,7 @@ class ReportViewModel @Inject constructor(
         if (periodNumber == selectedPeriod) return
         selectedPeriod = periodNumber
         selectedBatch  = null // reset to "All batches" whenever the period changes
+        _serverSummary.value = null
         viewModelScope.launch {
             val dateLabel = dateLabelFmt.format(Date(selectedDate))
             renderForPeriodAndBatch(dateLabel, buildPeriodOptions())
@@ -224,6 +263,7 @@ class ReportViewModel @Inject constructor(
     fun selectBatch(batch: String?) {
         if (batch == selectedBatch) return
         selectedBatch = batch
+        _serverSummary.value = null
         viewModelScope.launch {
             val dateLabel = dateLabelFmt.format(Date(selectedDate))
             renderForPeriodAndBatch(dateLabel, buildPeriodOptions())

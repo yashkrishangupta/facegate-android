@@ -5,10 +5,12 @@ import com.facegate.storage.dao.ClassAttendanceSummary
 import com.facegate.storage.dao.ConflictDao
 import com.facegate.storage.dao.StudentDao
 import com.facegate.storage.dao.SyncLogDao
+import com.facegate.storage.dao.SyncStateDao
 import com.facegate.storage.entity.AttendanceEntity
 import com.facegate.storage.entity.ConflictEntity
 import com.facegate.storage.entity.StudentEntity
 import com.facegate.storage.entity.SyncLogEntity
+import com.facegate.storage.entity.SyncStateEntity
 import com.facegate.storage.dao.TimetableDao
 import com.facegate.storage.dao.SessionDao
 import com.facegate.storage.dao.OverrideDao
@@ -19,6 +21,8 @@ import com.facegate.storage.entity.SessionEntity
 import com.facegate.storage.entity.OverrideEntity
 import com.facegate.storage.entity.HolidayEntity
 import com.facegate.storage.entity.WeeklyOffEntity
+import com.facegate.sync.SyncAttendanceDto
+import kotlinx.coroutines.flow.Flow
 
 class TemplateRepository(
     private val studentDao    : StudentDao,
@@ -30,12 +34,45 @@ class TemplateRepository(
     private val overrideDao   : OverrideDao,
     private val holidayDao    : HolidayDao,
     private val weeklyOffDao  : WeeklyOffDao,
+    private val syncStateDao  : SyncStateDao,
 ) {
 
     // ── Student ───────────────────────────────────────────────────────────────
 
     suspend fun addStudent(student: StudentEntity) =
         studentDao.insertStudent(student)
+
+    /**
+     * Same as addStudent, but for (re-)enrollment specifically: preserves
+     * isLocalOnly/rollNumber/batchCode from any existing row with this id
+     * instead of resetting them to StudentEntity's defaults. addStudent
+     * uses REPLACE, so a naive re-enrollment of a student who already came
+     * down from a server sync (isLocalOnly = false) would silently flip
+     * isLocalOnly back to true — making AttendanceSyncWorker wrongly treat
+     * an existing server student as brand new and try to create a
+     * duplicate. Embedding sync state (embeddingSynced) is intentionally
+     * NOT preserved — a re-captured face is exactly the case that should
+     * re-trigger an embedding upload.
+     */
+    suspend fun upsertEnrollment(student: StudentEntity) {
+        val existing = studentDao.getStudentById(student.studentId)
+        val merged = if (existing != null) {
+            student.copy(
+                isLocalOnly = existing.isLocalOnly,
+                rollNumber = student.rollNumber.ifBlank { existing.rollNumber },
+                batchCode = student.batchCode ?: existing.batchCode,
+                registrationNumber = student.registrationNumber.ifBlank { existing.registrationNumber },
+                email = student.email ?: existing.email,
+                phone = student.phone ?: existing.phone,
+                gender = student.gender ?: existing.gender,
+                studentStatus = existing.studentStatus,
+                batchId = student.batchId ?: existing.batchId,
+                serverUpdatedAt = existing.serverUpdatedAt,
+                remoteEmbeddingId = existing.remoteEmbeddingId,
+            )
+        } else student
+        studentDao.insertStudent(merged)
+    }
 
     suspend fun syncPendingStudents(students: List<StudentEntity>) {
         students.forEach { studentDao.insertPendingStudent(it) }
@@ -82,6 +119,28 @@ class TemplateRepository(
 
     suspend fun getStudentById(studentId: String): StudentEntity? =
         studentDao.getStudentById(studentId)
+
+    /**
+     * Finishes a device-initiated enrollment upload: renames the local
+     * roll-number-as-id row to the server's real student_id, cascading the
+     * same way a manual roll-number edit does (attendance + conflict rows
+     * follow), then flips isLocalOnly/embeddingSynced. Split into two steps
+     * because the id-rename touches three tables but only StudentDao knows
+     * about isLocalOnly/embeddingSynced.
+     */
+    suspend fun completeStudentEnrollmentSync(localId: String, serverStudentId: String) {
+        if (localId == serverStudentId) {
+            studentDao.completeEnrollmentSync(localId, serverStudentId)
+            return
+        }
+        attendanceDao.renameStudentId(localId, serverStudentId)
+        conflictDao.renameTopStudentId(localId, serverStudentId)
+        conflictDao.renameSecondStudentId(localId, serverStudentId)
+        studentDao.completeEnrollmentSync(localId, serverStudentId)
+    }
+
+    suspend fun markEmbeddingSyncedOnly(studentId: String) =
+        studentDao.markEmbeddingSynced(studentId)
 
 
     suspend fun updateStudentRollNo(
@@ -143,6 +202,54 @@ class TemplateRepository(
     suspend fun deleteAttendanceForSession(studentId: String, sessionId: String) =
         attendanceDao.deleteAttendanceForSession(studentId, sessionId)
 
+    // ── Attendance: backend sync helpers ─────────────────────────────────────
+
+    suspend fun findAttendance(studentId: String, sessionId: String): AttendanceEntity? =
+        attendanceDao.findByStudentAndSession(studentId, sessionId)
+
+    suspend fun findAttendanceByRemoteId(remoteId: String): AttendanceEntity? =
+        attendanceDao.findByRemoteId(remoteId)
+
+    suspend fun markAttendanceSyncedWithRemoteId(id: Int, remoteId: String) =
+        attendanceDao.markSyncedWithRemoteId(id, remoteId)
+
+    /** See AttendanceDao.markCorrectedAbsent — turns a synced PRESENT into a re-pushable ABSENT correction. */
+    suspend fun correctSyncedAttendanceToAbsent(studentId: String, sessionId: String) =
+        attendanceDao.markCorrectedAbsent(studentId, sessionId)
+
+    /** Applies one attendance-down row from the server (most-recent-wins). See plan.md §6.2. */
+    suspend fun applyServerAttendanceUpdate(dto: SyncAttendanceDto, serverUpdatedAtMs: Long) {
+        attendanceDao.applyServerUpdateIfNewer(
+            remoteId = dto.attendanceId,
+            status = dto.attendanceStatus,
+            mode = dto.attendanceMode ?: "MANUAL",
+            serverUpdatedAt = serverUpdatedAtMs,
+        )
+    }
+
+    /**
+     * Fallback for a local row that predates ever learning the server's
+     * attendance_id: locate it by (student, session) and backfill
+     * remoteAttendanceId while applying the merge. No-ops if no local row
+     * exists yet at that (timetable, date) — the row will simply be created
+     * fresh next time this device pushes its own mark, or picked up by the
+     * remoteAttendanceId fast path once that happens.
+     */
+    suspend fun reconcileServerAttendanceUpdate(dto: SyncAttendanceDto, serverUpdatedAtMs: Long) {
+        val remoteTimetableId = dto.timetableId ?: return
+        val sessionDate = dto.sessionDate ?: return
+        val session = sessionDao.findByRemoteTimetableAndDate(remoteTimetableId, sessionDate) ?: return
+        val local = attendanceDao.findByStudentAndSession(dto.studentId, session.sessionId) ?: return
+        if (local.remoteAttendanceId != null) return // fast path already covers this one
+        attendanceDao.backfillAndApplyServerUpdate(
+            id = local.id,
+            remoteId = dto.attendanceId,
+            status = dto.attendanceStatus,
+            mode = dto.attendanceMode ?: "MANUAL",
+            serverUpdatedAt = serverUpdatedAtMs,
+        )
+    }
+
     // ── Sync Logs ─────────────────────────────────────────────────────────────
 
     suspend fun addSyncLog(log: SyncLogEntity) =
@@ -163,7 +270,7 @@ class TemplateRepository(
         conflictDao.getAllConflicts()
 
     suspend fun resolveConflict(id: Int) =
-        conflictDao.markResolved(id)
+        conflictDao.markResolvedAndRequeue(id)
 
     suspend fun getUnresolvedConflictCount(): Int =
         conflictDao.getUnresolvedCount()
@@ -192,6 +299,62 @@ class TemplateRepository(
 
     suspend fun resolveAllConflictsForStudent(studentId: String) =
         conflictDao.resolveAllConflictsForStudent(studentId)
+
+    // ── Conflicts: backend sync helpers ──────────────────────────────────────
+
+    suspend fun getUnsyncedConflicts(): List<ConflictEntity> =
+        conflictDao.getUnsyncedConflicts()
+
+    suspend fun getConflictById(id: Int): ConflictEntity? =
+        conflictDao.getById(id)
+
+    suspend fun markConflictPushed(id: Int, remoteId: String) =
+        conflictDao.markConflictPushed(id, remoteId)
+
+    suspend fun markConflictSynced(id: Int) =
+        conflictDao.markConflictSynced(id)
+
+    /** Mirrors a conflicts[] row from a sync response into the local queue. */
+    suspend fun upsertServerConflict(dto: com.facegate.sync.SyncConflictDto) {
+        val existing = conflictDao.findByRemoteId(dto.conflictId)
+        val resolved = dto.conflictStatus == "RESOLVED" || dto.conflictStatus == "REJECTED"
+        if (existing != null) {
+            if (resolved && !existing.resolved) {
+                conflictDao.resolveByRemoteId(dto.conflictId)
+            }
+            return
+        }
+        // A conflict this device never raised — e.g. an admin flagged one
+        // manually on the website. Store enough to display it; there's no
+        // top/second-candidate scoring for a WEBSITE-sourced row.
+        conflictDao.insertConflict(
+            ConflictEntity(
+                topStudentId = dto.studentId ?: "unknown",
+                topStudentName = dto.studentId ?: "Unknown",
+                topScore = 0f,
+                secondStudentId = "",
+                secondStudentName = "",
+                secondScore = 0f,
+                reason = dto.description ?: dto.conflictType,
+                sessionId = dto.attendanceSessionId ?: "unknown",
+                timestamp = System.currentTimeMillis(),
+                resolved = resolved,
+                remoteConflictId = dto.conflictId,
+                synced = true,
+                source = "WEBSITE",
+                conflictType = dto.conflictType,
+                severity = dto.severity ?: "MEDIUM",
+                attendanceId = dto.attendanceId,
+            )
+        )
+    }
+
+    /** Applies a student_status change from a sync payload — see StudentDao.getAllEnrolledStudents, which face recognition matching relies on to exclude non-ACTIVE students. */
+    suspend fun updateStudentStatus(studentId: String, status: String) =
+        studentDao.updateStudentStatus(studentId, status)
+
+    suspend fun updateEmbeddingMetadata(studentId: String, embeddingId: String?, modelName: String, version: String) =
+        studentDao.updateEmbeddingMetadata(studentId, embeddingId, modelName, version)
     
     // ── Timetable ─────────────────────────────────────────────────────────
     suspend fun insertTimetable(entry: TimetableEntity) = timetableDao.insert(entry)
@@ -233,6 +396,10 @@ class TemplateRepository(
     suspend fun getOverridesForSession(sessionId: String) = overrideDao.getForSession(sessionId)
     suspend fun getAllOverrides() = overrideDao.getAll()
 
+    // ── Change log (overrides pushed to the backend's change_log) ────────────
+    suspend fun getUnpushedOverrides() = overrideDao.getUnpushed()
+    suspend fun markOverridePushed(id: Int) = overrideDao.markPushed(id)
+
     // ── Holidays ───────────────────────────────────────────────────────────
     suspend fun insertHoliday(holiday: HolidayEntity) = holidayDao.insert(holiday)
     suspend fun deleteHoliday(date: String) = holidayDao.delete(date)
@@ -250,6 +417,11 @@ class TemplateRepository(
     }
     suspend fun isWeeklyOff(dayOfWeek: Int): Boolean = weeklyOffDao.isOff(dayOfWeek) > 0
     suspend fun getWeeklyOffDays(): List<Int> = weeklyOffDao.getAll().map { it.dayOfWeek }
+
+    // ── Sync status (per-category, backs the sync status UI) ─────────────────
+    suspend fun recordSyncState(state: SyncStateEntity) = syncStateDao.upsert(state)
+    suspend fun getSyncStates(): List<SyncStateEntity> = syncStateDao.getAll()
+    fun observeSyncStates(): Flow<List<SyncStateEntity>> = syncStateDao.observeAll()
 
     private fun getTodayString() = java.text.SimpleDateFormat(
         "yyyy-MM-dd", java.util.Locale.getDefault()
