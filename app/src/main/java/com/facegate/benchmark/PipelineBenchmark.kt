@@ -18,14 +18,14 @@ object PipelineBenchmark {
     private const val TAG = "PipelineBenchmark"
 
     // ── Total budget ──────────────────────────────────────────────────────────
-    private const val BUDGET_TOTAL_MS: Long = 1000L
+    private const val BUDGET_TOTAL_MS: Long = 500L
 
     // ── Per-stage budgets (for targeted diagnostics) ──────────────────────────
-    private const val BUDGET_DETECTION_MS:  Long = 80L
-    private const val BUDGET_QUALITY_MS:    Long = 20L
+    private const val BUDGET_DETECTION_MS:  Long = 150L
+    private const val BUDGET_QUALITY_MS:    Long = 40L
     private const val BUDGET_ALIGNMENT_MS:  Long = 30L
-    private const val BUDGET_INFERENCE_MS:  Long = 150L
-    private const val BUDGET_SIMILARITY_MS: Long = 20L
+    private const val BUDGET_INFERENCE_MS:  Long = 100L
+    private const val BUDGET_SIMILARITY_MS: Long = 30L
 
     // ── Rolling average accumulator (30-frame window) ─────────────────────────
     private const val AVERAGE_WINDOW = 30
