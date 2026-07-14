@@ -46,11 +46,6 @@ sealed class ExplorerState {
         val holidayName: String,
     ) : ExplorerState()
 
-    data class WeeklyOff(
-        val dateLabel: String,
-        val dayName  : String,
-    ) : ExplorerState()
-
     data class NoSchedule(
         val dateLabel: String,
     ) : ExplorerState()
@@ -162,11 +157,6 @@ class ReportViewModel @Inject constructor(
             }
 
             val dow = appDayOfWeek(selectedDate)
-
-            if (repository.isWeeklyOff(dow)) {
-                _state.value = ExplorerState.WeeklyOff(dateLabel, dayNameFor(dow))
-                return@launch
-            }
 
             val startOfDayMs = selectedDate
             val endOfDayMs    = selectedDate + DAY_MS - 1
@@ -359,16 +349,6 @@ class ReportViewModel @Inject constructor(
             Calendar.SATURDAY  -> 6
             else               -> 7 // Calendar.SUNDAY
         }
-
-    private fun dayNameFor(day: Int): String = when (day) {
-        1 -> "Monday"
-        2 -> "Tuesday"
-        3 -> "Wednesday"
-        4 -> "Thursday"
-        5 -> "Friday"
-        6 -> "Saturday"
-        else -> "Sunday"
-    }
 
     private val dateLabelFmt = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault())
 

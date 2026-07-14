@@ -15,12 +15,10 @@ import com.facegate.storage.dao.TimetableDao
 import com.facegate.storage.dao.SessionDao
 import com.facegate.storage.dao.OverrideDao
 import com.facegate.storage.dao.HolidayDao
-import com.facegate.storage.dao.WeeklyOffDao
 import com.facegate.storage.entity.TimetableEntity
 import com.facegate.storage.entity.SessionEntity
 import com.facegate.storage.entity.OverrideEntity
 import com.facegate.storage.entity.HolidayEntity
-import com.facegate.storage.entity.WeeklyOffEntity
 import com.facegate.sync.SyncAttendanceDto
 import kotlinx.coroutines.flow.Flow
 
@@ -33,7 +31,6 @@ class TemplateRepository(
     private val sessionDao    : SessionDao,
     private val overrideDao   : OverrideDao,
     private val holidayDao    : HolidayDao,
-    private val weeklyOffDao  : WeeklyOffDao,
     private val syncStateDao  : SyncStateDao,
 ) {
 
@@ -112,10 +109,30 @@ class TemplateRepository(
     }
 
     /**
-     * Update name and class only — embedding is preserved so face recognition is unaffected.
+     * Updates the editable student-record fields (name, class, roll number,
+     * registration number, gender, contact info). Embedding and studentId
+     * are untouched — studentId is a sync identifier, not something edited
+     * from this UI (see StudentsViewModel.updateStudentInfo doc comment).
      */
-    suspend fun updateStudentInfo(studentId: String, name: String, studentClass: String) =
-        studentDao.updateStudentInfo(studentId, name, studentClass)
+    suspend fun updateStudentInfo(
+        studentId: String,
+        name: String,
+        studentClass: String,
+        rollNumber: String,
+        registrationNumber: String,
+        gender: String,
+        email: String?,
+        phone: String?,
+    ) = studentDao.updateStudentInfo(
+        studentId = studentId,
+        name = name,
+        studentClass = studentClass,
+        rollNumber = rollNumber,
+        registrationNumber = registrationNumber,
+        gender = gender,
+        email = email,
+        phone = phone,
+    )
 
     suspend fun getStudentById(studentId: String): StudentEntity? =
         studentDao.getStudentById(studentId)
@@ -141,19 +158,6 @@ class TemplateRepository(
 
     suspend fun markEmbeddingSyncedOnly(studentId: String) =
         studentDao.markEmbeddingSynced(studentId)
-
-
-    suspend fun updateStudentRollNo(
-        oldId: String,
-        newId: String,
-        name: String,
-        studentClass: String,
-    ) {
-        studentDao.updateStudentIdAndInfo(oldId, newId, name, studentClass)
-        attendanceDao.renameStudentId(oldId, newId)
-        conflictDao.renameTopStudentId(oldId, newId)
-        conflictDao.renameSecondStudentId(oldId, newId)
-    }
 
     // ── Attendance ────────────────────────────────────────────────────────────
 
@@ -355,6 +359,10 @@ class TemplateRepository(
 
     suspend fun updateEmbeddingMetadata(studentId: String, embeddingId: String?, modelName: String, version: String) =
         studentDao.updateEmbeddingMetadata(studentId, embeddingId, modelName, version)
+
+    /** Applies an embedding synced down from the server — see AttendanceSyncWorker.mergeEmbeddingDown. */
+    suspend fun applyServerEmbedding(studentId: String, embeddingCsv: String, embeddingVersion: String, modelName: String) =
+        studentDao.applyServerEmbedding(studentId, embeddingCsv, embeddingVersion, modelName)
     
     // ── Timetable ─────────────────────────────────────────────────────────
     suspend fun insertTimetable(entry: TimetableEntity) = timetableDao.insert(entry)
@@ -406,17 +414,6 @@ class TemplateRepository(
     suspend fun isHoliday(date: String): Boolean = holidayDao.isHoliday(date) > 0
     suspend fun getAllHolidays() = holidayDao.getAll()
     suspend fun getUpcomingHolidays() = holidayDao.getUpcoming(getTodayString())
-
-    // ── Weekly Off ─────────────────────────────────────────────────────────
-    suspend fun setWeeklyOff(dayOfWeek: Int, isOff: Boolean) {
-        if (isOff) {
-            weeklyOffDao.insert(WeeklyOffEntity(dayOfWeek = dayOfWeek, createdAt = System.currentTimeMillis()))
-        } else {
-            weeklyOffDao.delete(dayOfWeek)
-        }
-    }
-    suspend fun isWeeklyOff(dayOfWeek: Int): Boolean = weeklyOffDao.isOff(dayOfWeek) > 0
-    suspend fun getWeeklyOffDays(): List<Int> = weeklyOffDao.getAll().map { it.dayOfWeek }
 
     // ── Sync status (per-category, backs the sync status UI) ─────────────────
     suspend fun recordSyncState(state: SyncStateEntity) = syncStateDao.upsert(state)

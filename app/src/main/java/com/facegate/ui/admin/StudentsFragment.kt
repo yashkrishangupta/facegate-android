@@ -102,7 +102,8 @@ class StudentsFragment : Fragment() {
 
         itemBinding.tvAvatar.text = initials
         itemBinding.tvName.text = student.name
-        itemBinding.tvSubInfo.text = "${student.studentId}  •  Class ${student.studentClass}"
+        val displayRoll = student.rollNumber.ifBlank { student.studentId }
+        itemBinding.tvSubInfo.text = "Roll No. $displayRoll  •  Class ${student.studentClass}"
 
         val isPending = student.enrollmentStatus == "PENDING"
 
@@ -157,9 +158,17 @@ class StudentsFragment : Fragment() {
 
     private fun showEditDialog(student: StudentEntity) {
         val dialogBinding = DialogStudentEditBinding.inflate(LayoutInflater.from(requireContext()))
-        dialogBinding.etRollNo.setText(student.studentId)
+        dialogBinding.etRollNo.setText(student.rollNumber.ifBlank { student.studentId })
+        dialogBinding.etRegistrationNumber.setText(student.registrationNumber)
         dialogBinding.etName.setText(student.name)
         dialogBinding.etClass.setText(student.studentClass)
+        dialogBinding.etEmail.setText(student.email ?: "")
+        dialogBinding.etPhone.setText(student.phone ?: "")
+        when (student.gender) {
+            "Female" -> dialogBinding.rgGender.check(dialogBinding.rbFemale.id)
+            "Other"  -> dialogBinding.rgGender.check(dialogBinding.rbOther.id)
+            else     -> dialogBinding.rgGender.check(dialogBinding.rbMale.id)
+        }
 
         // NOTE: no setPositiveButton/setNegativeButton here — the dialog layout
         // already supplies its own styled Cancel/Save buttons (btnCancel /
@@ -172,12 +181,37 @@ class StudentsFragment : Fragment() {
         dialogBinding.btnCancel.setOnClickListener { dialog.dismiss() }
         dialogBinding.btnSave.setOnClickListener {
             val newRollNo = dialogBinding.etRollNo.text.toString().trim()
+            val newRegNo  = dialogBinding.etRegistrationNumber.text.toString().trim()
             val newName   = dialogBinding.etName.text.toString().trim()
             val newClass  = dialogBinding.etClass.text.toString().trim()
-            if (newRollNo.isNotEmpty() && newName.isNotEmpty()) {
-                viewModel.updateStudentRollNo(student.studentId, newRollNo, newName, newClass)
-                dialog.dismiss()
+            val newEmail  = dialogBinding.etEmail.text.toString().trim()
+            val newPhone  = dialogBinding.etPhone.text.toString().trim()
+            val newGender = when (dialogBinding.rgGender.checkedRadioButtonId) {
+                dialogBinding.rbFemale.id -> "Female"
+                dialogBinding.rbOther.id  -> "Other"
+                else                      -> "Male"
             }
+
+            if (newRollNo.isEmpty()) {
+                dialogBinding.etRollNo.error = "Required"
+                return@setOnClickListener
+            }
+            if (newName.isEmpty()) {
+                dialogBinding.etName.error = "Required"
+                return@setOnClickListener
+            }
+
+            viewModel.updateStudentInfo(
+                studentId = student.studentId,
+                name = newName,
+                studentClass = newClass,
+                rollNumber = newRollNo,
+                registrationNumber = newRegNo.ifEmpty { newRollNo },
+                gender = newGender,
+                email = newEmail.ifEmpty { null },
+                phone = newPhone.ifEmpty { null },
+            )
+            dialog.dismiss()
         }
 
         dialog.show()

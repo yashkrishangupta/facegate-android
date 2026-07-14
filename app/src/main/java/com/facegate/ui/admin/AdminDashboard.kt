@@ -1,5 +1,6 @@
 package com.facegate.ui.admin
 
+import androidx.appcompat.app.AlertDialog
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -256,11 +257,67 @@ class AdminDashboard : Fragment() {
             binding.tvSyncStatus.postDelayed({ refreshSyncStatus() }, 4000)
         }
 
-        // Re-pairing entry point (item 5) — e.g. moving this device to a
-        // different room, or recovering from a revoked/expired Device Token.
+        // Device & room details (item 5) — was previously a direct jump to
+        // re-pairing with no confirmation or context at all. Now shows what
+        // this device actually knows about itself first; re-pairing is a
+        // deliberate action from inside that screen, not the only thing
+        // tapping "Device" could possibly mean.
         binding.btnDeviceSettings.setOnClickListener {
-            findNavController().navigate(R.id.action_dashboard_to_pairing)
+            showDeviceInfoDialog()
         }
+    }
+
+    private fun showDeviceInfoDialog() {
+        val dialogBinding = com.facegate.databinding.DialogDeviceInfoBinding.inflate(
+            LayoutInflater.from(requireContext())
+        )
+
+        val roomNumber = deviceIdManager.getRoomNumber()
+        val roomId = deviceIdManager.getRoomId()
+        dialogBinding.tvRoom.text = when {
+            !roomNumber.isNullOrBlank() -> roomNumber
+            !roomId.isNullOrBlank()     -> roomId
+            else                        -> "Unknown"
+        }
+        dialogBinding.tvDeviceId.text = deviceIdManager.getDeviceId() ?: "Unknown"
+
+        val pairedAt = deviceIdManager.getPairedAt()
+        dialogBinding.tvPairedSince.text = if (pairedAt > 0) {
+            SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(pairedAt))
+        } else "Unknown"
+
+        dialogBinding.tvAppVersion.text = try {
+            requireContext().packageManager
+                .getPackageInfo(requireContext().packageName, 0).versionName ?: "Unknown"
+        } catch (e: Exception) {
+            "Unknown"
+        }
+
+        val dialog = AlertDialog.Builder(requireContext())
+            .setView(dialogBinding.root)
+            .create()
+
+        dialogBinding.btnClose.setOnClickListener { dialog.dismiss() }
+        dialogBinding.btnRepair.setOnClickListener {
+            dialog.dismiss()
+            confirmRepair()
+        }
+        dialog.show()
+    }
+
+    private fun confirmRepair() {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Re-pair this device?")
+            .setMessage(
+                "This device will stop syncing with its current room until a new pairing code " +
+                    "is entered. Only continue if you're moving this device to a different room " +
+                    "or its Device Token was reset on the website."
+            )
+            .setPositiveButton("Re-pair") { _, _ ->
+                findNavController().navigate(R.id.action_dashboard_to_pairing)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     /**

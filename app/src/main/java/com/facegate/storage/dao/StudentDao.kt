@@ -38,6 +38,24 @@ interface StudentDao {
     """)
     suspend fun updateEmbeddingMetadata(studentId: String, embeddingId: String?, modelName: String, version: String)
 
+    /**
+     * Applies an embedding synced down from the server (see
+     * AttendanceSyncWorker.mergeEmbeddingDown) — marks it DONE/synced since
+     * it's already known server-side, no local capture or upload needed.
+     */
+    @Query("""
+        UPDATE students
+        SET embedding = :embeddingCsv, enrollmentStatus = 'DONE', embeddingSynced = 1,
+            embeddingVersion = :embeddingVersion, embeddingModelName = :modelName
+        WHERE studentId = :studentId
+    """)
+    suspend fun applyServerEmbedding(
+        studentId: String,
+        embeddingCsv: String,
+        embeddingVersion: String,
+        modelName: String,
+    )
+
     @Query("SELECT * FROM students WHERE studentClass = :studentClass ORDER BY name ASC")
     suspend fun getStudentsByClass(studentClass: String): List<StudentEntity>
 
@@ -53,8 +71,22 @@ interface StudentDao {
     @Query("DELETE FROM students")
     suspend fun deleteAllStudents()
 
-    @Query("UPDATE students SET name = :name, studentClass = :studentClass WHERE studentId = :studentId")
-    suspend fun updateStudentInfo(studentId: String, name: String, studentClass: String)
+    @Query("""
+        UPDATE students
+        SET name = :name, studentClass = :studentClass, rollNumber = :rollNumber,
+            registrationNumber = :registrationNumber, gender = :gender, email = :email, phone = :phone
+        WHERE studentId = :studentId
+    """)
+    suspend fun updateStudentInfo(
+        studentId: String,
+        name: String,
+        studentClass: String,
+        rollNumber: String,
+        registrationNumber: String,
+        gender: String,
+        email: String?,
+        phone: String?,
+    )
 
     @Query("SELECT * FROM students WHERE studentId = :studentId LIMIT 1")
     suspend fun getStudentById(studentId: String): StudentEntity?

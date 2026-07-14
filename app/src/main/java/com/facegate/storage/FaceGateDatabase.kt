@@ -13,7 +13,6 @@ import com.facegate.storage.dao.StudentDao
 import com.facegate.storage.dao.SyncLogDao
 import com.facegate.storage.dao.SyncStateDao
 import com.facegate.storage.dao.TimetableDao
-import com.facegate.storage.dao.WeeklyOffDao
 import com.facegate.storage.entity.AttendanceEntity
 import com.facegate.storage.entity.ConflictEntity
 import com.facegate.storage.entity.HolidayEntity
@@ -23,7 +22,6 @@ import com.facegate.storage.entity.StudentEntity
 import com.facegate.storage.entity.SyncLogEntity
 import com.facegate.storage.entity.SyncStateEntity
 import com.facegate.storage.entity.TimetableEntity
-import com.facegate.storage.entity.WeeklyOffEntity
 
 @Database(
     entities = [
@@ -35,10 +33,9 @@ import com.facegate.storage.entity.WeeklyOffEntity
         SessionEntity::class,
         OverrideEntity::class,
         HolidayEntity::class,
-        WeeklyOffEntity::class,
         SyncStateEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class FaceGateDatabase : RoomDatabase() {
@@ -50,7 +47,6 @@ abstract class FaceGateDatabase : RoomDatabase() {
     abstract fun sessionDao()    : SessionDao
     abstract fun overrideDao()   : OverrideDao
     abstract fun holidayDao()    : HolidayDao
-    abstract fun weeklyOffDao()  : WeeklyOffDao
     abstract fun syncStateDao()  : SyncStateDao
 }
 
@@ -140,5 +136,18 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
             )
             """.trimIndent()
         )
+    }
+}
+
+/**
+ * Weekly-off (a fixed day-of-week the school never has classes) removed
+ * entirely per product decision — the timetable itself is the only source
+ * of truth for which days have periods now. This is a new migration rather
+ * than editing MIGRATION_4_5 in place, since devices have already migrated
+ * to v5 and shouldn't have that step change under them.
+ */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP TABLE IF EXISTS weekly_off")
     }
 }

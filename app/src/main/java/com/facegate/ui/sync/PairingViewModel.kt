@@ -85,6 +85,7 @@ class PairingViewModel @Inject constructor(
 
             deviceIdManager.saveCredentials(device.deviceId, device.deviceToken)
             deviceIdManager.saveRoomId(device.roomId)
+            deviceIdManager.saveRoomNumber(device.roomNumber)
 
             // First sync happens right away so the device has its timetable/
             // students/holidays before anyone tries to take attendance.

@@ -10,7 +10,6 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import com.facegate.databinding.DialogExtraPeriodBinding
 import com.facegate.databinding.FragmentTodayScheduleBinding
 import com.facegate.databinding.ItemScheduleRowBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -49,8 +48,6 @@ class TodayScheduleFragment : Fragment() {
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
 
-        binding.btnAddExtraPeriod.setOnClickListener { showExtraPeriodDialog() }
-
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.uiState.collect { state ->
                 when (state) {
@@ -62,18 +59,6 @@ class TodayScheduleFragment : Fragment() {
                     is ScheduleState.Holiday -> {
                         binding.bannerHoliday.visibility = View.VISIBLE
                         binding.tvHolidayMessage.text    = "${state.name} — No Classes"
-                        if (state.extraItems.isEmpty()) {
-                            binding.tvEmptyState.visibility = View.GONE
-                            binding.scrollView.visibility   = View.GONE
-                        } else {
-                            binding.tvEmptyState.visibility = View.GONE
-                            binding.scrollView.visibility   = View.VISIBLE
-                            populateSchedule(state.extraItems)
-                        }
-                    }
-                    is ScheduleState.WeeklyOff -> {
-                        binding.bannerHoliday.visibility = View.VISIBLE
-                        binding.tvHolidayMessage.text    = "${state.dayName} — Weekly Off"
                         if (state.extraItems.isEmpty()) {
                             binding.tvEmptyState.visibility = View.GONE
                             binding.scrollView.visibility   = View.GONE
@@ -159,36 +144,6 @@ class TodayScheduleFragment : Fragment() {
     private fun populateSchedule(items: List<ScheduleItem>) {
         binding.periodListContainer.removeAllViews()
         items.forEach { binding.periodListContainer.addView(createRowView(it)) }
-    }
-
-    // ── Extra period dialog ─────────────────────────────────────────────────
-
-    private fun showExtraPeriodDialog() {
-        val dialogBinding = DialogExtraPeriodBinding.inflate(LayoutInflater.from(requireContext()))
-
-        // NOTE: no setPositiveButton/setNegativeButton here — the dialog layout
-        // already supplies its own styled Cancel/Confirm buttons (btnCancel /
-        // btnConfirm), matching the dialog_student_info.xml pattern used across
-        // the app's other custom dialogs.
-        val dialog = AlertDialog.Builder(requireContext())
-            .setView(dialogBinding.root)
-            .create()
-
-        dialogBinding.btnCancel.setOnClickListener { dialog.dismiss() }
-        dialogBinding.btnConfirm.setOnClickListener {
-            val subject = dialogBinding.etSubject.text.toString().trim()
-            val batch   = dialogBinding.etBatch.text.toString().trim()
-            val window  = dialogBinding.etWindow.text.toString().toIntOrNull() ?: 10
-            val reason  = dialogBinding.etReason.text.toString().trim()
-
-            dialog.dismiss()
-            viewModel.startExtraPeriod(subject, batch, window, reason) { sessionId, scheduledStartTimeMs ->
-                // onStarted runs on Main — safe to navigate.
-                navigateToAttendance(sessionId, subject, batch, window, scheduledStartTimeMs)
-            }
-        }
-
-        dialog.show()
     }
 
     // ── Navigation ────────────────────────────────────────────────────────────

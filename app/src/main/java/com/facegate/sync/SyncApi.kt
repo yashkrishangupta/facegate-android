@@ -11,11 +11,11 @@ import retrofit2.http.Query
  * Sync-data pull/push calls. All device-authenticated (x-api-key via
  * DeviceAuthInterceptor).
  *
- * The backend does NOT have separate /sync/students, /sync/timetable,
- * /sync/holidays, /sync/face-embeddings, or /sync/attendance-sessions
- * endpoints — timetable + students + holidays all come back together in one
- * call. Face-embedding sync isn't implemented on the backend yet at all
- * (see the updated API_CONTRACT.md, "Known gaps").
+ * The backend does NOT have separate /sync/students, /sync/timetable, or
+ * /sync/holidays endpoints — timetable + students + holidays (and now
+ * embeddings + attendanceUpdates, see FullSyncData/IncrementalSyncData)
+ * all come back together in one call. Face-embedding sync now exists both
+ * ways: down via the fields above, up via uploadEmbedding below.
  */
 interface SyncApi {
 
@@ -50,9 +50,9 @@ interface SyncApi {
     @POST("api/v1/sync/students/enroll")
     suspend fun enrollStudent(@Body request: EnrollStudentRequest): EnrollStudentResponse
 
-    /** POST /api/v1/sync/face-embeddings — re-enrollment for a student the server already has. */
-    @POST("api/v1/sync/face-embeddings")
-    suspend fun uploadEmbeddings(@Body request: EmbeddingUploadRequest): EmbeddingUploadResponse
+    /** POST /api/v1/sync/embeddings — real, backend-verified endpoint (see SyncEmbeddingDto's doc comment). One embedding per call, upserts on student_id. */
+    @POST("api/v1/sync/embeddings")
+    suspend fun uploadEmbedding(@Body request: EmbeddingUploadRequest): EmbeddingUploadResponse
 
     /** POST /api/v1/sync/conflicts — push device-detected conflicts up. */
     @POST("api/v1/sync/conflicts")

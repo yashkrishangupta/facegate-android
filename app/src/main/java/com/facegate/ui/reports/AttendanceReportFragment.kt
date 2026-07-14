@@ -74,14 +74,6 @@ class AttendanceReportFragment : Fragment() {
                         clearSpinner(binding.spinnerPeriod)
                         clearSpinner(binding.spinnerBatch)
                     }
-                    is ExplorerState.WeeklyOff -> {
-                        binding.tvDateLabel.text = state.dateLabel
-                        binding.scrollView.visibility     = View.GONE
-                        binding.tvStatusMessage.visibility = View.VISIBLE
-                        binding.tvStatusMessage.text = "${state.dayName} — Weekly Off"
-                        clearSpinner(binding.spinnerPeriod)
-                        clearSpinner(binding.spinnerBatch)
-                    }
                     is ExplorerState.NoSchedule -> {
                         binding.tvDateLabel.text = state.dateLabel
                         binding.scrollView.visibility     = View.GONE
@@ -186,7 +178,7 @@ class AttendanceReportFragment : Fragment() {
 
         rowBinding.tvAvatar.text = initials
         rowBinding.tvName.text = entry.student.name
-        rowBinding.tvStudentId.text = entry.student.studentId
+        rowBinding.tvStudentId.text = entry.student.rollNumber.ifBlank { entry.student.studentId }
 
         if (entry.marked) {
             rowBinding.tvStatusBadge.text = "Present"

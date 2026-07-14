@@ -66,19 +66,4 @@
             android:paddingBottom="16dp"/>
     </ScrollView>
 
-    <!-- ADD HOLIDAY -->
-    <TextView
-        android:id="@+id/btnAddHoliday"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/accent_blue_strong"
-        android:clickable="true"
-        android:focusable="true"
-        android:gravity="center"
-        android:paddingVertical="16dp"
-        android:text="+ Add Holiday"
-        android:textColor="#FFFFFF"
-        android:textSize="15sp"
-        android:textStyle="bold"/>
-
 </LinearLayout>

@@ -101,10 +101,21 @@ class EnrollmentFragment : Fragment() {
         binding.btnCapture.isClickable = false
 
         if (isCompletingPendingStudent) {
-            // Details already known from the website sync — go straight to capture.
-            viewModel.setStudentInfo(args.studentName, args.studentId, args.studentClass)
-            infoDialogShown = true
-            startEnrollmentCapture()
+            // Details already known from the website sync (roll number,
+            // registration number, gender, etc. — see loadExistingStudentInfo) —
+            // go straight to capture instead of re-prompting for details the
+            // admin already entered on the website.
+            viewLifecycleOwner.lifecycleScope.launch {
+                val loaded = viewModel.loadExistingStudentInfo(args.studentId)
+                infoDialogShown = true
+                if (loaded) {
+                    startEnrollmentCapture()
+                } else {
+                    // Shouldn't happen — navigated here from this exact row —
+                    // but fall back to manual entry rather than getting stuck.
+                    promptStudentInfo()
+                }
+            }
         } else {
             // Brand-new student — collect details FIRST. Camera + capture button
             // stay disabled until the dialog is confirmed (see promptStudentInfo()).
@@ -191,11 +202,20 @@ class EnrollmentFragment : Fragment() {
         val dialogView = LayoutInflater.from(requireContext())
             .inflate(R.layout.dialog_student_info, null)
 
-        val etName  = dialogView.findViewById<EditText>(R.id.etStudentName)
-        val etId    = dialogView.findViewById<EditText>(R.id.etStudentId)
-        val etClass = dialogView.findViewById<EditText>(R.id.etStudentClass)
+        val etName    = dialogView.findViewById<EditText>(R.id.etStudentName)
+        val etId      = dialogView.findViewById<EditText>(R.id.etStudentId)
+        val etRegNo   = dialogView.findViewById<EditText>(R.id.etRegistrationNumber)
+        val etClass   = dialogView.findViewById<EditText>(R.id.etStudentClass)
+        val rgGender  = dialogView.findViewById<android.widget.RadioGroup>(R.id.rgGender)
+        val etYear    = dialogView.findViewById<EditText>(R.id.etAdmissionYear)
+        val etEmail   = dialogView.findViewById<EditText>(R.id.etEmail)
+        val etPhone   = dialogView.findViewById<EditText>(R.id.etPhone)
         val btnCancel   = dialogView.findViewById<android.widget.Button>(R.id.btnCancel)
         val btnContinue = dialogView.findViewById<android.widget.Button>(R.id.btnContinue)
+
+        // Prefill with the current year — the common case — so admins usually
+        // only need to touch this field for older re-admissions.
+        etYear.setText(java.util.Calendar.getInstance().get(java.util.Calendar.YEAR).toString())
 
         // NOTE: no setPositiveButton/setNegativeButton here — the dialog layout
         // already supplies its own styled Cancel/Continue buttons (btnCancel /
@@ -214,16 +234,38 @@ class EnrollmentFragment : Fragment() {
         }
 
         btnContinue.setOnClickListener {
-            val name  = etName.text.toString().trim()
-            val id    = etId.text.toString().trim()
-            val cls   = etClass.text.toString().trim()
+            val name     = etName.text.toString().trim()
+            val rollNo   = etId.text.toString().trim()
+            val regNo    = etRegNo.text.toString().trim()
+            val cls      = etClass.text.toString().trim()
+            val yearText = etYear.text.toString().trim()
+            val email    = etEmail.text.toString().trim()
+            val phone    = etPhone.text.toString().trim()
+            val gender = when (rgGender.checkedRadioButtonId) {
+                R.id.rbFemale -> "Female"
+                R.id.rbOther  -> "Other"
+                else          -> "Male"
+            }
 
             when {
-                name.isEmpty()  -> etName.error  = "Required"
-                id.isEmpty()    -> etId.error    = "Required"
-                cls.isEmpty()   -> etClass.error = "Required"
+                name.isEmpty()     -> etName.error = "Required"
+                rollNo.isEmpty()   -> etId.error    = "Required"
+                cls.isEmpty()      -> etClass.error = "Required"
+                yearText.isEmpty() || yearText.toIntOrNull() == null ->
+                    etYear.error = "Enter a valid year"
                 else -> {
-                    viewModel.setStudentInfo(name, id, cls)
+                    viewModel.setStudentInfo(
+                        com.facegate.pipeline.StudentEnrollmentInfo(
+                            name = name,
+                            rollNumber = rollNo,
+                            registrationNumber = regNo.ifEmpty { rollNo },
+                            studentClass = cls,
+                            gender = gender,
+                            admissionYear = yearText.toInt(),
+                            email = email.ifEmpty { null },
+                            phone = phone.ifEmpty { null },
+                        )
+                    )
                     dialog.dismiss()
                     startEnrollmentCapture()
                 }

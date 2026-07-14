@@ -52,8 +52,8 @@ class SyncRepository @Inject constructor(
         return safeApiCall { api.enrollStudent(request) }
     }
 
-    suspend fun uploadEmbeddings(request: EmbeddingUploadRequest): Result<EmbeddingUploadResponse> {
-        return safeApiCall { api.uploadEmbeddings(request) }
+    suspend fun uploadEmbedding(request: EmbeddingUploadRequest): Result<EmbeddingUploadResponse> {
+        return safeApiCall { api.uploadEmbedding(request) }
     }
 
     suspend fun uploadConflicts(request: ConflictUploadRequest): Result<ConflictUploadResponse> {

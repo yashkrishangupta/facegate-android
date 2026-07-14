@@ -29,12 +29,17 @@ interface DeviceApi {
     suspend fun heartbeat(@Body request: HeartbeatRequest): HeartbeatResponse
 
     /**
-     * GET /api/v1/devices/{deviceId} — open, no auth required on the
-     * backend (intentional: there's no admin login in this build at all,
-     * see API_CONTRACT.md §9). Useful to refresh this device's own room
-     * assignment after an admin reassigns it (Section 2 of the architecture
-     * doc — reassignment doesn't require re-pairing). Never returns
-     * device_token, so leaving it open doesn't expose credentials.
+     * GET /api/v1/devices/{deviceId} — documented in two places (API_CONTRACT.md
+     * §9, and FaceGate_Feature_API_Documentation.docx §3.2 Step 4) as public/
+     * no-auth, specifically for a device to self-check its room assignment.
+     * **Confirmed against the actual backend route (devices.ts) that this is
+     * false** — the real route has `requireAuth` (website JWT session) on it,
+     * so a device's x-api-key always gets 401 here. AttendanceSyncWorker no
+     * longer calls this for exactly that reason (see git history — this was
+     * wired up, then removed once the 401s were traced to this route rather
+     * than a token problem). Left defined, unused, in case a backend fix ever
+     * makes the documented behavior real; don't wire it back in without
+     * re-confirming against the actual route middleware first.
      */
     @GET("api/v1/devices/{deviceId}")
     suspend fun getDeviceDetails(@Path("deviceId") deviceId: String): DeviceDetailsResponse

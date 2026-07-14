@@ -137,14 +137,6 @@ class AttendanceSyncWorker @AssistedInject constructor(
         }
 
         try {
-            // 0. Room consistency check. A device's room is only ever learned
-            // from pairing or from this call — never entered manually (see
-            // DeviceIdManager.getRoomId doc, TimetableEntity.roomId doc). If
-            // an admin reassigned this device to a different room on the
-            // website, this is what catches it, rather than the device
-            // silently continuing to sync the old room's data forever.
-            checkDeviceRoomConsistency()
-
             // 1. Heartbeat — device identity comes from the x-api-key header
             // (DeviceAuthInterceptor), not the request body.
             recordAttempt(SyncStateEntity.Category.HEARTBEAT)
@@ -165,6 +157,7 @@ class AttendanceSyncWorker @AssistedInject constructor(
             syncData.data?.students?.forEach { dto -> mergeStudent(dto) }
             syncData.data?.holidays?.forEach { dto -> mergeHoliday(dto) }
             syncData.data?.conflicts?.forEach { dto -> templateRepository.upsertServerConflict(dto) }
+            syncData.data?.embeddings?.forEach { dto -> mergeEmbeddingDown(dto) }
             syncData.data?.attendanceUpdates?.forEach { dto -> mergeAttendanceDown(dto) }
             recordSuccess(SyncStateEntity.Category.PULL)
 
@@ -192,39 +185,6 @@ class AttendanceSyncWorker @AssistedInject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Unrecoverable error during sync", e)
             return Result.failure()
-        }
-    }
-
-    // ── 0. Room consistency ──────────────────────────────────────────────────
-
-    private suspend fun checkDeviceRoomConsistency() {
-        recordAttempt(SyncStateEntity.Category.DEVICE_CHECK)
-        val deviceId = deviceIdManager.getDeviceId() ?: return
-        val localRoomId = deviceIdManager.getRoomId()
-
-        val result = deviceRepository.getDeviceDetails(deviceId)
-        val serverRoomId = result.getOrNull()?.data?.roomId
-        if (serverRoomId == null) {
-            // Best-effort — a failed lookup here shouldn't block the rest of
-            // sync, it just means we couldn't double check the room this cycle.
-            recordFailure(SyncStateEntity.Category.DEVICE_CHECK, "Could not verify room assignment")
-            return
-        }
-
-        if (serverRoomId != localRoomId) {
-            Log.w(TAG, "Room reassignment detected: was $localRoomId, server says $serverRoomId. Updating and forcing full resync.")
-            deviceIdManager.saveRoomId(serverRoomId)
-            // Old room's timetable/students are now stale — a fresh full
-            // sync replaces them rather than leaving last room's data mixed
-            // in with the new room's incoming rows.
-            syncRepository.fullSync().onSuccess { response ->
-                response.data?.timetable?.forEach { dto -> mergeTimetable(dto) }
-                response.data?.students?.forEach { dto -> mergeStudent(dto) }
-                response.data?.holidays?.forEach { dto -> mergeHoliday(dto) }
-            }
-            recordSuccess(SyncStateEntity.Category.DEVICE_CHECK, "Room updated to $serverRoomId")
-        } else {
-            recordSuccess(SyncStateEntity.Category.DEVICE_CHECK)
         }
     }
 
@@ -315,6 +275,42 @@ class AttendanceSyncWorker @AssistedInject constructor(
                 isRecurring = dto.isRecurring ?: false,
                 serverUpdatedAt = dto.updatedAt,
             )
+        )
+    }
+
+    /**
+     * Embedding-down: a student enrolled at another room's device (or
+     * enrolled via some other path entirely) becomes recognizable on THIS
+     * device too, without ever being captured locally. Previously
+     * StudentEntity.embedding was only ever set by this device's own
+     * enrollment pipeline — a student's DONE/embeddingSynced state now also
+     * gets set purely from a sync pull, no capture flow involved.
+     *
+     * Only applies to a student this device already knows about (from the
+     * students[] half of the same sync payload, or a prior one) — an
+     * embedding for a student not yet locally present is skipped rather
+     * than creating a bare placeholder row; it'll be picked up the next
+     * cycle once that student's own row has synced down first.
+     */
+    private suspend fun mergeEmbeddingDown(dto: SyncEmbeddingDto) {
+        val student = templateRepository.getStudentById(dto.studentId) ?: return
+
+        // Pull happens before push in this worker's step order (see doWork).
+        // If this student has a locally-captured embedding still queued to
+        // upload (embeddingSynced = false), it's necessarily newer than
+        // whatever this pull just fetched — applying the pulled value here
+        // would silently throw away a capture that hasn't gone out yet.
+        // It'll get its turn once pushPendingEmbeddings() runs later this
+        // same cycle, and the server value will catch up next pull.
+        if (!student.embeddingSynced && student.embedding != null) return
+
+        val csv = jsonEmbeddingToCsv(dto.embeddingData) ?: return
+
+        templateRepository.applyServerEmbedding(
+            studentId = dto.studentId,
+            embeddingCsv = csv,
+            embeddingVersion = dto.embeddingVersion ?: "v1.0",
+            modelName = dto.modelName,
         )
     }
 
@@ -409,10 +405,12 @@ class AttendanceSyncWorker @AssistedInject constructor(
 
             // schema.sql: student.gender and admission_year are NOT NULL
             // with no default — sending a request without them would just
-            // fail server-side. The on-device enrollment UI doesn't collect
-            // either yet (see EnrollmentFragment), so this deliberately
-            // skips rather than sends a request guaranteed to be rejected;
-            // it'll retry every cycle until that UI gap is closed.
+            // fail server-side. EnrollmentFragment's dialog collects both
+            // (rgGender / etAdmissionYear) for every new enrollment, so
+            // this only matters for a student row that predates that
+            // dialog field or was created through some other path; kept as
+            // a defensive skip (retried every cycle) rather than sending a
+            // request guaranteed to be rejected.
             val gender = student.gender
             val admissionYear = student.admissionYear
             if (gender.isNullOrBlank() || admissionYear == null) {
@@ -460,25 +458,23 @@ class AttendanceSyncWorker @AssistedInject constructor(
         val pending = templateRepository.getStudentsWithUnsyncedEmbedding().filterNot { it.isLocalOnly }
         if (pending.isEmpty()) return
 
-        val dtos = pending.mapNotNull { student ->
-            val embeddingFloats = student.embedding?.split(",")?.mapNotNull { it.trim().toFloatOrNull() }
-            if (embeddingFloats.isNullOrEmpty()) null
-            else EmbeddingUploadDto(
-                studentId = student.studentId,
-                embeddingData = embeddingFloats,
-                embeddingVersion = student.embeddingVersion,
-                modelName = student.embeddingModelName ?: "facegate-mobile",
-            )
-        }
-        if (dtos.isEmpty()) return
+        for (student in pending) {
+            val json = csvEmbeddingToJson(student.embedding) ?: continue
+            val modelName = student.embeddingModelName ?: "facegate-mobile"
 
-        syncRepository.uploadEmbeddings(EmbeddingUploadRequest(embeddings = dtos)).onSuccess {
-            pending.forEach {
-                templateRepository.markEmbeddingSyncedOnly(it.studentId)
-                templateRepository.updateEmbeddingMetadata(it.studentId, null, it.embeddingModelName ?: "facegate-mobile", it.embeddingVersion)
+            syncRepository.uploadEmbedding(
+                EmbeddingUploadRequest(
+                    studentId = student.studentId,
+                    embeddingData = json,
+                    embeddingVersion = student.embeddingVersion,
+                    modelName = modelName,
+                )
+            ).onSuccess {
+                templateRepository.markEmbeddingSyncedOnly(student.studentId)
+                templateRepository.updateEmbeddingMetadata(student.studentId, null, modelName, student.embeddingVersion)
+            }.onFailure { e ->
+                Log.w(TAG, "Embedding upload failed for ${student.studentId}: ${e.message}")
             }
-        }.onFailure { e ->
-            Log.w(TAG, "Embedding upload failed: ${e.message}")
         }
     }
 
@@ -502,48 +498,37 @@ class AttendanceSyncWorker @AssistedInject constructor(
         }
 
         if (toCreate.isNotEmpty()) {
-            // schema.sql: conflict.attendance_session_id is UUID NOT NULL —
-            // same resolution requirement as attendance (timetable_id +
-            // session_date). A conflict recorded outside any tracked
-            // session (AttendancePipeline's "no_session" fallback) can't
-            // satisfy that and must be skipped, not sent with nulls.
-            val resolvable = mutableListOf<Pair<com.facegate.storage.entity.ConflictEntity, com.facegate.storage.entity.SessionEntity>>()
-            var unresolvableCount = 0
-            for (conflict in toCreate) {
-                val session = templateRepository.getSessionById(conflict.sessionId)
-                val timetableId = session?.remoteTimetableId
-                val sessionDate = session?.sessionDate
-                if (session == null || timetableId.isNullOrBlank() || sessionDate.isNullOrBlank()) {
-                    unresolvableCount++
-                } else {
-                    resolvable += conflict to session
-                }
-            }
-            if (unresolvableCount > 0) {
-                Log.w(TAG, "$unresolvableCount conflict(s) skipped — no resolvable session (attendance_session_id is required).")
-            }
+            // A conflict recorded outside any tracked session (e.g.
+            // AttendancePipeline's "no_session" fallback — sessionId ==
+            // "no_session") has no timetableId/sessionDate to resolve.
+            // Previously that meant skipping it entirely, since
+            // conflict.attendance_session_id was NOT NULL server-side; the
+            // backend now accepts a NULL session (device_id alone still
+            // attributes it to a room), so these are sent too, just
+            // without timetableId/sessionDate.
+            val records = toCreate.map { conflict ->
+                val session = conflict.sessionId
+                    .takeIf { it.isNotBlank() && it != "no_session" }
+                    ?.let { templateRepository.getSessionById(it) }
 
-            if (resolvable.isNotEmpty()) {
-                val records = resolvable.map { (conflict, session) ->
-                    ConflictUploadDto(
-                        sessionId = conflict.sessionId,
-                        timetableId = session.remoteTimetableId,
-                        sessionDate = session.sessionDate,
-                        studentId = conflict.topStudentId.takeIf { it.isNotBlank() && it != "unknown" },
-                        conflictType = conflict.conflictType,
-                        severity = conflict.severity,
-                        description = conflict.reason,
-                    )
+                ConflictUploadDto(
+                    sessionId = conflict.sessionId,
+                    timetableId = session?.remoteTimetableId,
+                    sessionDate = session?.sessionDate,
+                    studentId = conflict.topStudentId.takeIf { it.isNotBlank() && it != "unknown" },
+                    conflictType = conflict.conflictType,
+                    severity = conflict.severity,
+                    description = conflict.reason,
+                )
+            }
+            syncRepository.uploadConflicts(
+                ConflictUploadRequest(records = records, clientRefs = toCreate.map { it.id })
+            ).onSuccess { response ->
+                response.data?.created?.forEach { result ->
+                    templateRepository.markConflictPushed(result.clientRef, result.conflictId)
                 }
-                syncRepository.uploadConflicts(
-                    ConflictUploadRequest(records = records, clientRefs = resolvable.map { it.first.id })
-                ).onSuccess { response ->
-                    response.data?.created?.forEach { result ->
-                        templateRepository.markConflictPushed(result.clientRef, result.conflictId)
-                    }
-                }.onFailure { e ->
-                    Log.w(TAG, "Conflict upload failed: ${e.message}")
-                }
+            }.onFailure { e ->
+                Log.w(TAG, "Conflict upload failed: ${e.message}")
             }
         }
     }
@@ -563,7 +548,11 @@ class AttendanceSyncWorker @AssistedInject constructor(
             // Calendar.SUNDAY=1..SATURDAY=7 → this app's 1=Mon..6=Sat, 7=Sun
             if (it == Calendar.SUNDAY) 7 else it - 1
         }
-        if (today == 7 || templateRepository.isWeeklyOff(today)) return
+        // Weekly-off removed — the timetable itself is the only source of
+        // truth for which days have periods now. Sunday (7) still has no
+        // valid day_of_week value on the backend (see DAY_NAME_TO_INT), so
+        // it's the one day still worth short-circuiting here.
+        if (today == 7) return
 
         val todayString = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         if (templateRepository.isHoliday(todayString)) return
@@ -695,6 +684,31 @@ class AttendanceSyncWorker @AssistedInject constructor(
         val hour = parts[0].toIntOrNull() ?: return null
         val minute = parts[1].toIntOrNull() ?: return null
         return hour to minute
+    }
+
+    /**
+     * StudentEntity.embedding is stored as comma-separated floats
+     * everywhere else in this app (AttendancePipeline's parseEmbedding
+     * does the same encoding) — this just wraps that same string as the
+     * JSON array embedding_data actually expects on the wire.
+     */
+    private fun csvEmbeddingToJson(csv: String?): com.google.gson.JsonElement? {
+        if (csv.isNullOrBlank()) return null
+        val floats = csv.split(",").mapNotNull { it.trim().toFloatOrNull() }
+        if (floats.isEmpty()) return null
+        val array = com.google.gson.JsonArray()
+        floats.forEach { array.add(it) }
+        return array
+    }
+
+    /** Inverse of csvEmbeddingToJson — tolerates only a JSON array of numbers; anything else is treated as unparseable rather than guessed at. */
+    private fun jsonEmbeddingToCsv(json: com.google.gson.JsonElement): String? {
+        if (!json.isJsonArray) return null
+        val values = json.asJsonArray.mapNotNull {
+            if (it.isJsonPrimitive && it.asJsonPrimitive.isNumber) it.asFloat else null
+        }
+        if (values.isEmpty()) return null
+        return values.joinToString(",")
     }
 
     private fun toIso8601(epochMillis: Long): String {

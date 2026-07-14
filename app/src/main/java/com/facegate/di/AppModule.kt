@@ -44,7 +44,7 @@ object AppModule {
             // try the explicit migration first; destructive fallback only
             // covers a schema jump this migration doesn't (e.g. skipping
             // versions), not the normal upgrade path.
-            .addMigrations(com.facegate.storage.MIGRATION_4_5)
+            .addMigrations(com.facegate.storage.MIGRATION_4_5, com.facegate.storage.MIGRATION_5_6)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -62,7 +62,6 @@ object AppModule {
         sessionDao    = database.sessionDao(),
         overrideDao   = database.overrideDao(),
         holidayDao    = database.holidayDao(),
-        weeklyOffDao  = database.weeklyOffDao(),
         syncStateDao  = database.syncStateDao(),
     )
 

@@ -24,12 +24,8 @@ class TimetableSetupViewModel @Inject constructor(
     private val _batches = MutableStateFlow<List<String>>(emptyList())
     val batches: StateFlow<List<String>> = _batches
 
-    private val _weeklyOffDays = MutableStateFlow<Set<Int>>(emptySet())
-    val weeklyOffDays: StateFlow<Set<Int>> = _weeklyOffDays
-
     init {
         loadAll()
-        loadWeeklyOffDays()
     }
 
     fun loadAll() {
@@ -60,23 +56,6 @@ class TimetableSetupViewModel @Inject constructor(
         viewModelScope.launch {
             _subjects.value = repository.getAllSubjects()
             _batches.value  = repository.getAllBatches()
-        }
-    }
-
-    // ── Weekly Off ────────────────────────────────────────────────────────────
-
-    fun loadWeeklyOffDays() {
-        viewModelScope.launch {
-            _weeklyOffDays.value = repository.getWeeklyOffDays().toSet()
-        }
-    }
-
-    fun isWeeklyOff(day: Int): Boolean = _weeklyOffDays.value.contains(day)
-
-    fun toggleWeeklyOff(day: Int) {
-        viewModelScope.launch {
-            repository.setWeeklyOff(day, !isWeeklyOff(day))
-            loadWeeklyOffDays()
         }
     }
 }

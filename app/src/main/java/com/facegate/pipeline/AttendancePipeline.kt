@@ -271,11 +271,12 @@ class AttendancePipeline(
     }
 
     suspend fun enrollStudentFromEmbeddings(
-        studentId    : String,
-        studentName  : String,
-        studentClass : String,
+        info: StudentEnrollmentInfo,
         verifiedBitmaps: List<Bitmap>,
     ): EnrollmentResult {
+        val studentId    = info.localId
+        val studentName  = info.name
+        val studentClass = info.studentClass
         require(verifiedBitmaps.isNotEmpty()) { "No verified bitmaps supplied" }
 
         data class CapturedEmbedding(
@@ -351,11 +352,18 @@ class AttendancePipeline(
         // PENDING rows) would never pick this student up for recognition.
         repository.upsertEnrollment(
             StudentEntity(
-                studentId        = studentId,
-                name             = studentName,
-                studentClass     = studentClass,
-                embedding        = normalised.joinToString(","),
-                enrollmentStatus = "DONE",
+                studentId          = studentId,
+                name               = studentName,
+                studentClass       = studentClass,
+                embedding          = normalised.joinToString(","),
+                enrollmentStatus   = "DONE",
+                rollNumber         = info.rollNumber,
+                registrationNumber = info.registrationNumber,
+                gender             = info.gender,
+                email              = info.email,
+                phone              = info.phone,
+                studentStatus      = "ACTIVE",
+                admissionYear      = info.admissionYear,
             )
         )
 
@@ -371,12 +379,13 @@ class AttendancePipeline(
     }
 
     suspend fun enrollStudent(
-        studentId   : String,
-        studentName : String,
-        studentClass: String,
+        info: StudentEnrollmentInfo,
         photo       : Bitmap,
         rotationDegrees: Int = 0,
     ): EnrollmentResult {
+        val studentId    = info.localId
+        val studentName  = info.name
+        val studentClass = info.studentClass
         val uprightPhoto = rotateIfNeeded(photo, rotationDegrees)
         val scaledPhoto  = scaleBitmapToMaxWidth(uprightPhoto, PipelineConfig.CAPTURE_MAX_WIDTH_PX)
 
@@ -407,11 +416,18 @@ class AttendancePipeline(
 
         repository.upsertEnrollment(
             StudentEntity(
-                studentId        = studentId,
-                name             = studentName,
-                studentClass     = studentClass,
-                embedding        = embedding.vector.joinToString(","),
-                enrollmentStatus = "DONE",
+                studentId          = studentId,
+                name               = studentName,
+                studentClass       = studentClass,
+                embedding          = embedding.vector.joinToString(","),
+                enrollmentStatus   = "DONE",
+                rollNumber         = info.rollNumber,
+                registrationNumber = info.registrationNumber,
+                gender             = info.gender,
+                email              = info.email,
+                phone              = info.phone,
+                studentStatus      = "ACTIVE",
+                admissionYear      = info.admissionYear,
             )
         )
 
@@ -428,11 +444,12 @@ class AttendancePipeline(
 
 
     suspend fun forceEnrollStudent(
-        studentId       : String,
-        studentName     : String,
-        studentClass    : String,
+        info: StudentEnrollmentInfo,
         verifiedBitmaps : List<Bitmap>,
     ) {
+        val studentId    = info.localId
+        val studentName  = info.name
+        val studentClass = info.studentClass
         require(verifiedBitmaps.isNotEmpty()) { "No verified bitmaps supplied" }
 
         data class CapturedVec(val vector: FloatArray, val weight: Float)
@@ -465,11 +482,18 @@ class AttendancePipeline(
 
         repository.upsertEnrollment(
             StudentEntity(
-                studentId        = studentId,
-                name             = studentName,
-                studentClass     = studentClass,
-                embedding        = normalised.joinToString(","),
-                enrollmentStatus = "DONE",
+                studentId          = studentId,
+                name               = studentName,
+                studentClass       = studentClass,
+                embedding          = normalised.joinToString(","),
+                enrollmentStatus   = "DONE",
+                rollNumber         = info.rollNumber,
+                registrationNumber = info.registrationNumber,
+                gender             = info.gender,
+                email              = info.email,
+                phone              = info.phone,
+                studentStatus      = "ACTIVE",
+                admissionYear      = info.admissionYear,
             )
         )
         enrolledTemplates.add(

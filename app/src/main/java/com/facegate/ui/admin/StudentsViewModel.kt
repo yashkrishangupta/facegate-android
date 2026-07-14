@@ -51,30 +51,40 @@ class StudentsViewModel @Inject constructor(
         }
     }
 
-    fun updateStudentInfo(studentId: String, name: String, studentClass: String) {
+    /**
+     * Updates the editable student-record fields. Deliberately does NOT
+     * touch studentId — that's the local sync identifier (a locally-typed
+     * value until the student's first successful enrollment upload, then
+     * the server's UUID — see StudentEntity.isLocalOnly), not something an
+     * admin should hand-edit from here. rollNumber is the actual
+     * human-facing "Roll No." field now.
+     */
+    fun updateStudentInfo(
+        studentId: String,
+        name: String,
+        studentClass: String,
+        rollNumber: String,
+        registrationNumber: String,
+        gender: String,
+        email: String?,
+        phone: String?,
+    ) {
         viewModelScope.launch {
-            repository.updateStudentInfo(studentId, name.trim(), studentClass.trim())
-            loadStudents()
-        }
-    }
-
-    fun updateStudentRollNo(oldId: String, newId: String, name: String, studentClass: String) {
-        viewModelScope.launch {
-            val trimmedNewId = newId.trim()
-            if (trimmedNewId.isEmpty()) {
+            val trimmedRoll = rollNumber.trim()
+            if (trimmedRoll.isEmpty()) {
                 _errorEvents.emit("Roll number can't be empty")
                 return@launch
             }
-            if (trimmedNewId != oldId && repository.getStudentById(trimmedNewId) != null) {
-                _errorEvents.emit("Roll number \"$trimmedNewId\" is already used by another student")
-                return@launch
-            }
-
-            if (trimmedNewId == oldId) {
-                repository.updateStudentInfo(oldId, name.trim(), studentClass.trim())
-            } else {
-                repository.updateStudentRollNo(oldId, trimmedNewId, name.trim(), studentClass.trim())
-            }
+            repository.updateStudentInfo(
+                studentId = studentId,
+                name = name.trim(),
+                studentClass = studentClass.trim(),
+                rollNumber = trimmedRoll,
+                registrationNumber = registrationNumber.trim().ifEmpty { trimmedRoll },
+                gender = gender,
+                email = email,
+                phone = phone,
+            )
             loadStudents()
         }
     }

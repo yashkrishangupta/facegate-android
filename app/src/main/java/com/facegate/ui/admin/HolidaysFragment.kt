@@ -1,7 +1,6 @@
 package com.facegate.ui.admin
 
 import android.app.AlertDialog
-import android.app.DatePickerDialog
 import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -11,14 +10,12 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import com.facegate.databinding.DialogHolidayNameBinding
 import com.facegate.databinding.FragmentHolidaysBinding
 import com.facegate.databinding.ItemHolidayCardBinding
 import com.facegate.storage.entity.HolidayEntity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -42,7 +39,6 @@ class HolidaysFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.btnBack.setOnClickListener { findNavController().navigateUp() }
-        binding.btnAddHoliday.setOnClickListener { showAddHolidayDialog() }
         observeHolidays()
     }
 
@@ -117,60 +113,5 @@ class HolidaysFragment : Fragment() {
         }
 
         return itemBinding.root
-    }
-
-    // ── Add holiday dialog ───────────────────────────────────────────────────
-
-    private fun showAddHolidayDialog() {
-        val cal = Calendar.getInstance()
-        DatePickerDialog(
-            requireContext(),
-            { _, year, month, day ->
-                val dateStr = String.format("%04d-%02d-%02d", year, month + 1, day)
-                showNameDialog(dateStr)
-            },
-            cal.get(Calendar.YEAR),
-            cal.get(Calendar.MONTH),
-            cal.get(Calendar.DAY_OF_MONTH),
-        ).show()
-    }
-
-    private fun showNameDialog(dateStr: String) {
-        val dialogBinding = DialogHolidayNameBinding.inflate(LayoutInflater.from(requireContext()))
-
-        // Prefilled from the date picker, but left as a normal editable field so the
-        // user can tweak it by hand before saving.
-        dialogBinding.etHolidayDate.setText(dateStr)
-
-        // NOTE: no setPositiveButton/setNegativeButton here — the dialog layout
-        // already supplies its own styled Cancel/Save buttons (btnCancel /
-        // btnSave), matching the dialog_student_info.xml pattern used across
-        // the app's other custom dialogs.
-        val dialog = AlertDialog.Builder(requireContext())
-            .setView(dialogBinding.root)
-            .create()
-
-        dialogBinding.btnCancel.setOnClickListener { dialog.dismiss() }
-        dialogBinding.btnSave.setOnClickListener {
-            val date = dialogBinding.etHolidayDate.text.toString().trim()
-            val name = dialogBinding.etHolidayName.text.toString().trim()
-
-            when {
-                date.isEmpty() || !date.matches(Regex("""\d{4}-\d{2}-\d{2}""")) ->
-                    dialogBinding.etHolidayDate.error = "Use YYYY-MM-DD"
-                name.isEmpty() ->
-                    dialogBinding.etHolidayName.error = "Required"
-                else -> {
-                    viewModel.addHoliday(HolidayEntity(
-                        date      = date,
-                        name      = name,
-                        createdAt = System.currentTimeMillis(),
-                    ))
-                    dialog.dismiss()
-                }
-            }
-        }
-
-        dialog.show()
     }
 }

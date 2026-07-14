@@ -88,7 +88,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Roll Number / ID"
+            android:text="Roll Number"
             android:textColor="#FFFFFF"
             android:textStyle="bold" />
 
@@ -108,6 +108,39 @@
             android:textColor="#FFFFFF"
             android:textColorHint="#708090" />
 
+        <!-- Registration Number -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Registration Number"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etRegistrationNumber"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/edittext_dark"
+            android:drawableStart="@android:drawable/ic_menu_edit"
+            android:drawablePadding="12dp"
+            android:hint="Leave blank to reuse roll number"
+            android:imeOptions="actionNext"
+            android:inputType="text"
+            android:paddingHorizontal="18dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#708090" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="18dp"
+            android:text="The college's official admission number, if different from the roll number"
+            android:textColor="@color/text_white_60"
+            android:textSize="11sp" />
+
         <!-- Class -->
 
         <TextView
@@ -122,12 +155,132 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="8dp"
+            android:layout_marginBottom="18dp"
             android:background="@drawable/edittext_dark"
             android:drawableStart="@android:drawable/ic_menu_agenda"
             android:drawablePadding="12dp"
             android:hint="e.g. CSE-3"
-            android:imeOptions="actionDone"
+            android:imeOptions="actionNext"
             android:inputType="text"
+            android:paddingHorizontal="18dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#708090" />
+
+        <!-- Gender -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Gender"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <RadioGroup
+            android:id="@+id/rgGender"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="18dp"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/rbMale"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:checked="true"
+                android:text="Male"
+                android:textColor="#FFFFFF" />
+
+            <RadioButton
+                android:id="@+id/rbFemale"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Female"
+                android:textColor="#FFFFFF" />
+
+            <RadioButton
+                android:id="@+id/rbOther"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Other"
+                android:textColor="#FFFFFF" />
+
+        </RadioGroup>
+
+        <!-- Admission Year -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Admission Year"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etAdmissionYear"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="18dp"
+            android:background="@drawable/edittext_dark"
+            android:drawableStart="@android:drawable/ic_menu_today"
+            android:drawablePadding="12dp"
+            android:hint="e.g. 2024"
+            android:imeOptions="actionNext"
+            android:inputType="number"
+            android:maxLength="4"
+            android:paddingHorizontal="18dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#708090" />
+
+        <!-- Email (optional) -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Email (optional)"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etEmail"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="18dp"
+            android:background="@drawable/edittext_dark"
+            android:drawableStart="@android:drawable/ic_dialog_email"
+            android:drawablePadding="12dp"
+            android:hint="student@example.edu"
+            android:imeOptions="actionNext"
+            android:inputType="textEmailAddress"
+            android:paddingHorizontal="18dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#708090" />
+
+        <!-- Phone (optional) -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Phone (optional)"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etPhone"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/edittext_dark"
+            android:drawableStart="@android:drawable/ic_menu_call"
+            android:drawablePadding="12dp"
+            android:hint="10-digit mobile number"
+            android:imeOptions="actionDone"
+            android:inputType="phone"
             android:paddingHorizontal="18dp"
             android:textColor="#FFFFFF"
             android:textColorHint="#708090" />

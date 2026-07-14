@@ -296,6 +296,34 @@ sealed class PipelineFrameStatus {
 
 // ENROLLMENT RESULT
 
+/**
+ * Everything collected about a student before/during enrollment — replaces
+ * separately threading studentId/studentName/studentClass through
+ * EnrollmentViewModel and AttendancePipeline. rollNumber doubles as the
+ * local studentId (same as before this existed — see StudentEntity.isLocalOnly
+ * doc) since there's no separate "internal ID" concept exposed to the admin;
+ * a locally-enrolled student's id becomes the server's real UUID once its
+ * first sync succeeds (TemplateRepository.completeStudentEnrollmentSync).
+ *
+ * gender and admissionYear exist because schema.sql has student.gender and
+ * student.admission_year as NOT NULL with no default — AttendanceSyncWorker
+ * refuses to upload a student missing either (see pushPendingEnrollments),
+ * so they need to be collected here, not left for later.
+ */
+data class StudentEnrollmentInfo(
+    val name: String,
+    val rollNumber: String,
+    val registrationNumber: String,
+    val studentClass: String,
+    val gender: String,           // "Male" | "Female" | "Other"
+    val admissionYear: Int,
+    val email: String? = null,
+    val phone: String? = null,
+) {
+    /** Local studentId until this student's first successful sync — see class doc. */
+    val localId: String get() = rollNumber
+}
+
 sealed class EnrollmentResult {
     object Success                                          : EnrollmentResult()
     object NoFaceDetected                                   : EnrollmentResult()

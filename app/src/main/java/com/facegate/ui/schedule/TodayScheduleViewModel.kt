@@ -3,7 +3,6 @@ package com.facegate.ui.schedule
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.facegate.storage.TemplateRepository
-import com.facegate.storage.entity.OverrideEntity
 import com.facegate.storage.entity.SessionEntity
 import com.facegate.storage.entity.TimetableEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,7 +43,6 @@ sealed class ScheduleState {
     /** Extra periods can still be added and re-opened on a holiday, so they're
      *  carried alongside the banner rather than being hidden by it. */
     data class Holiday(val name: String, val extraItems: List<ScheduleItem> = emptyList()) : ScheduleState()
-    data class WeeklyOff(val dayName: String, val extraItems: List<ScheduleItem> = emptyList()) : ScheduleState()
     object NoSchedule : ScheduleState()
     data class Loaded(val items: List<ScheduleItem>) : ScheduleState()
 }
@@ -73,8 +71,8 @@ class TodayScheduleViewModel @Inject constructor(
             val calendar            = Calendar.getInstance()
             val currentTotalMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
 
-            // Extra periods can be started on ANY day — holiday, weekly off, or a
-            // normal day with no timetable at all — so they're computed up front
+            // Extra periods can be started on ANY day — holiday, or a normal
+            // day with no timetable at all — so they're computed up front
             // and folded into whichever state below applies, instead of only
             // existing on a "normal" scheduled day. This is also what makes an
             // extra period re-openable: once created it has a real SessionEntity,
@@ -111,12 +109,6 @@ class TodayScheduleViewModel @Inject constructor(
                 Calendar.FRIDAY    -> 5
                 Calendar.SATURDAY  -> 6
                 else               -> 7 // Calendar.SUNDAY
-            }
-
-            val isWeeklyOff = try { repository.isWeeklyOff(mappedDay) } catch (e: Exception) { false }
-            if (isWeeklyOff) {
-                _uiState.value = ScheduleState.WeeklyOff(dayNameFor(mappedDay), extraItems)
-                return@launch
             }
 
             val timetable = try {
@@ -245,60 +237,5 @@ class TodayScheduleViewModel @Inject constructor(
             try { repository.insertSession(session) } catch (e: Exception) { /* logged by caller */ }
             onStarted(sessionId, scheduledStartTimeMs) // runs on Main — Fragment can navigate safely
         }
-    }
-
-    /**
-     * startExtraPeriod(...)
-     * Creates a session with timetableId = null and writes an override record.
-     * The session is created immediately (not lazily on next "Start" tap), which
-     * is what lets it reappear in Today's Schedule as its own row — re-opening
-     * it later just re-enters this same session rather than creating another.
-     * onStarted is invoked on the MAIN thread (same reasoning as startSession).
-     */
-    fun startExtraPeriod(
-        subject: String,
-        batch: String,
-        windowMinutes: Int,
-        reason: String,
-        onStarted: (sessionId: String, scheduledStartTimeMs: Long) -> Unit,
-    ) {
-        viewModelScope.launch {
-            val sessionId = UUID.randomUUID().toString()
-            val scheduledStartTimeMs = System.currentTimeMillis() // extra period → window starts now
-            val session = SessionEntity(
-                sessionId     = sessionId,
-                timetableId   = null,          // extra period — no timetable row
-                subject       = subject,
-                batch         = batch,
-                startTime     = scheduledStartTimeMs,
-                windowMinutes = windowMinutes,
-                endedAt       = null,
-            )
-            try { repository.insertSession(session) } catch (e: Exception) {}
-
-            val override = OverrideEntity(
-                sessionId    = sessionId,
-                fieldChanged = "extra period",
-                oldValue     = "none",
-                newValue     = "$subject — $batch",
-                changedAt    = System.currentTimeMillis(),
-                reason       = reason,
-            )
-            try { repository.insertOverride(override) } catch (e: Exception) {}
-
-            onStarted(sessionId, scheduledStartTimeMs) // runs on Main — Fragment can navigate safely
-        }
-    }
-
-    // ── Day helpers ───────────────────────────────────────────────────────────
-
-    private fun dayNameFor(day: Int): String = when (day) {
-        1 -> "Monday"
-        2 -> "Tuesday"
-        3 -> "Wednesday"
-        4 -> "Thursday"
-        5 -> "Friday"
-        6 -> "Saturday"
-        else -> "Sunday"
     }
 }

@@ -195,7 +195,7 @@ class ManualAttendanceFragment : Fragment() {
 
             rowBinding.tvAvatar.text = initials
             rowBinding.tvName.text = sws.student.name
-            rowBinding.tvStudentId.text = sws.student.studentId
+            rowBinding.tvStudentId.text = sws.student.rollNumber.ifBlank { sws.student.studentId }
 
             val actionBtn: TextView = rowBinding.btnToggleAttendance
             if (sws.markedToday) {

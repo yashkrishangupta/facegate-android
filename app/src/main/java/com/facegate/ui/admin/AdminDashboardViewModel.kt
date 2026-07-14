@@ -57,8 +57,7 @@ class AdminDashboardViewModel @Inject constructor(
 
             // ── Periods remaining ─────────────────────────────────────────
             val dayOfWeek       = appDayOfWeek(Calendar.getInstance())
-            val isWeeklyOff     = repository.isWeeklyOff(dayOfWeek)
-            val timetableToday  = if (isWeeklyOff) emptyList() else repository.getTimetableForDay(dayOfWeek)
+            val timetableToday  = repository.getTimetableForDay(dayOfWeek)
             val periodsRemaining = timetableToday.count { it.id !in conductedTimetableIds }
             // Total = scheduled timetable periods OR conducted (if more extra periods than scheduled)
             val totalPeriods    = timetableToday.size.coerceAtLeast(periodsConducted)

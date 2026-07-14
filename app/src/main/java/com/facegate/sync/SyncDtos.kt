@@ -36,6 +36,11 @@ data class PairDeviceData(
     @SerializedName("deviceId") val deviceId: String,
     @SerializedName("deviceToken") val deviceToken: String,
     @SerializedName("roomId") val roomId: String,
+    // Not sent by the real backend today (confirmed against
+    // DeviceController.pairDevice — its response only has deviceId/
+    // deviceToken/roomId) — kept optional so this starts working the moment
+    // that response is extended, without an Android-side contract change.
+    @SerializedName("roomNumber") val roomNumber: String? = null,
 )
 
 data class PairDeviceResponse(
@@ -173,6 +178,29 @@ data class SyncAttendanceDto(
     @SerializedName("updated_at") val updatedAt: String,
 )
 
+/**
+ * A student's face embedding, synced down so they're recognizable at any
+ * room's device, not just the one that originally enrolled them — this is
+ * the real, backend-verified counterpart to EmbeddingUploadRequest above.
+ * Previously (see StudentEntity.isLocalOnly/embeddingSynced doc history)
+ * this app assumed embeddings never synced down at all and every device
+ * had to re-capture every student locally; that's no longer true.
+ *
+ * embeddingData is left as a raw JsonElement rather than a typed structure
+ * since its shape is a model concern, not a sync-protocol concern — see
+ * AttendanceSyncWorker's json↔CSV conversion helpers for how this app's
+ * local storage format (comma-separated floats, same as everywhere else in
+ * StudentEntity.embedding) is produced from it.
+ */
+data class SyncEmbeddingDto(
+    @SerializedName("student_id") val studentId: String,
+    @SerializedName("embedding_data") val embeddingData: com.google.gson.JsonElement,
+    @SerializedName("embedding_version") val embeddingVersion: String?,
+    @SerializedName("model_name") val modelName: String,
+    @SerializedName("confidence_threshold") val confidenceThreshold: Double?,
+    @SerializedName("updated_at") val updatedAt: String?,
+)
+
 data class FullSyncData(
     val timetable: List<SyncTimetableDto> = emptyList(),
     val students: List<SyncStudentDto> = emptyList(),
@@ -182,6 +210,8 @@ data class FullSyncData(
     // backend adds it, rather than every existing full-sync call needing
     // a matching field.
     val conflicts: List<SyncConflictDto> = emptyList(),
+    // Real, backend-verified — see SyncEmbeddingDto's doc comment.
+    val embeddings: List<SyncEmbeddingDto> = emptyList(),
     @SerializedName("attendanceUpdates") val attendanceUpdates: List<SyncAttendanceDto> = emptyList(),
     @SerializedName("lastSync") val lastSync: String?,
 )
@@ -196,10 +226,12 @@ data class IncrementalSyncData(
     @SerializedName("updatedTimetable") val updatedTimetable: Int,
     @SerializedName("updatedStudents") val updatedStudents: Int,
     @SerializedName("updatedHolidays") val updatedHolidays: Int,
+    @SerializedName("updatedEmbeddings") val updatedEmbeddings: Int = 0,
     val timetable: List<SyncTimetableDto> = emptyList(),
     val students: List<SyncStudentDto> = emptyList(),
     val holidays: List<SyncHolidayDto> = emptyList(),
     val conflicts: List<SyncConflictDto> = emptyList(),
+    val embeddings: List<SyncEmbeddingDto> = emptyList(),
     @SerializedName("attendanceUpdates") val attendanceUpdates: List<SyncAttendanceDto> = emptyList(),
     @SerializedName("lastSync") val lastSync: String?,
 )
@@ -256,26 +288,25 @@ data class EnrollStudentResponse(
 )
 
 /** Re-enrollment / embedding update for a student the server already has. */
-data class EmbeddingUploadDto(
+/**
+ * POST /api/v1/sync/embeddings — x-api-key protected. Upserts on
+ * student_id server-side, so a re-enrollment naturally replaces the old
+ * vector rather than erroring. One embedding per call — the backend has no
+ * batch variant (contract confirmed against the running backend, not just
+ * API_CONTRACT.md — see SyncEmbeddingDto's doc comment for the matching
+ * down-sync half).
+ */
+data class EmbeddingUploadRequest(
     @SerializedName("student_id") val studentId: String,
-    @SerializedName("embedding_data") val embeddingData: List<Float>,
+    @SerializedName("embedding_data") val embeddingData: com.google.gson.JsonElement,
     @SerializedName("embedding_version") val embeddingVersion: String = "v1.0",
     @SerializedName("model_name") val modelName: String,
-)
-
-data class EmbeddingUploadRequest(
-    val embeddings: List<EmbeddingUploadDto>,
-)
-
-data class EmbeddingUploadData(
-    @SerializedName("uploadedCount") val uploadedCount: Int,
-    @SerializedName("failedCount") val failedCount: Int,
+    @SerializedName("confidence_threshold") val confidenceThreshold: Double? = null,
 )
 
 data class EmbeddingUploadResponse(
     val success: Boolean,
     val message: String?,
-    val data: EmbeddingUploadData?,
 )
 
 // ── Conflicts (device → server) ──────────────────────────────────────────

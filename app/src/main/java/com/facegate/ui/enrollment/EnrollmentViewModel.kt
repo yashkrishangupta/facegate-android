@@ -7,7 +7,9 @@ import com.facegate.pipeline.AttendancePipeline
 import com.facegate.pipeline.CaptureQualityResult
 import com.facegate.pipeline.CaptureRejectReason
 import com.facegate.pipeline.EnrollmentResult
+import com.facegate.pipeline.StudentEnrollmentInfo
 import com.facegate.pipeline.toUserMessage
+import com.facegate.storage.TemplateRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +37,7 @@ sealed class EnrollmentEvent {
 @HiltViewModel
 class EnrollmentViewModel @Inject constructor(
     private val pipeline: AttendancePipeline,
+    private val repository: TemplateRepository,
 ) : ViewModel() {
 
     private val _enrollmentState = MutableStateFlow<EnrollmentState>(EnrollmentState.Idle)
@@ -46,17 +49,37 @@ class EnrollmentViewModel @Inject constructor(
 
     private val verifiedBitmaps = mutableListOf<Bitmap>()
 
-    // Set via setStudentInfo() right after the dialog is confirmed — BEFORE any
-    // photo is taken. Used both for the initial submission and for forceEnroll().
-    private var pendingName  : String = ""
-    private var pendingId    : String = ""
-    private var pendingClass : String = ""
+    // Set via setStudentInfo()/loadExistingStudentInfo() right after the
+    // dialog is confirmed (or the pending student's row is loaded) — BEFORE
+    // any photo is taken. Used both for the initial submission and forceEnroll().
+    private var pendingInfo: StudentEnrollmentInfo? = null
 
-    /** Called once the student-details dialog is confirmed, before the camera opens. */
-    fun setStudentInfo(name: String, id: String, studentClass: String) {
-        pendingName  = name
-        pendingId    = id
-        pendingClass = studentClass
+    /** Called once the student-details dialog is confirmed (brand-new student), before the camera opens. */
+    fun setStudentInfo(info: StudentEnrollmentInfo) {
+        pendingInfo = info
+    }
+
+    /**
+     * For a student already synced down from the website (PENDING enrollment
+     * status — roll number, registration number, gender etc. all already
+     * known server-side): loads that existing info instead of re-prompting
+     * for details the admin already entered on the website.
+     * Returns false if the student can't be found locally (shouldn't happen
+     * in practice — the caller navigated here from that exact row).
+     */
+    suspend fun loadExistingStudentInfo(studentId: String): Boolean {
+        val student = repository.getStudentById(studentId) ?: return false
+        pendingInfo = StudentEnrollmentInfo(
+            name = student.name,
+            rollNumber = student.rollNumber.ifBlank { student.studentId },
+            registrationNumber = student.registrationNumber.ifBlank { student.rollNumber.ifBlank { student.studentId } },
+            studentClass = student.studentClass,
+            gender = student.gender?.takeIf { it.isNotBlank() } ?: "Other",
+            admissionYear = student.admissionYear ?: java.util.Calendar.getInstance().get(java.util.Calendar.YEAR),
+            email = student.email,
+            phone = student.phone,
+        )
+        return true
     }
 
     // ── Photo capture ────────────────────────────────────────────────────────
@@ -100,7 +123,8 @@ class EnrollmentViewModel @Inject constructor(
 
     /** Submits the 5 verified shots under the details already collected via setStudentInfo(). */
     private fun submitEnrollment() {
-        if (verifiedBitmaps.isEmpty() || pendingId.isEmpty()) {
+        val info = pendingInfo
+        if (verifiedBitmaps.isEmpty() || info == null) {
             _enrollmentState.value = EnrollmentState.Failed("No photos captured.")
             return
         }
@@ -110,9 +134,7 @@ class EnrollmentViewModel @Inject constructor(
 
             val result = try {
                 pipeline.enrollStudentFromEmbeddings(
-                    studentId       = pendingId,
-                    studentName     = pendingName,
-                    studentClass    = pendingClass,
+                    info            = info,
                     verifiedBitmaps = verifiedBitmaps.toList(),
                 )
             } catch (e: Exception) {
@@ -147,7 +169,8 @@ class EnrollmentViewModel @Inject constructor(
     }
 
     fun forceEnroll() {
-        if (verifiedBitmaps.isEmpty() || pendingId.isEmpty()) {
+        val info = pendingInfo
+        if (verifiedBitmaps.isEmpty() || info == null) {
             _enrollmentState.value = EnrollmentState.Failed("Session expired — please retake photos.")
             return
         }
@@ -155,9 +178,7 @@ class EnrollmentViewModel @Inject constructor(
             _enrollmentState.value = EnrollmentState.Processing
             try {
                 pipeline.forceEnrollStudent(
-                    studentId       = pendingId,
-                    studentName     = pendingName,
-                    studentClass    = pendingClass,
+                    info            = info,
                     verifiedBitmaps = verifiedBitmaps.toList(),
                 )
                 clearBitmaps()
