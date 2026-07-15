@@ -1,5 +1,6 @@
 package com.facegate.ui.admin
 
+import android.app.DatePickerDialog
 import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -18,6 +19,9 @@ import com.facegate.databinding.ItemStudentRowBinding
 import com.facegate.storage.entity.StudentEntity
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 @AndroidEntryPoint
 class StudentsFragment : Fragment() {
@@ -164,10 +168,37 @@ class StudentsFragment : Fragment() {
         dialogBinding.etClass.setText(student.studentClass)
         dialogBinding.etEmail.setText(student.email ?: "")
         dialogBinding.etPhone.setText(student.phone ?: "")
+        dialogBinding.etDateOfBirth.setText(student.dateOfBirth ?: "")
+        dialogBinding.etProfilePhotoUrl.setText(student.profilePhotoUrl ?: "")
         when (student.gender) {
             "Female" -> dialogBinding.rgGender.check(dialogBinding.rbFemale.id)
             "Other"  -> dialogBinding.rgGender.check(dialogBinding.rbOther.id)
             else     -> dialogBinding.rgGender.check(dialogBinding.rbMale.id)
+        }
+
+        // DOB is stored as "yyyy-MM-dd" (matches the backend's DATE column
+        // and what mergeStudent/pushPendingEnrollments already read/write) —
+        // a plain non-editable EditText that opens a DatePickerDialog on tap
+        // keeps that format guaranteed correct rather than trusting free-text
+        // entry.
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        dialogBinding.etDateOfBirth.setOnClickListener {
+            val calendar = Calendar.getInstance()
+            student.dateOfBirth?.let { existing ->
+                try { calendar.time = dateFormat.parse(existing) ?: calendar.time } catch (_: Exception) { }
+            }
+            DatePickerDialog(
+                requireContext(),
+                { _, year, month, day ->
+                    calendar.set(year, month, day)
+                    dialogBinding.etDateOfBirth.setText(dateFormat.format(calendar.time))
+                },
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH),
+            ).apply {
+                datePicker.maxDate = System.currentTimeMillis() // no future birthdates
+            }.show()
         }
 
         // NOTE: no setPositiveButton/setNegativeButton here — the dialog layout
@@ -186,6 +217,8 @@ class StudentsFragment : Fragment() {
             val newClass  = dialogBinding.etClass.text.toString().trim()
             val newEmail  = dialogBinding.etEmail.text.toString().trim()
             val newPhone  = dialogBinding.etPhone.text.toString().trim()
+            val newDob    = dialogBinding.etDateOfBirth.text.toString().trim()
+            val newPhotoUrl = dialogBinding.etProfilePhotoUrl.text.toString().trim()
             val newGender = when (dialogBinding.rgGender.checkedRadioButtonId) {
                 dialogBinding.rbFemale.id -> "Female"
                 dialogBinding.rbOther.id  -> "Other"
@@ -210,6 +243,8 @@ class StudentsFragment : Fragment() {
                 gender = newGender,
                 email = newEmail.ifEmpty { null },
                 phone = newPhone.ifEmpty { null },
+                dateOfBirth = newDob.ifEmpty { null },
+                profilePhotoUrl = newPhotoUrl.ifEmpty { null },
             )
             dialog.dismiss()
         }

@@ -267,6 +267,7 @@ data class EnrollStudentRequest(
     @SerializedName("gender") val gender: String,           // CHECK: Male | Female | Other
     @SerializedName("admission_year") val admissionYear: Int,
     @SerializedName("date_of_birth") val dateOfBirth: String? = null,   // "yyyy-MM-dd", nullable on the backend
+    @SerializedName("profile_photo_url") val profilePhotoUrl: String? = null,
     @SerializedName("email") val email: String? = null,
     @SerializedName("phone") val phone: String? = null,
     @SerializedName("embedding_data") val embeddingData: List<Float>,

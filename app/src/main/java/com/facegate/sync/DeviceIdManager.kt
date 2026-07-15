@@ -53,7 +53,25 @@ class DeviceIdManager @Inject constructor(
         prefs.edit().putString(KEY_ROOM_NUMBER, roomNumber).apply()
     }
 
-    fun getPairedAt(): Long = prefs.getLong(KEY_PAIRED_AT, 0L)
+    /**
+     * A device paired under an app version from before KEY_PAIRED_AT was
+     * introduced has isPaired() == true but never had this key written —
+     * unlike Room, SharedPreferences has no migration mechanism to backfill
+     * it, so it reads 0 (-> "Unknown" in the UI) forever. Backfilling to
+     * "now" the first time it's read post-upgrade is the only way to stop
+     * showing "Unknown" indefinitely; the exact original pairing date is
+     * unrecoverable since it was simply never recorded, not a data-loss bug.
+     */
+    fun getPairedAt(): Long {
+        val stored = prefs.getLong(KEY_PAIRED_AT, 0L)
+        if (stored > 0L) return stored
+        if (isPaired()) {
+            val now = System.currentTimeMillis()
+            prefs.edit().putLong(KEY_PAIRED_AT, now).apply()
+            return now
+        }
+        return 0L
+    }
 
     fun saveCredentials(deviceId: String, deviceToken: String) {
         prefs.edit()

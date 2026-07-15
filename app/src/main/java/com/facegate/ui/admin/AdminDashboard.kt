@@ -329,6 +329,16 @@ class AdminDashboard : Fragment() {
      * as-is, consistent with sync being designed to fail silently elsewhere.
      */
     private fun refreshSyncStatus() {
+        // view (the nullable Fragment property) is safe to check even after
+        // onDestroyView() — viewLifecycleOwner is NOT; it throws
+        // IllegalStateException in that state. This function is invoked
+        // from btnSyncNow's postDelayed callback 4s after the click, which
+        // can easily fire after the user has already navigated away and
+        // the view is gone. The `_binding == null` check below doesn't
+        // prevent that crash — it's inside the launched coroutine, but the
+        // crash happens synchronously on the viewLifecycleOwner getter
+        // itself, before .launch() is ever entered.
+        if (view == null) return
         viewLifecycleOwner.lifecycleScope.launch {
             val result = syncRepository.getSyncStatus()
             if (_binding == null) return@launch // view may be gone by the time this returns
@@ -338,7 +348,15 @@ class AdminDashboard : Fragment() {
             val pendingEnrollments = templateRepository.getStudentsWithUnsyncedEmbedding().size
             val pendingChangeLog = templateRepository.getUnpushedOverrides().size
             val localStates = templateRepository.getSyncStates()
-            val failedCategories = localStates.filter { it.status == "FAILED" }.map { it.category }
+            val failedStates = localStates.filter { it.status == "FAILED" }
+            // Previously only the category name was shown ("failing: pull"),
+            // with no way to tell why — SyncStateEntity.message already
+            // captures the real exception text from recordFailure() and
+            // simply never made it into this string.
+            val failedSummary = failedStates.joinToString { state ->
+                val reason = state.message?.take(80)
+                if (reason.isNullOrBlank()) state.category else "${state.category} (${reason})"
+            }
 
             result.onSuccess { response ->
                 val status = response.data
@@ -352,13 +370,13 @@ class AdminDashboard : Fragment() {
                     if (pendingConflicts > 0) append(", $pendingConflicts conflicts")
                     if (pendingChangeLog > 0) append(", $pendingChangeLog change-log entries")
                     append(" pending")
-                    if (failedCategories.isNotEmpty()) append(" • failing: ${failedCategories.joinToString()}")
+                    if (failedStates.isNotEmpty()) append(" • failing: $failedSummary")
                 }
             }.onFailure {
                 binding.tvSyncStatus.text = buildString {
                     append("Sync status unavailable")
                     append(" • $pendingUploads attendance pending locally")
-                    if (failedCategories.isNotEmpty()) append(" • failing: ${failedCategories.joinToString()}")
+                    if (failedStates.isNotEmpty()) append(" • failing: $failedSummary")
                 }
             }
         }

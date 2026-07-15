@@ -13,10 +13,16 @@ object PipelineConfig {
     const val EMBEDDING_SIZE     = 128          // fixed by MobileFaceNet
     const val MODEL_ASSET_PATH   = "models/mobilefacenet.onnx"
 
-    // Sent as `modelVersion` when uploading an embedding to the backend
-    // (POST /api/v1/face-embeddings) so the server knows which model produced
-    // it. Bump this if mobilefacenet.onnx is ever swapped for a different
-    // model/version — existing embeddings won't be comparable across versions.
+    // Sent as `modelVersion`/`model_name` when uploading an embedding to the
+    // backend so the server (and any other device that later syncs it back
+    // down) knows which model produced it. Bump both if mobilefacenet.onnx
+    // is ever swapped for a different model/version — existing embeddings
+    // won't be comparable across versions. Previously declared but never
+    // actually assigned anywhere: local captures fell back to StudentEntity's
+    // bare "v1.0" default instead, and nothing ever checked either value
+    // before comparing embeddings — see the embeddingCompatible() filter in
+    // AttendancePipeline for where that's now enforced.
+    const val MODEL_NAME          = "facegate-mobile"
     const val MODEL_VERSION       = "mobilefacenet-v1"
 
     // ── Camera ─────────────────────────────────────────────

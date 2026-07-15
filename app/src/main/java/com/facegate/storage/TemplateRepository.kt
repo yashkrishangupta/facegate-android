@@ -75,6 +75,25 @@ class TemplateRepository(
         students.forEach { studentDao.insertPendingStudent(it) }
     }
 
+    suspend fun findLocalOnlyMatch(rollNumber: String, batchId: String?, batchCode: String?): StudentEntity? =
+        studentDao.findLocalOnlyByBatchAndRoll(rollNumber, batchId, batchCode)
+
+    /**
+     * Same id-rename cascade as completeStudentEnrollmentSync (attendance +
+     * conflict rows follow), but triggered from the pull path (mergeStudent)
+     * when a server student turns out to be a local capture that hasn't
+     * synced yet — covers the case where the roster row was created by the
+     * website or a different device rather than by this device's own
+     * enroll push.
+     */
+    suspend fun reassignLocalStudentId(oldId: String, newId: String) {
+        if (oldId == newId) return
+        attendanceDao.renameStudentId(oldId, newId)
+        conflictDao.renameTopStudentId(oldId, newId)
+        conflictDao.renameSecondStudentId(oldId, newId)
+        studentDao.reassignLocalId(oldId, newId)
+    }
+
     suspend fun getStudentsWithUnsyncedEmbedding(): List<StudentEntity> =
         studentDao.getStudentsWithUnsyncedEmbedding()
 
@@ -123,6 +142,8 @@ class TemplateRepository(
         gender: String,
         email: String?,
         phone: String?,
+        dateOfBirth: String? = null,
+        profilePhotoUrl: String? = null,
     ) = studentDao.updateStudentInfo(
         studentId = studentId,
         name = name,
@@ -132,6 +153,8 @@ class TemplateRepository(
         gender = gender,
         email = email,
         phone = phone,
+        dateOfBirth = dateOfBirth,
+        profilePhotoUrl = profilePhotoUrl,
     )
 
     suspend fun getStudentById(studentId: String): StudentEntity? =

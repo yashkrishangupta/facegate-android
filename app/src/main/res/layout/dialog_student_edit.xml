@@ -240,6 +240,57 @@
             android:textColor="#FFFFFF"
             android:textColorHint="#708090" />
 
+        <!-- Date of Birth (optional) -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Date of Birth (optional)"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etDateOfBirth"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="18dp"
+            android:background="@drawable/edittext_dark"
+            android:clickable="true"
+            android:cursorVisible="false"
+            android:drawableStart="@android:drawable/ic_menu_my_calendar"
+            android:drawablePadding="12dp"
+            android:focusable="false"
+            android:hint="Tap to select date"
+            android:inputType="none"
+            android:paddingHorizontal="18dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#708090" />
+
+        <!-- Profile Photo URL (optional) -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Profile Photo URL (optional)"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etProfilePhotoUrl"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/edittext_dark"
+            android:drawableStart="@android:drawable/ic_menu_gallery"
+            android:drawablePadding="12dp"
+            android:hint="https://…"
+            android:imeOptions="actionDone"
+            android:inputType="textUri"
+            android:paddingHorizontal="18dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#708090" />
+
         <!-- Information -->
 
         <LinearLayout

@@ -230,6 +230,27 @@ class AttendanceSyncWorker @AssistedInject constructor(
     }
 
     private suspend fun mergeStudent(dto: SyncStudentDto) {
+        // This server row and a not-yet-synced on-device capture can be the
+        // same real person: the device creates a local-only row keyed by a
+        // typed placeholder id (e.g. "CSE24A-R11") the moment a face is
+        // captured, before it's ever pushed. If the matching roster row
+        // shows up in a pull first — created by the website, another
+        // device, or this device's own enroll call merging into an
+        // existing row (see backend enrollStudent) — insertPendingStudent
+        // below would IGNORE on conflict, but that conflict check is by
+        // primary key, and the two rows have different keys (placeholder
+        // vs. server UUID). Without this, that's a second, embedding-less
+        // row for the same student sitting right next to the real one —
+        // reassign the local row's id instead so there's only ever one.
+        val localMatch = templateRepository.findLocalOnlyMatch(
+            rollNumber = dto.rollNumber,
+            batchId = dto.batchId,
+            batchCode = dto.batchCode,
+        )
+        if (localMatch != null && localMatch.studentId != dto.studentId) {
+            templateRepository.reassignLocalStudentId(localMatch.studentId, dto.studentId)
+        }
+
         // insertPendingStudent() uses OnConflictStrategy.IGNORE, so a student
         // already enrolled locally (with a captured embedding) is never
         // clobbered by a repeat sync — see StudentDao. That means a status
@@ -419,7 +440,21 @@ class AttendanceSyncWorker @AssistedInject constructor(
             }
 
             val (first, last) = splitName(student.name)
-            val serverStudentId = UUID.randomUUID().toString()
+            // Deterministic, not random: this call can retry (network drop
+            // after the backend already committed, worker killed before the
+            // response arrives, etc.) without the client ever finding out
+            // the first attempt actually succeeded. A fresh random UUID on
+            // every retry meant the backend's `ON CONFLICT (student_id) DO
+            // UPDATE` upsert never matched the earlier row, so a retry after
+            // a lost response tried to INSERT a second row with the same
+            // (batch_id, roll_number) and hit uq_student_batch_roll instead
+            // of just updating the original — a permanent 400 loop. Hashing
+            // the stable local studentId gives the same UUID on every
+            // attempt for this student, so retries are true no-ops on the
+            // backend once the first one has landed.
+            val serverStudentId = UUID.nameUUIDFromBytes(
+                student.studentId.toByteArray(Charsets.UTF_8)
+            ).toString()
             val modelName = student.embeddingModelName ?: "facegate-mobile"
 
             val result = syncRepository.enrollStudent(

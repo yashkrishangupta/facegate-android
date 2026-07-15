@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.SystemClock
+import android.util.Log
 import com.facegate.alignment.FaceAligner
 import com.facegate.decision.AttendanceDecisionEngine
 import com.facegate.quality.QualityChecker
@@ -49,6 +50,10 @@ class AttendancePipeline(
     private val context: Context,
     private val repository: TemplateRepository,
 ) {
+
+    companion object {
+        private const val TAG = "AttendancePipeline"
+    }
 
     // ── Component instances ──────────────────────────────────────────────────
     private val faceDetector    = buildFaceDetector()
@@ -113,16 +118,7 @@ class AttendancePipeline(
 
         val students = repository.getEnrolledStudents()
         enrolledTemplates.clear()
-        enrolledTemplates.addAll(
-            students.mapNotNull { entity ->
-                val embedding = parseEmbedding(entity.embedding) ?: return@mapNotNull null
-                EnrolledTemplate(
-                    studentId   = entity.studentId,
-                    studentName = entity.name,
-                    embedding   = embedding,
-                )
-            }
-        )
+        enrolledTemplates.addAll(buildCompatibleTemplates(students))
     }
 
 
@@ -334,10 +330,7 @@ class AttendancePipeline(
 
         // ── Duplicate check — always load fresh from DB ──────────────────────
         val blendedEmbedding = FaceEmbedding(vector = normalised, inferenceTimeMs = 0)
-        val dbTemplates = repository.getStudents().mapNotNull { entity ->
-            val emb = parseEmbedding(entity.embedding) ?: return@mapNotNull null
-            EnrolledTemplate(studentId = entity.studentId, studentName = entity.name, embedding = emb)
-        }
+        val dbTemplates = buildCompatibleTemplates(repository.getStudents())
         val duplicate = similaritySearch.findDuplicateRisk(blendedEmbedding, dbTemplates)
         if (duplicate != null) {
             return EnrollmentResult.DuplicateRisk(
@@ -357,6 +350,8 @@ class AttendancePipeline(
                 studentClass       = studentClass,
                 embedding          = normalised.joinToString(","),
                 enrollmentStatus   = "DONE",
+                embeddingModelName = PipelineConfig.MODEL_NAME,
+                embeddingVersion   = PipelineConfig.MODEL_VERSION,
                 rollNumber         = info.rollNumber,
                 registrationNumber = info.registrationNumber,
                 gender             = info.gender,
@@ -406,7 +401,7 @@ class AttendancePipeline(
         val alignedFace = AlignedFace(aligned.alignedBitmap, scaledPhoto)
         val embedding   = faceEmbedder.embed(alignedFace)
 
-        val duplicate = similaritySearch.findDuplicateRisk(embedding, enrolledTemplates)
+        val duplicate = similaritySearch.findDuplicateRisk(embedding, buildCompatibleTemplates(repository.getStudents()))
         if (duplicate != null) {
             return EnrollmentResult.DuplicateRisk(
                 existingStudentId   = duplicate.studentId,
@@ -421,6 +416,8 @@ class AttendancePipeline(
                 studentClass       = studentClass,
                 embedding          = embedding.vector.joinToString(","),
                 enrollmentStatus   = "DONE",
+                embeddingModelName = PipelineConfig.MODEL_NAME,
+                embeddingVersion   = PipelineConfig.MODEL_VERSION,
                 rollNumber         = info.rollNumber,
                 registrationNumber = info.registrationNumber,
                 gender             = info.gender,
@@ -487,6 +484,8 @@ class AttendancePipeline(
                 studentClass       = studentClass,
                 embedding          = normalised.joinToString(","),
                 enrollmentStatus   = "DONE",
+                embeddingModelName = PipelineConfig.MODEL_NAME,
+                embeddingVersion   = PipelineConfig.MODEL_VERSION,
                 rollNumber         = info.rollNumber,
                 registrationNumber = info.registrationNumber,
                 gender             = info.gender,
@@ -668,6 +667,54 @@ class AttendancePipeline(
 
     private fun isBufferReady(): Boolean =
         frameBuffer.size >= PipelineConfig.FRAME_BUFFER_SIZE
+
+    /**
+     * Whether a stored template's embedding was produced by the same
+     * model/version this device is currently running. A raw dot product
+     * (see SimilaritySearch) is only meaningful when both vectors come
+     * from the same model and normalisation scheme — comparing across
+     * versions produces a number that looks like a similarity score but
+     * isn't one. This matters specifically for the whole-batch case: once
+     * embeddings-down sync (mergeEmbeddingDown) brings in templates
+     * captured on *other* devices, or a future model upgrade leaves mixed
+     * versions in the same batch, this is what keeps those from being
+     * silently compared as if they were compatible.
+     */
+    private fun StudentEntity.isEmbeddingCompatible(): Boolean =
+        embeddingModelName == PipelineConfig.MODEL_NAME && embeddingVersion == PipelineConfig.MODEL_VERSION
+
+    /**
+     * Builds the comparison pool for both recognition (startSession) and
+     * duplicate-risk checks (enrollment) from the same rule, so a template
+     * either compares everywhere or nowhere — never silently included in
+     * one path and excluded in another.
+     */
+    private fun buildCompatibleTemplates(entities: List<StudentEntity>): List<EnrolledTemplate> {
+        var skippedIncompatible = 0
+        val templates = entities.mapNotNull { entity ->
+            if (!entity.isEmbeddingCompatible()) {
+                skippedIncompatible++
+                return@mapNotNull null
+            }
+            val embedding = parseEmbedding(entity.embedding) ?: return@mapNotNull null
+            EnrolledTemplate(
+                studentId   = entity.studentId,
+                studentName = entity.name,
+                embedding   = embedding,
+            )
+        }
+        if (skippedIncompatible > 0) {
+            Log.w(
+                TAG,
+                "$skippedIncompatible student(s) excluded from face comparison — embedding "
+                    + "was produced by a different model/version than this device runs "
+                    + "(${PipelineConfig.MODEL_NAME}/${PipelineConfig.MODEL_VERSION}). "
+                    + "Re-enrollment on a matching device (or a server-side re-embed pass) "
+                    + "is needed before that student can be recognised or duplicate-checked here."
+            )
+        }
+        return templates
+    }
 
     private fun parseEmbedding(raw: String?): FloatArray? {
         if (raw.isNullOrBlank()) return null

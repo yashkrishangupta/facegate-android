@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="FaceGate">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-07-07T16:41:07.891824400Z">
+        <DropdownSelection timestamp="2026-07-15T06:31:19.257106900Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\WELCOME\.android\avd\Pixel_4a.avd" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=ZA222MQJ2G" />
             </handle>
           </Target>
         </DropdownSelection>

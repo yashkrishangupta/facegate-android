@@ -68,6 +68,32 @@ class SyncRepository @Inject constructor(
         return safeApiCall { api.getReports(since) }
     }
 
+    /**
+     * Wraps an HTTP error with the server's actual response body message
+     * (e.g. `{"success":false,"message":"No active batch found for
+     * batch_code CS-3A"}`) instead of Retrofit's bare "HTTP 400", so
+     * callers logging `e.message` (AttendanceSyncWorker's onFailure
+     * blocks) show something actionable.
+     */
+    class SyncHttpException(
+        val httpCode: Int,
+        rawBody: String?,
+        cause: Throwable
+    ) : Exception(extractMessage(rawBody, httpCode), cause) {
+        private companion object {
+            fun extractMessage(rawBody: String?, httpCode: Int): String {
+                if (rawBody.isNullOrBlank()) return "HTTP $httpCode"
+                return try {
+                    com.google.gson.JsonParser.parseString(rawBody)
+                        .asJsonObject.get("message")?.asString
+                        ?: "HTTP $httpCode: $rawBody"
+                } catch (e: Exception) {
+                    "HTTP $httpCode: $rawBody"
+                }
+            }
+        }
+    }
+
     private suspend fun <T> safeApiCall(call: suspend () -> T): Result<T> {
         return try {
             Result.success(call())
@@ -75,8 +101,20 @@ class SyncRepository @Inject constructor(
             Log.e(TAG, "Network error during sync", e)
             Result.failure(e)
         } catch (e: HttpException) {
-            Log.e(TAG, "HTTP error during sync: ${e.code()}", e)
-            Result.failure(e)
+            // e.message is just "HTTP 400" — the real reason lives in the
+            // response body and was never being read, so every failure
+            // logged identically regardless of cause. Read it once here
+            // (errorBody() can only be consumed once) and surface it so
+            // both Logcat and the caller's Result.failure see the actual
+            // server-side message (e.g. "No active batch found for
+            // batch_code ...") instead of a bare status code.
+            val errorBody = try {
+                e.response()?.errorBody()?.string()
+            } catch (readError: Exception) {
+                null
+            }
+            Log.e(TAG, "HTTP error during sync: ${e.code()} — ${errorBody ?: "(no body)"}", e)
+            Result.failure(SyncHttpException(e.code(), errorBody, e))
         } catch (e: Exception) {
             Log.e(TAG, "Unexpected error during sync", e)
             Result.failure(e)

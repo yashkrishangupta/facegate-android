@@ -39,7 +39,7 @@ class StudentsViewModel @Inject constructor(
             _state.value = StudentsState.Loading
             val students = repository.getStudents()
             _state.value = if (students.isEmpty()) StudentsState.Empty
-                           else StudentsState.Loaded(students)
+            else StudentsState.Loaded(students)
         }
     }
 
@@ -68,6 +68,8 @@ class StudentsViewModel @Inject constructor(
         gender: String,
         email: String?,
         phone: String?,
+        dateOfBirth: String? = null,
+        profilePhotoUrl: String? = null,
     ) {
         viewModelScope.launch {
             val trimmedRoll = rollNumber.trim()
@@ -84,6 +86,8 @@ class StudentsViewModel @Inject constructor(
                 gender = gender,
                 email = email,
                 phone = phone,
+                dateOfBirth = dateOfBirth,
+                profilePhotoUrl = profilePhotoUrl,
             )
             loadStudents()
         }

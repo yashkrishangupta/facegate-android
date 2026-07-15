@@ -74,7 +74,8 @@ interface StudentDao {
     @Query("""
         UPDATE students
         SET name = :name, studentClass = :studentClass, rollNumber = :rollNumber,
-            registrationNumber = :registrationNumber, gender = :gender, email = :email, phone = :phone
+            registrationNumber = :registrationNumber, gender = :gender, email = :email, phone = :phone,
+            dateOfBirth = :dateOfBirth, profilePhotoUrl = :profilePhotoUrl
         WHERE studentId = :studentId
     """)
     suspend fun updateStudentInfo(
@@ -86,10 +87,47 @@ interface StudentDao {
         gender: String,
         email: String?,
         phone: String?,
+        dateOfBirth: String?,
+        profilePhotoUrl: String?,
     )
 
     @Query("SELECT * FROM students WHERE studentId = :studentId LIMIT 1")
     suspend fun getStudentById(studentId: String): StudentEntity?
+
+    /**
+     * Finds a not-yet-synced on-device capture that this pulled-down
+     * server student is actually the same person as — matched by roll
+     * number within the same batch (the only stable shared identity
+     * before the local row has a server id). Used by mergeStudent to
+     * reassign the local row's id instead of letting insertPendingStudent
+     * add a second, embedding-less row under the server id: see
+     * TemplateRepository.reassignLocalStudentId.
+     */
+    @Query("""
+        SELECT * FROM students
+        WHERE isLocalOnly = 1 AND rollNumber = :rollNumber
+          AND (
+              (:batchId IS NOT NULL AND batchId = :batchId)
+              OR (:batchId IS NULL AND batchCode = :batchCode)
+          )
+        LIMIT 1
+    """)
+    suspend fun findLocalOnlyByBatchAndRoll(rollNumber: String, batchId: String?, batchCode: String?): StudentEntity?
+
+    /**
+     * Reassigns a local-only row's primary key to the server's id once a
+     * pull confirms this student now exists server-side under it — unlike
+     * completeEnrollmentSync, this doesn't touch embeddingSynced, since the
+     * local embedding (if any) still hasn't actually reached the server;
+     * it should still be picked up by the ordinary pushPendingEmbeddings
+     * path afterward, not marked done here.
+     */
+    @Query("""
+        UPDATE students
+        SET studentId = :newId, isLocalOnly = 0
+        WHERE studentId = :oldId
+    """)
+    suspend fun reassignLocalId(oldId: String, newId: String)
 
     @Query("UPDATE students SET studentId = :newId, name = :name, studentClass = :studentClass WHERE studentId = :oldId")
     suspend fun updateStudentIdAndInfo(oldId: String, newId: String, name: String, studentClass: String)
