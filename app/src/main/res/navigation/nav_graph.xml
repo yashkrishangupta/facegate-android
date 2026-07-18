@@ -61,11 +61,18 @@
         android:label="Device Setup"
         tools:layout="@layout/fragment_pairing">
 
-        <action
-            android:id="@+id/action_pairing_to_dashboard"
-            app:destination="@id/adminDashboard"
-            app:popUpTo="@id/adminDashboard"
-            app:popUpToInclusive="true" />
+        <!-- No "pairing succeeded -> navigate to adminDashboard" action
+             anymore. PairingFragment.onViewCreated's Success handling calls
+             MainActivity.onPairingComplete() instead, which always returns
+             to the role selector — Admin Mode is login-gated (AuthGate)
+             against synced admin accounts, so jumping straight into
+             adminDashboard from here would skip that gate. Covers both a
+             fresh unpaired device (MainActivity routes here before the role
+             selector even shows) and re-pairing from inside Admin Dashboard
+             (action_dashboard_to_pairing below) — either way, whoever's
+             holding the device logs in again afterward rather than being
+             carried over on trust, which matters more after a re-pair since
+             it can change which room/faculty this device is scoped to. -->
 
     </fragment>
 

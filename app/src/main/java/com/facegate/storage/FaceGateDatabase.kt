@@ -5,6 +5,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.facegate.storage.dao.AttendanceDao
+import com.facegate.storage.dao.AuthUserDao
 import com.facegate.storage.dao.ConflictDao
 import com.facegate.storage.dao.HolidayDao
 import com.facegate.storage.dao.OverrideDao
@@ -14,6 +15,7 @@ import com.facegate.storage.dao.SyncLogDao
 import com.facegate.storage.dao.SyncStateDao
 import com.facegate.storage.dao.TimetableDao
 import com.facegate.storage.entity.AttendanceEntity
+import com.facegate.storage.entity.AuthUserEntity
 import com.facegate.storage.entity.ConflictEntity
 import com.facegate.storage.entity.HolidayEntity
 import com.facegate.storage.entity.OverrideEntity
@@ -34,8 +36,9 @@ import com.facegate.storage.entity.TimetableEntity
         OverrideEntity::class,
         HolidayEntity::class,
         SyncStateEntity::class,
+        AuthUserEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 abstract class FaceGateDatabase : RoomDatabase() {
@@ -48,6 +51,7 @@ abstract class FaceGateDatabase : RoomDatabase() {
     abstract fun overrideDao()   : OverrideDao
     abstract fun holidayDao()    : HolidayDao
     abstract fun syncStateDao()  : SyncStateDao
+    abstract fun authUserDao()   : AuthUserDao
 }
 
 /**
@@ -149,5 +153,29 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
 val MIGRATION_5_6 = object : Migration(5, 6) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("DROP TABLE IF EXISTS weekly_off")
+    }
+}
+
+/**
+ * New table backing the Admin Mode / start-my-period login gates (see
+ * AuthUserEntity, AuthGate). Additive-only, same reasoning as MIGRATION_4_5
+ * — real device data already exists, no destructive wipes.
+ */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS auth_users (
+                adminId TEXT NOT NULL PRIMARY KEY,
+                employeeId TEXT,
+                firstName TEXT NOT NULL,
+                lastName TEXT NOT NULL,
+                role TEXT NOT NULL,
+                passwordHash TEXT NOT NULL,
+                facultyId TEXT,
+                serverUpdatedAt TEXT
+            )
+            """.trimIndent()
+        )
     }
 }

@@ -12,11 +12,14 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.facegate.databinding.FragmentTodayScheduleBinding
 import com.facegate.databinding.ItemScheduleRowBinding
+import com.facegate.security.AuthPromptDialog
+import com.facegate.security.AuthGate
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class TodayScheduleFragment : Fragment() {
@@ -25,6 +28,9 @@ class TodayScheduleFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: TodayScheduleViewModel by viewModels()
+
+    @Inject
+    lateinit var authGate: AuthGate
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -115,19 +121,46 @@ class TodayScheduleFragment : Fragment() {
         itemBinding.btnStart.setOnClickListener {
             val entry = item.timetableEntry
             if (entry != null) {
-                viewModel.startSession(entry) { sessionId, scheduledStartTimeMs ->
-                    navigateToAttendance(
-                        sessionId            = sessionId,
-                        subject              = item.subject,
-                        batch                = item.batch,
-                        windowMinutes         = item.windowMinutes,
-                        scheduledStartTimeMs = scheduledStartTimeMs,
-                    )
+                // Starting a period requires the password of the faculty
+                // it's assigned to (or an admin override) — see AuthGate.
+                // facultyId being null here would mean this timetable row
+                // synced down without one, which shouldn't happen (backend
+                // requires it, see schema.sql timetable.faculty_id NOT
+                // NULL); guard anyway rather than silently letting anyone
+                // start it.
+                val facultyId = entry.facultyId
+                if (facultyId.isNullOrBlank()) {
+                    AlertDialog.Builder(requireContext())
+                        .setTitle("Can't start this period")
+                        .setMessage("This period has no faculty assigned — check the timetable on the website.")
+                        .setPositiveButton("OK", null)
+                        .show()
+                    return@setOnClickListener
                 }
+
+                AuthPromptDialog.show(
+                    context = requireContext(),
+                    lifecycleScope = viewLifecycleOwner.lifecycleScope,
+                    title = "Start ${item.subject}",
+                    message = "Enter your password to start this period.",
+                    onVerify = { password -> authGate.verifyPeriodStart(facultyId, password) },
+                    onSuccess = {
+                        viewModel.startSession(entry) { sessionId, scheduledStartTimeMs ->
+                            navigateToAttendance(
+                                sessionId            = sessionId,
+                                subject              = item.subject,
+                                batch                = item.batch,
+                                windowMinutes         = item.windowMinutes,
+                                scheduledStartTimeMs = scheduledStartTimeMs,
+                            )
+                        }
+                    },
+                )
             } else {
                 // Extra period — its session already exists from when it was
-                // added, so re-entering it just navigates back in rather than
-                // starting a second session for the same row.
+                // added (which was itself gated, at creation time), so
+                // re-entering it just navigates back in rather than starting
+                // a second session for the same row. Not re-prompted here.
                 navigateToAttendance(
                     sessionId            = item.existingSessionId!!,
                     subject              = item.subject,

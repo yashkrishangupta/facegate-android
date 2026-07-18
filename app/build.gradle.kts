@@ -39,15 +39,6 @@ android {
         dataBinding = true
         viewBinding = true
     }
-
-//    packaging {
-//        resources {
-//            excludes += setOf(
-//                "META-INF/INDEX.LIST",
-//                "META-INF/io.netty.versions.properties"
-//            )
-//        }
-//    }
 }
 
 // Room schema export location
@@ -116,4 +107,7 @@ dependencies {
     //Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+
+    //Auth
+    implementation("at.favre.lib:bcrypt:0.10.2")
 }

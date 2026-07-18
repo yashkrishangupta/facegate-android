@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.WorkManager
 import com.facegate.sync.AttendanceSyncWorker
 import com.facegate.sync.DeviceIdManager
 import com.facegate.sync.PairDeviceRequest
@@ -12,13 +13,23 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 import javax.inject.Inject
 
 sealed class PairingState {
     object Idle    : PairingState()
     object Loading : PairingState()
+    /**
+     * Credentials are saved and the pairing call itself succeeded — now
+     * waiting on one real sync so the very next screen (role selector,
+     * gated Admin Mode included) has synced auth_users/timetable/etc. to
+     * work with, instead of an empty local DB that would fail every login
+     * with "not synced yet". See AuthGate.NotSyncedYet.
+     */
+    object Syncing : PairingState()
     object Success : PairingState()
     data class Failed(val reason: String) : PairingState()
 }
@@ -42,6 +53,13 @@ class PairingViewModel @Inject constructor(
         // TODO: switch to BuildConfig.VERSION_NAME once buildFeatures.buildConfig = true
         // is enabled in build.gradle.kts.
         const val APP_VERSION = "1.0.0"
+
+        // How long to wait for the post-pairing sync before giving up on
+        // waiting and letting the person through anyway. The periodic sync
+        // job (already scheduled by this point) will keep retrying — this
+        // timeout just protects against a slow/flaky network turning
+        // pairing into an indefinite spinner.
+        const val INITIAL_SYNC_TIMEOUT_MS = 30_000L
     }
 
     private val _pairingState = MutableStateFlow<PairingState>(PairingState.Idle)
@@ -87,9 +105,25 @@ class PairingViewModel @Inject constructor(
             deviceIdManager.saveRoomId(device.roomId)
             deviceIdManager.saveRoomNumber(device.roomNumber)
 
-            // First sync happens right away so the device has its timetable/
-            // students/holidays before anyone tries to take attendance.
+            // Recurring hourly sync from here on.
             AttendanceSyncWorker.Scheduler.schedulePeriodicSync(appContext, device.roomId)
+
+            // ...but also force + wait for one sync right now, rather than
+            // trusting the periodic job's own timing. Without this, a
+            // freshly-paired device would drop the person on the role
+            // selector with zero synced admin/faculty accounts, and Admin
+            // Mode's login gate would fail every attempt until the next
+            // periodic run happened to fire.
+            _pairingState.value = PairingState.Syncing
+            val syncRequestId = AttendanceSyncWorker.Scheduler.runOnce(appContext, device.roomId)
+            withTimeoutOrNull(INITIAL_SYNC_TIMEOUT_MS) {
+                WorkManager.getInstance(appContext)
+                    .getWorkInfoByIdFlow(syncRequestId)
+                    .firstOrNull { info -> info != null && info.state.isFinished }
+            }
+            // Proceed regardless of how that resolved (finished, timed out,
+            // even failed) — pairing itself already succeeded, and the
+            // periodic job will keep retrying the sync in the background.
 
             _pairingState.value = PairingState.Success
         }

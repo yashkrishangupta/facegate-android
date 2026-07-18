@@ -15,6 +15,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.facegate.storage.TemplateRepository
+import com.facegate.storage.entity.AuthUserEntity
 import com.facegate.storage.entity.HolidayEntity
 import com.facegate.storage.entity.OverrideEntity
 import com.facegate.storage.entity.StudentEntity
@@ -112,9 +113,11 @@ class AttendanceSyncWorker @AssistedInject constructor(
         /**
          * Forces a one-off run right now, regardless of the hourly schedule —
          * e.g. a manual "Sync Now" button. Runs once; the periodic schedule
-         * above is untouched.
+         * above is untouched. Returns the request's id so a caller that wants
+         * to show a spinner/status (rather than pure fire-and-forget) can
+         * observe it via WorkManager.getInstance(context).getWorkInfoByIdLiveData(id).
          */
-        fun runOnce(context: Context, roomId: String) {
+        fun runOnce(context: Context, roomId: String): java.util.UUID {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()
@@ -125,6 +128,7 @@ class AttendanceSyncWorker @AssistedInject constructor(
                 .build()
 
             WorkManager.getInstance(context).enqueue(request)
+            return request.id
         }
     }
 
@@ -159,6 +163,7 @@ class AttendanceSyncWorker @AssistedInject constructor(
             syncData.data?.conflicts?.forEach { dto -> templateRepository.upsertServerConflict(dto) }
             syncData.data?.embeddings?.forEach { dto -> mergeEmbeddingDown(dto) }
             syncData.data?.attendanceUpdates?.forEach { dto -> mergeAttendanceDown(dto) }
+            syncData.data?.authUsers?.let { mergeAuthUsers(it) }
             recordSuccess(SyncStateEntity.Category.PULL)
 
             // 3. Push unsynced attendance — core path, unchanged.
@@ -189,6 +194,32 @@ class AttendanceSyncWorker @AssistedInject constructor(
     }
 
     // ── 2. Merge helpers (pull) ──────────────────────────────────────────────
+
+    /**
+     * Wholesale replace, not per-row upsert — since AttendanceSyncWorker
+     * always calls incrementalSync(since = null) (see doWork above), every
+     * sync's authUsers list is already the complete, current set for this
+     * device. Replacing rather than upserting is what makes a deactivated
+     * or reassigned account's password stop working here promptly, instead
+     * of an old row lingering forever in a local-only cache with no way to
+     * know it should be removed. See AuthUserEntity's doc comment.
+     */
+    private suspend fun mergeAuthUsers(dtos: List<SyncAuthUserDto>) {
+        templateRepository.replaceAuthUsers(
+            dtos.map { dto ->
+                AuthUserEntity(
+                    adminId = dto.adminId,
+                    employeeId = dto.employeeId,
+                    firstName = dto.firstName,
+                    lastName = dto.lastName,
+                    role = dto.role,
+                    passwordHash = dto.passwordHash,
+                    facultyId = dto.facultyId,
+                    serverUpdatedAt = dto.updatedAt,
+                )
+            }
+        )
+    }
 
     private suspend fun mergeTimetable(dto: SyncTimetableDto) {
         val dayInt = DAY_NAME_TO_INT[dto.dayOfWeek.lowercase()] ?: return
@@ -468,6 +499,7 @@ class AttendanceSyncWorker @AssistedInject constructor(
                     gender = gender,
                     admissionYear = admissionYear,
                     dateOfBirth = student.dateOfBirth,
+                    profilePhotoUrl = student.profilePhotoUrl,
                     email = student.email,
                     phone = student.phone,
                     embeddingData = embeddingFloats,

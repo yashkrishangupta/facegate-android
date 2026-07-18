@@ -47,9 +47,16 @@ interface DeviceApi {
     /**
      * POST /api/v1/devices/change-log — device-authed equivalent of the
      * website's ADMIN+/JWT-only GET /change-log (that one's read-only anyway).
-     * Not on the backend yet — see API_CONTRACT.md Part 3. Deliberately its
-     * own device-scoped endpoint rather than reusing /change-log, per this
-     * doc's own rule: "two separate credential systems — don't conflate them".
+     * On the backend now (routes/devices.ts, deviceAuth-protected). Was
+     * silently dropping every event server-side until change_log.entity_id
+     * was widened from UUID to TEXT (migration 005) — the composite ids
+     * this endpoint sends, e.g. "missed:<timetable_id>:<date>", aren't
+     * valid UUIDs, and ChangeLogRepository.recordChange swallows insert
+     * errors rather than propagating them, so the push always reported
+     * success even though nothing was written. Deliberately its own
+     * device-scoped endpoint rather than reusing /change-log, per this
+     * doc's own rule: "two separate credential systems — don't conflate
+     * them".
      */
     @POST("api/v1/devices/change-log")
     suspend fun pushChangeLogEvents(@Body request: ChangeLogEventRequest): SyncMessageResponse

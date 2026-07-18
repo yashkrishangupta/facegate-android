@@ -2,14 +2,25 @@ package com.facegate
 
 import android.os.Bundle
 import android.view.View
+import android.widget.ImageView
+import android.widget.ProgressBar
+import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import com.facegate.security.AuthGate
+import com.facegate.security.AuthPromptDialog
+import com.facegate.sync.AttendanceSyncWorker
+import com.facegate.sync.DeviceIdManager
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 /**
  * MAIN ACTIVITY
@@ -34,6 +45,12 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
     private var navController: NavController? = null
+
+    @Inject
+    lateinit var authGate: AuthGate
+
+    @Inject
+    lateinit var deviceIdManager: DeviceIdManager
 
     // Back-press callback — active only while a nav graph is loaded
     private val navBackCallback = object : OnBackPressedCallback(false) {
@@ -63,8 +80,121 @@ class MainActivity : AppCompatActivity() {
             launchGraph(startDestinationId = R.id.todayScheduleFragment)
         }
 
+        // Admin Mode is gated — only an account synced down as ADMIN/
+        // SUPER_ADMIN for this device can enter (see AuthGate, and the
+        // Android auth task this implements). Faculty accounts are never
+        // valid here; they only unlock their own period, from the "Take
+        // Attendance" side (TodayScheduleFragment's Start button).
         findViewById<View>(R.id.btnAdmin).setOnClickListener {
-            launchGraph(startDestinationId = R.id.adminDashboard)
+            AuthPromptDialog.show(
+                context = this,
+                lifecycleScope = lifecycleScope,
+                title = "Admin Mode",
+                message = "Enter your admin password to continue.",
+                onVerify = { password -> authGate.verifyAdminLogin(password) },
+                onSuccess = { launchGraph(startDestinationId = R.id.adminDashboard) },
+            )
+        }
+
+        setupSyncButton()
+
+        // Must be reachable with zero local data: an unpaired device has
+        // never synced anything (no room, no admin/faculty accounts), and
+        // Admin Mode is now login-gated against synced accounts (AuthGate).
+        // So pairing can't be reached *through* Admin Mode the way it used
+        // to be — it has to come before the role selector even shows.
+        // Pairing itself needs no password, just the 6-digit code an admin
+        // generates on the website.
+        //
+        // Root cause of a crash this used to trigger: activity_main.xml's
+        // nav_host_fragment used to declare app:navGraph statically, which
+        // made NavHostFragment auto-inflate the graph and silently start
+        // showing its XML-declared start destination (adminDashboard) the
+        // moment the layout was created — racing against this very call,
+        // which sets the graph a second time to pairingFragment. Depending
+        // on timing, the auto-shown AdminDashboard's own onViewCreated
+        // (which has its own isPaired() check, see AdminDashboard.kt) could
+        // run *after* this had already reset the graph, and then try to
+        // navigate(action_dashboard_to_pairing) from a destination that no
+        // longer had that action — crash. Fixed by removing app:navGraph
+        // from the XML; setGraph() is now the *only* thing that ever loads
+        // this NavHostFragment's graph. savedInstanceState == null here
+        // just additionally avoids redundant graph resets (and losing
+        // in-progress state, e.g. a half-typed pairing code) on a plain
+        // rotation/config change.
+        if (savedInstanceState == null && !deviceIdManager.isPaired()) {
+            launchGraph(startDestinationId = R.id.pairingFragment)
+        }
+    }
+
+    /**
+     * Called by PairingFragment once pairing (and its post-pair sync) has
+     * finished — always returns to the role selector rather than
+     * navigating deeper into the graph, so a "just paired" device can't
+     * skip Admin Mode's login gate. The person still has to tap Admin Mode
+     * and enter a password, same as any other time.
+     */
+    fun onPairingComplete() {
+        showRoleSelector()
+    }
+
+    // ── Manual sync ───────────────────────────────────────────────────────────
+
+    /**
+     * "Sync Now" on the role-selector screen — fires the same
+     * AttendanceSyncWorker the hourly periodic job uses (see
+     * AttendanceSyncWorker.Scheduler.runOnce), just on demand. Observes the
+     * WorkInfo for that one request so the button can show a spinner while
+     * it runs and a real success/failure result — not just fire-and-forget.
+     */
+    private fun setupSyncButton() {
+        val card     = findViewById<View>(R.id.btnSyncNow)
+        val icon     = findViewById<ImageView>(R.id.imgSyncIcon)
+        val progress = findViewById<ProgressBar>(R.id.progressSync)
+        val status   = findViewById<TextView>(R.id.tvSyncStatus)
+
+        card.setOnClickListener {
+            if (!deviceIdManager.isPaired()) {
+                status.text = "Device isn't paired yet"
+                return@setOnClickListener
+            }
+            val roomId = deviceIdManager.getRoomId()
+            if (roomId.isNullOrBlank()) {
+                status.text = "No room assigned to this device"
+                return@setOnClickListener
+            }
+
+            card.isEnabled = false
+            icon.visibility = View.GONE
+            progress.visibility = View.VISIBLE
+            status.text = "Syncing…"
+
+            val requestId = AttendanceSyncWorker.Scheduler.runOnce(this, roomId)
+            WorkManager.getInstance(this)
+                .getWorkInfoByIdLiveData(requestId)
+                .observe(this) { info ->
+                    if (info == null) return@observe
+                    val finished = when (info.state) {
+                        WorkInfo.State.SUCCEEDED -> {
+                            status.text = "Synced just now"
+                            true
+                        }
+                        WorkInfo.State.FAILED -> {
+                            status.text = "Sync failed — check your connection"
+                            true
+                        }
+                        WorkInfo.State.CANCELLED -> {
+                            status.text = "Sync cancelled"
+                            true
+                        }
+                        else -> false // ENQUEUED / RUNNING / BLOCKED — keep the spinner
+                    }
+                    if (finished) {
+                        card.isEnabled = true
+                        icon.visibility = View.VISIBLE
+                        progress.visibility = View.GONE
+                    }
+                }
         }
     }
 

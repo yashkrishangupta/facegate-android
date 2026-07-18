@@ -1,12 +1,14 @@
 package com.facegate.storage
 
 import com.facegate.storage.dao.AttendanceDao
+import com.facegate.storage.dao.AuthUserDao
 import com.facegate.storage.dao.ClassAttendanceSummary
 import com.facegate.storage.dao.ConflictDao
 import com.facegate.storage.dao.StudentDao
 import com.facegate.storage.dao.SyncLogDao
 import com.facegate.storage.dao.SyncStateDao
 import com.facegate.storage.entity.AttendanceEntity
+import com.facegate.storage.entity.AuthUserEntity
 import com.facegate.storage.entity.ConflictEntity
 import com.facegate.storage.entity.StudentEntity
 import com.facegate.storage.entity.SyncLogEntity
@@ -32,7 +34,15 @@ class TemplateRepository(
     private val overrideDao   : OverrideDao,
     private val holidayDao    : HolidayDao,
     private val syncStateDao  : SyncStateDao,
+    private val authUserDao   : AuthUserDao,
 ) {
+
+    // ── Auth users (Admin Mode / start-my-period login gates) ───────────────
+
+    suspend fun replaceAuthUsers(users: List<AuthUserEntity>) = authUserDao.replaceAll(users)
+    suspend fun getAdminAuthUsers() = authUserDao.getAdmins()
+    suspend fun getAuthUserByFacultyId(facultyId: String) = authUserDao.getByFacultyId(facultyId)
+    suspend fun hasSyncedAuthUsers() = authUserDao.count() > 0
 
     // ── Student ───────────────────────────────────────────────────────────────
 

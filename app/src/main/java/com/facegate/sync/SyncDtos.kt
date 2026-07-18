@@ -201,6 +201,26 @@ data class SyncEmbeddingDto(
     @SerializedName("updated_at") val updatedAt: String?,
 )
 
+/**
+ * An account allowed to log in on this device — see API_CONTRACT.md §3
+ * "authUsers". Either a global ADMIN/SUPER_ADMIN, or a FACULTY account
+ * scoped to this device's room (facultyId will be non-null and matches
+ * SyncTimetableDto.facultyId for the periods this person teaches here).
+ *
+ * passwordHash is a bcrypt hash (same one the website checks at login),
+ * never plaintext — see PasswordVerifier for how it's checked on-device.
+ */
+data class SyncAuthUserDto(
+    @SerializedName("admin_id") val adminId: String,
+    @SerializedName("employee_id") val employeeId: String?,
+    @SerializedName("first_name") val firstName: String,
+    @SerializedName("last_name") val lastName: String,
+    @SerializedName("role") val role: String, // "SUPER_ADMIN" | "ADMIN" | "FACULTY"
+    @SerializedName("password_hash") val passwordHash: String,
+    @SerializedName("faculty_id") val facultyId: String? = null,
+    @SerializedName("updated_at") val updatedAt: String?,
+)
+
 data class FullSyncData(
     val timetable: List<SyncTimetableDto> = emptyList(),
     val students: List<SyncStudentDto> = emptyList(),
@@ -213,6 +233,7 @@ data class FullSyncData(
     // Real, backend-verified — see SyncEmbeddingDto's doc comment.
     val embeddings: List<SyncEmbeddingDto> = emptyList(),
     @SerializedName("attendanceUpdates") val attendanceUpdates: List<SyncAttendanceDto> = emptyList(),
+    @SerializedName("authUsers") val authUsers: List<SyncAuthUserDto> = emptyList(),
     @SerializedName("lastSync") val lastSync: String?,
 )
 
@@ -227,12 +248,14 @@ data class IncrementalSyncData(
     @SerializedName("updatedStudents") val updatedStudents: Int,
     @SerializedName("updatedHolidays") val updatedHolidays: Int,
     @SerializedName("updatedEmbeddings") val updatedEmbeddings: Int = 0,
+    @SerializedName("updatedAuthUsers") val updatedAuthUsers: Int = 0,
     val timetable: List<SyncTimetableDto> = emptyList(),
     val students: List<SyncStudentDto> = emptyList(),
     val holidays: List<SyncHolidayDto> = emptyList(),
     val conflicts: List<SyncConflictDto> = emptyList(),
     val embeddings: List<SyncEmbeddingDto> = emptyList(),
     @SerializedName("attendanceUpdates") val attendanceUpdates: List<SyncAttendanceDto> = emptyList(),
+    @SerializedName("authUsers") val authUsers: List<SyncAuthUserDto> = emptyList(),
     @SerializedName("lastSync") val lastSync: String?,
 )
 

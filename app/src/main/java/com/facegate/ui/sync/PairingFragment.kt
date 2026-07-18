@@ -11,7 +11,6 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.fragment.findNavController
 import com.facegate.R
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -75,10 +74,20 @@ class PairingFragment : Fragment() {
                 setLoading(true)
                 hideFeedback()
             }
+            is PairingState.Syncing -> {
+                setLoading(true)
+                showFeedback("Setting up your device — syncing timetable and accounts…")
+            }
             is PairingState.Success -> {
                 setLoading(false)
                 Toast.makeText(requireContext(), "Device paired successfully!", Toast.LENGTH_SHORT).show()
-                findNavController().navigate(R.id.action_pairing_to_dashboard)
+                // Always back to the role selector, never straight into
+                // AdminDashboard — Admin Mode is login-gated (AuthGate)
+                // against synced admin accounts, and jumping in here would
+                // skip that gate. Covers a fresh unpaired device (routed
+                // here before the role selector even showed) and re-pairing
+                // from inside Admin Dashboard alike.
+                (activity as? com.facegate.MainActivity)?.onPairingComplete()
                 viewModel.resetState() // avoid re-navigating if this state is re-collected (e.g. rotation)
             }
             is PairingState.Failed -> {
